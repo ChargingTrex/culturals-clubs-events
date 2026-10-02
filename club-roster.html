@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Members & roles — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, showError, toast } from "./src/ui.js";
+import * as api from "./src/api.js";
+import { CLUB_ROLES, CLUB_ROLE_LABELS } from "./src/roles.js";
+
+await page("club-roster.html", async (main, session, caps) => {
+  if (!caps.clubs.length) {
+    throw Object.assign(new Error("You hold no club role."),
+      { status: 403, title: "No club", detail: "This page belongs to club members." });
+  }
+  const clubId = caps.clubs[0];
+  const draw = () => {
+    const roster = api.clubs.roster(session, clubId);
+    main.innerHTML = `
+      <div class="head"><div><h1>${esc(roster.club.name)} members</h1>
+        <p class="muted">${roster.results.length} members. ${roster.canAssignRoles
+          ? "You can assign roles."
+          : "Only the President or Vice-President can assign roles."}</p></div></div>
+      ${roster.canAssignRoles ? "" : `<p class="note" style="margin-bottom:14px">Role
+        controls are off for your role. The same rule is checked when a change is
+        saved — hiding the control is not the permission.</p>`}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>PRN</th><th>Programme</th><th>Role</th></tr></thead>
+        <tbody>${roster.results.map(m => `<tr>
+          <td>${esc(m.fullName)}</td><td class="muted">${esc(m.prn)}</td>
+          <td class="muted">${esc(m.programme)}, Y${m.year ?? "—"}</td>
+          <td>${roster.canAssignRoles
+            ? `<select data-role="${m.id}">${CLUB_ROLES.map(r =>
+                `<option value="${r}" ${r === m.role ? "selected" : ""}>${
+                  esc(CLUB_ROLE_LABELS[r])}</option>`).join("")}</select>`
+            : `<span class="pill">${esc(m.roleLabel)}</span>`}</td></tr>`).join("")}
+      </tbody></table></div>
+      ${roster.recentChanges.length ? `<div class="panel" style="margin-top:18px">
+        <h3>Role changes</h3><ul class="list" style="margin-top:8px">
+        ${roster.recentChanges.map(c => `<li class="small">${esc(c.actorLabel)} changed
+          ${esc(CLUB_ROLE_LABELS[c.fromRole] || c.fromRole)} →
+          ${esc(CLUB_ROLE_LABELS[c.toRole] || c.toRole)}
+          ${c.reason ? `— ${esc(c.reason)}` : ""}</li>`).join("")}</ul></div>` : ""}`;
+  };
+  draw();
+
+  main.addEventListener("change", event => {
+    const select = event.target.closest("[data-role]");
+    if (!select) return;
+    try {
+      api.clubs.setRole(session, select.dataset.role,
+        { role: select.value, reason: "Changed from the roster" });
+      toast("Role updated");
+      draw();
+    } catch (err) {
+      const box = document.createElement("div");
+      main.prepend(box);
+      showError(box, err);
+      draw();
+    }
+  });
+});
+</script>
+</body>
+</html>

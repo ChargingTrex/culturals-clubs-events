@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What's on — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, inr, dateBox, statusPill, fmtTime, showError, toast } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("student-events.html", async (main, session) => {
+  const draw = () => {
+    const events = api.events.list(session, { status: "published,live" });
+    main.innerHTML = `
+      <div class="head"><div><h1>What's on</h1>
+        <p class="muted">Register once and your pass appears under My passes. Show it
+          at the door, or just show your profile QR.</p></div></div>
+      ${events.length ? `<ul class="list">${events.map(e => `
+        <li class="event">${dateBox(e.startsAt)}
+          <div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
+            <p class="muted small">${esc(e.clubName)} · ${esc(e.venueName)} ·
+              ${fmtTime(e.startsAt)}–${fmtTime(e.endsAt)}</p>
+            <div class="meter" style="margin-top:8px;max-width:260px">
+              <i style="width:${Math.min(100, e.registered / e.capacity * 100)}%"></i></div>
+            <p class="small muted" style="margin-top:4px">${e.registered} of
+              ${e.capacity} places taken</p></div>
+          <div class="row end">${e.myRegistration
+            ? `<a class="btn" href="student-passes.html">View pass</a>
+               <button class="btn quiet" data-cancel="${e.myRegistration.id}">Cancel</button>`
+            : `<button class="btn primary" data-register="${e.id}"
+                 ${e.registered >= e.capacity ? "disabled" : ""}>
+                 ${e.registered >= e.capacity ? "Full" : "Register"}</button>`}</div></li>`
+        ).join("")}</ul>`
+        : `<div class="empty">Nothing published yet. Approve something as the Dean and
+            it appears here.</div>`}`;
+  };
+  draw();
+
+  main.addEventListener("click", async event => {
+    const button = event.target.closest("[data-register],[data-cancel]");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      if (button.dataset.register) {
+        await api.participation.register(session, button.dataset.register);
+        toast("Registered — your pass is ready");
+      } else {
+        api.participation.cancel(session, button.dataset.cancel);
+        toast("Registration cancelled");
+      }
+      draw();
+    } catch (err) {
+      button.disabled = false;
+      const box = document.createElement("div");
+      main.prepend(box);
+      showError(box, err);
+    }
+  });
+});
+</script>
+</body>
+</html>

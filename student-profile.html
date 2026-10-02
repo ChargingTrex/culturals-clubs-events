@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile QR — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, qrImage, toast } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("student-profile.html", async (main, session) => {
+  const render = async () => {
+    const wallet = await api.participation.myPasses(session);
+    const qr = wallet.profileQr;
+    main.innerHTML = `
+      <div class="head"><div><h1>${esc(session.displayName)}</h1>
+        <p class="muted">${esc(session.prn || "")} · ${esc(session.programme || "")} ·
+          Year ${session.year ?? "—"}</p></div></div>
+      <div class="grid2">
+        <div class="panel" style="text-align:center">
+          <div id="qrHost"><div class="loading">Drawing…</div></div>
+          <p style="margin-top:14px;font-weight:600">Your profile QR · v${qr.version}</p>
+          <p class="small muted">Works at any event, including walk-ins — one scan
+            registers you and checks you in.</p>
+          <button class="btn" id="reissue" style="margin-top:12px">Lost your phone?
+            Reissue</button>
+        </div>
+        <div class="stack">
+          <div class="note">${esc(wallet.note)}</div>
+          <div class="panel"><h3>Why this is not your PRN</h3>
+            <p class="small muted" style="margin-top:6px">The code holds a signed
+              reference. Someone photographing it learns nothing about you, and
+              reissuing it stops the old one working at the door immediately.</p></div>
+          <div class="tokenbox">${esc(qr.token)}</div>
+        </div></div>`;
+
+    const src = await qrImage(qr.token, 220);
+    document.getElementById("qrHost").innerHTML = src
+      ? `<div class="qr-holder"><img src="${src}" alt="Profile QR" width="220" height="220"></div>`
+      : `<div class="tokenbox">${esc(qr.token)}</div>`;
+
+    document.getElementById("reissue").addEventListener("click", async () => {
+      await api.participation.reissueProfileQr(session);
+      toast("Reissued — the old code no longer works");
+      render();
+    });
+  };
+  await render();
+});
+</script>
+</body>
+</html>

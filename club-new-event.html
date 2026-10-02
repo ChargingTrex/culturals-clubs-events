@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New event — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, inr, showError } from "./src/ui.js";
+import * as api from "./src/api.js";
+import { db } from "./src/db.js";
+
+await page("club-new-event.html", async (main, session, caps) => {
+  if (!caps.clubsCanPropose.length) {
+    throw Object.assign(new Error("Only the President, Vice-President, Secretary or "
+      + "Treasurer may raise a proposal."),
+      { status: 403, title: "Cannot propose", code: "EVENTS_PROPOSE_DENIED" });
+  }
+  const clubId = caps.clubsCanPropose[0];
+  const venues = api.venues.list();
+  const defaultDate = new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10);
+
+  main.innerHTML = `
+    <div class="head"><div><h1>New event</h1>
+      <p class="muted">Pick a template and the budget fills itself in, or create it
+        unpriced and let the Treasurer add the entries.</p></div></div>
+    <div class="panel stack" style="max-width:760px">
+      <div class="grid2">
+        <div><label for="t">Event name</label>
+          <input id="t" placeholder="e.g. Monsoon Ragas"></div>
+        <div><label for="k">Budget</label><select id="k">
+          <option value="">Price it later — the Treasurer adds the entries</option>
+          ${api.budget.templates().map(x =>
+            `<option value="${esc(x.name)}">From template: ${esc(x.name)}</option>`
+          ).join("")}</select></div></div>
+      <div class="grid3">
+        <div><label for="d">Date</label><input id="d" type="date" value="${defaultDate}"></div>
+        <div><label for="s">Starts</label><input id="s" type="time" value="16:30"></div>
+        <div><label for="e">Ends</label><input id="e" type="time" value="18:30"></div></div>
+      <div class="grid2">
+        <div><label for="v">Venue</label><select id="v">${venues.map(v =>
+          `<option value="${v.id}" data-cap="${v.capacity}">${esc(v.name)}
+            (${v.capacity})</option>`).join("")}</select></div>
+        <div><label for="x">Expected attendance</label>
+          <input id="x" type="number" value="80" min="1"></div></div>
+      <div id="preview"></div>
+      <div id="msg"></div>
+      <div class="row"><button class="btn primary" id="go">Create</button></div>
+    </div>`;
+
+  const drawPreview = () => {
+    const expected = Math.max(1, Number(document.getElementById("x").value) || 80);
+    const chosenName = document.getElementById("k").value;
+    const box = document.getElementById("preview");
+    if (!chosenName) {
+      box.innerHTML = `<p class="note">No template chosen. The event is created
+        unpriced, and the Treasurer or President adds the entries on the Budget page —
+        or declares it needs no budget. It cannot be sent for approval until one of
+        those happens.</p>`;
+      return;
+    }
+    const t = api.budget.templates({ expectedAttendance: expected })
+      .find(x => x.name === chosenName);
+    box.innerHTML = `<label>Budget from template</label>
+      <div class="table-wrap"><table><thead><tr><th>Head</th><th>Basis</th>
+        <th class="num">Amount</th></tr></thead><tbody>
+        ${t.lines.map(l => `<tr><td>${esc(l.head)}</td>
+          <td class="muted small">${esc(l.explanation)}</td>
+          <td class="num">${inr(l.amount)}</td></tr>`).join("")}
+        <tr><td>Contingency</td><td class="muted small">${t.contingency.percent}%
+          added</td><td class="num">${inr(t.contingency.amount)}</td></tr>
+        <tr><th>Total requested</th><th></th>
+          <th class="num">${inr(t.totalRequested)}</th></tr></tbody></table></div>
+      ${t.requiresVc ? `<p class="note" style="margin-top:10px">Above
+        ${inr(t.vcThreshold)}, so after the Cultural Society and the Dean it also
+        goes to Management.</p>` : ""}`;
+  };
+  drawPreview();
+  document.getElementById("k").addEventListener("change", drawPreview);
+  document.getElementById("x").addEventListener("input", drawPreview);
+
+  document.getElementById("go").addEventListener("click", () => {
+    const msg = document.getElementById("msg");
+    msg.innerHTML = "";
+    const date = document.getElementById("d").value;
+    const venue = document.getElementById("v").selectedOptions[0];
+    const template = document.getElementById("k").value;
+    try {
+      const created = api.events.create(session, {
+        title: document.getElementById("t").value,
+        clubId, venueId: venue.value, kind: "performance",
+        startsAt: new Date(`${date}T${document.getElementById("s").value}`).toISOString(),
+        endsAt: new Date(`${date}T${document.getElementById("e").value}`).toISOString(),
+        expectedAttendance: Number(document.getElementById("x").value) || 80,
+        template: template || undefined,
+        submit: Boolean(template),
+      });
+      msg.innerHTML = created.approval
+        ? `<div class="note"><strong>Sent for approval.</strong> Route:
+            ${created.approval.stages.map(s => esc(s.replace(/_/g, " "))).join(" → ")},
+            now with the ${esc(created.approval.currentStage.replace(/_/g, " "))}.
+            ${created.softClashes.length ? ` Another club wants this slot too — the Dean
+              will resolve it.` : ""}
+            <br><a href="club-events.html">See it under Club events</a>.</div>`
+        : `<div class="note"><strong>Created as an unpriced draft.</strong>
+            <a href="club-budget.html">Add the budget entries</a> — or declare it needs
+            none — then send it for approval.</div>`;
+    } catch (err) {
+      showError(msg, err);
+    }
+  });
+});
+</script>
+</body>
+</html>

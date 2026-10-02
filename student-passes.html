@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My passes — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, fmtDate, fmtTime, qrImage } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("student-passes.html", async (main, session) => {
+  const wallet = await api.participation.myPasses(session);
+  main.innerHTML = `
+    <div class="head"><div><h1>My passes</h1>
+      <p class="muted">Each pass works once, for that event only. A second scan is
+        reported as a duplicate rather than quietly counted twice.</p></div></div>
+    ${wallet.passes.length ? `<div class="stack">${wallet.passes.map(p => `
+      <div class="ticket"><div class="main">
+        <span class="small muted">${esc(p.club)} presents</span>
+        <h3>${esc(p.title)}</h3>
+        <p>${fmtDate(p.startsAt)}, ${fmtTime(p.startsAt)}–${fmtTime(p.endsAt)}</p>
+        <p class="muted">${esc(p.venue)}</p>
+        <p style="margin-top:10px">${p.attended
+          ? `<span class="pill ok">Checked in</span>`
+          : `<span class="pill gold">Valid — not yet used</span>`}</p></div>
+      <div class="stub" data-qr="${esc(p.token || "")}"></div></div>`).join("")}</div>`
+      : `<div class="empty">No passes yet.
+          <a class="btn primary" href="student-events.html" style="margin-left:8px">Find
+          an event</a></div>`}
+    <p class="small muted" style="margin-top:18px">${esc(wallet.note)}</p>`;
+
+  for (const holder of main.querySelectorAll("[data-qr]")) {
+    const token = holder.dataset.qr;
+    if (!token) { holder.innerHTML = `<span class="small muted">pass spent</span>`; continue; }
+    const src = await qrImage(token, 132);
+    holder.innerHTML = src
+      ? `<div class="qr-holder"><img src="${src}" alt="Pass QR" width="132" height="132"></div>`
+      : `<div class="tokenbox">${esc(token)}</div>`;
+  }
+});
+</script>
+</body>
+</html>

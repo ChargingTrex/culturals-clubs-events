@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Venues — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, fmtTime, showError, toast } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("dean-venues.html", async (main, session) => {
+  const minutes = iso => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
+  const pos = iso => ((minutes(iso) - 8 * 60) / (14 * 60)) * 100;
+
+  let day = null;
+  const draw = () => {
+    const calendar = api.venues.calendar(session);
+    const days = [...new Set(calendar.bookings.map(b => b.startsAt.slice(0, 10)))].sort();
+    if (!day || !days.includes(day)) {
+      // Open on a day that has something to resolve, not an arbitrary one.
+      const clashDay = calendar.clashes.length
+        ? calendar.clashes[0].events[0].startsAt.slice(0, 10) : null;
+      day = clashDay || days[0];
+    }
+    const todays = calendar.bookings.filter(b => b.startsAt.startsWith(day));
+    const todaysClashes = calendar.clashes.filter(
+      c => c.events[0].startsAt.startsWith(day));
+
+    main.innerHTML = `
+      <div class="head"><div><h1>Venues</h1>
+        <p class="muted">Every venue, every booking. Clashes are flagged before two
+          clubs arrive at the same hall — and an approval is blocked until one
+          moves.</p></div>
+        <div><label for="d">Day</label><select id="d">${days.map(x =>
+          `<option value="${x}" ${x === day ? "selected" : ""}>${
+            new Date(x).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+          }${calendar.clashes.some(c => c.events[0].startsAt.startsWith(x))
+            ? " — clash" : ""}</option>`).join("")}</select></div></div>
+
+      ${todaysClashes.map(c => `<div class="note bad" style="margin-bottom:12px">
+        <div class="row" style="justify-content:space-between;gap:12px">
+          <span><b>${esc(c.events[0].title)}</b> (${c.events[0].expectedAttendance}
+            expected) and <b>${esc(c.events[1].title)}</b>
+            (${c.events[1].expectedAttendance} expected) both want
+            ${esc(c.venue)}.</span>
+          <span class="row">${c.events.map(e =>
+            `<button class="btn" data-move="${e.id}">Move ${esc(e.title)}</button>`)
+            .join("")}</span></div></div>`).join("")}
+
+      <div class="table-wrap"><div class="cal">
+        <div class="cal-hours"><div></div><div>${
+          Array.from({ length: 14 }, (_, i) => `<span>${8 + i}:00</span>`).join("")
+        }</div></div>
+        ${calendar.venues.map(v => `<div class="cal-row">
+          <div class="cal-venue">${esc(v.name)}<small>${v.capacity} seats</small></div>
+          <div class="cal-track">${todays.filter(b => b.venueId === v.id).map(b => `
+            <div class="blk ${b.clash ? "clash" : b.confirmed ? "confirmed" : "provisional"}"
+              style="left:${pos(b.startsAt)}%;width:${pos(b.endsAt) - pos(b.startsAt)}%"
+              title="${esc(b.title)}">${esc(b.title)}<br>${fmtTime(b.startsAt)}–${
+                fmtTime(b.endsAt)}</div>`).join("")}</div></div>`).join("")}
+      </div></div>
+      <div class="row small muted" style="margin-top:10px;gap:18px">
+        <span><span class="pill" style="background:var(--ink);color:var(--paper)">Confirmed</span></span>
+        <span><span class="pill gold">Provisional — awaiting approval</span></span>
+        <span><span class="pill bad">Clash</span></span>
+        <span>Checks include a ${calendar.bufferMinutes}-minute setup buffer</span></div>
+      <div id="msg"></div>`;
+
+    document.getElementById("d").addEventListener("change", e => {
+      day = e.target.value; draw();
+    });
+  };
+  draw();
+
+  main.addEventListener("click", event => {
+    const button = event.target.closest("[data-move]");
+    if (!button) return;
+    const msg = document.getElementById("msg");
+    msg.innerHTML = "";
+    try {
+      const options = api.events.clashes(session, button.dataset.move);
+      if (!options.freeVenues.length) {
+        msg.innerHTML = `<div class="note bad">No venue is free and large enough at
+          that time. Propose a different time to the club instead.</div>`;
+        return;
+      }
+      const target = options.freeVenues[0];
+      const reason = prompt(`Move to ${target.name}? Give a reason — the club is `
+        + `shown this text.`, "Hall double-booked; this one has the same setup");
+      if (!reason) return;
+      const moved = api.events.reassign(session, button.dataset.move,
+        { toVenue: target.id, reason });
+      toast(`Moved to ${moved.to}. The club has been notified.`);
+      draw();
+    } catch (err) { showError(msg, err); }
+  });
+});
+</script>
+</body>
+</html>

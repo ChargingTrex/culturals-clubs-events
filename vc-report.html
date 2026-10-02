@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Semester report — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, inr } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("vc-report.html", async (main, session, caps) => {
+  const r = api.reports.semester(session);
+  const maxClub = Math.max(1, ...r.byClub.map(c => c.attendance));
+  const maxDept = Math.max(1, ...r.byDepartment.map(d => d.studentsReached));
+  const reach = r.uniqueStudents && r.totalParticipation
+    ? (r.totalParticipation / r.uniqueStudents).toFixed(1) : "—";
+
+  main.innerHTML = `
+    <div class="head"><div><h1>${esc(r.semester.name)} report</h1>
+      <p class="muted">Counted at the door, not estimated. Generated from live
+        records.</p></div>
+      <button class="btn" onclick="window.print()">Print or save as PDF</button></div>
+
+    <div class="big">
+      <div class="lead"><b>${r.uniqueStudents}</b><span>unique students reached</span></div>
+      <div><b>${r.totalParticipation}</b><span>total attendance</span></div>
+      <div><b>${r.eventsRun}</b><span>events run</span></div>
+      <div><b>${r.avgAttendance}</b><span>average per event</span></div></div>
+
+    <p class="note" style="margin-top:14px">${r.totalParticipation} attendances came
+      from ${r.uniqueStudents} different students — ${reach} events each on average.
+      Total attendance alone would hide that. Twenty events attended by the same
+      eighty students and twenty reaching six hundred report the same total; only the
+      unique figure tells them apart, and only the second justifies the budget.</p>
+
+    <div class="grid2" style="margin-top:18px;align-items:start">
+      <div class="panel"><h3>Attendance by club</h3><div style="margin-top:10px">
+        ${r.byClub.map(c => `<div class="bar"><span class="small">${esc(c.club)}</span>
+          <div class="meter"><i style="width:${c.attendance / maxClub * 100}%"></i></div>
+          <em>${c.attendance}</em></div>`).join("")}</div></div>
+      <div class="panel"><h3>Students reached by department</h3>
+        <p class="small muted">Department recorded at the time of each event, so a
+          re-issued report gives the same numbers</p>
+        <div style="margin-top:10px">${r.byDepartment.map(d =>
+          `<div class="bar"><span class="small">${esc(d.department)}</span>
+            <div class="meter"><i style="width:${
+              d.studentsReached / maxDept * 100}%"></i></div>
+            <em>${d.studentsReached}</em></div>`).join("")}</div></div></div>
+
+    <div class="panel" style="margin-top:18px"><h3>Events</h3>
+      <div class="table-wrap" style="margin-top:10px;border:0"><table>
+        <thead><tr><th>Event</th><th>Club</th><th class="num">Attended</th>
+          <th class="num">Photos</th><th class="num">Sanctioned</th>
+          <th class="num">Spent</th></tr></thead>
+        <tbody>${r.events.map(e => `<tr><td>${esc(e.title)}</td>
+          <td class="muted">${esc(e.club)}</td><td class="num">${e.attended}</td>
+          <td class="num">${e.photos}</td>
+          <td class="num">${inr(e.sanctioned)}</td>
+          <td class="num">${inr(e.spent)}</td></tr>`).join("")}
+        <tr><th>Total</th><th></th><th class="num">${r.totalParticipation}</th>
+          <th class="num">${r.events.reduce((a, e) => a + e.photos, 0)}</th>
+          <th class="num">${inr(r.money.sanctioned)}</th>
+          <th class="num">${inr(r.money.spent)}</th></tr></tbody></table></div></div>
+
+    <ul class="list" style="margin-top:14px">${r.caveats.map(c =>
+      `<li class="small muted">${esc(c)}</li>`).join("")}</ul>
+
+    ${caps.isViceChancellor ? `<p class="note" style="margin-top:14px">You are signed
+      in as Management. This page is aggregates only — no attendee list, no roster and
+      no PRN lookup is reachable from this session. Those pages are not in your
+      sidebar, and the rules refuse them if you go looking.</p>` : ""}`;
+});
+</script>
+</body>
+</html>

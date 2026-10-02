@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budget — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, inr, fmtDate, showError, toast } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("club-budget.html", async (main, session, caps) => {
+  if (!caps.clubsWithBudgetAccess.length) {
+    throw Object.assign(new Error("Budget visibility begins at Treasurer. A member "
+      + "sees what the club is doing, not what it costs."),
+      { status: 403, title: "No budget access", code: "BUDGET_NOT_VISIBLE" });
+  }
+
+  const track = b => {
+    const steps = ["Submitted", "Sanctioned", "Event runs", "Settled"];
+    const reached = b.stage === "settled" ? 4
+      : b.canSettle ? 3
+      : b.stage === "sanctioned" ? 2
+      : ["society_review", "dean_review", "vc_review"].includes(b.stage) ? 1 : 0;
+    return `<div class="stages">${steps.map((s, i) =>
+      `<span class="stage ${i < reached ? "done" : i === reached ? "now" : ""}">${s}</span>`
+    ).join("")}</div>`;
+  };
+
+  const card = b => {
+    const nil = b.nilDeclaration;
+    const editable = b.isEditable;
+    return `<div class="panel stack" style="margin-bottom:20px">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="font-size:1.05rem">${esc(b.eventTitle)}</h2>
+        <span class="pill ${b.stage === "settled" ? "ok" : ""}">${esc(b.stageLabel)}</span>
+      </div>
+      ${track(b)}
+
+      ${nil ? `<div class="note" style="border-left:3px solid var(--marigold,#c8a04a)">
+        <strong>${esc(nil.head)}</strong>
+        <p style="margin:6px 0 0">${esc(nil.reason)}</p>
+        <p class="small muted" style="margin:8px 0 0">Declared by
+          ${esc(nil.declaredBy)} on ${fmtDate(nil.declaredAt)} — an approver sees this
+          statement in place of figures.</p>
+        ${editable ? `<div class="row" style="margin-top:10px">
+          <button class="btn quiet" data-unnil="${b.id}">Withdraw and price it
+          instead</button></div>` : ""}</div>` : ""}
+
+      ${b.lines.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Head</th><th class="num">Requested</th>
+          <th class="num">Sanctioned</th><th class="num">Spent</th><th>Receipts</th>
+          ${editable ? "<th></th>" : ""}</tr></thead>
+        <tbody>${b.lines.map(l => `<tr>
+          <td>${editable
+            ? `<input value="${esc(l.head)}" data-head="${b.id}:${l.id}"
+                 style="min-width:140px">`
+            : esc(l.head)}${l.isOverspent
+            ? `<br><span class="small" style="color:var(--bad)">Over sanctioned</span>`
+            : ""}</td>
+          <td class="num">${editable
+            ? `<input type="number" min="0" value="${l.amountRequested}"
+                 data-req="${b.id}:${l.id}" style="width:100px;text-align:right">`
+            : inr(l.amountRequested)}</td>
+          <td class="num">${l.amountSanctioned == null
+            ? `<span class="muted">—</span>` : inr(l.amountSanctioned)}</td>
+          <td class="num">${b.canSettle
+            ? `<input type="number" min="0" value="${l.amountSpent ?? ""}"
+                 data-spend="${b.id}:${l.id}" style="width:100px;text-align:right">`
+            : (l.amountSpent == null ? `<span class="muted">—</span>` : inr(l.amountSpent))}</td>
+          <td>${l.receipts.map(r => `<span class="pill">📎 ${esc(r.fileName)}</span>`)
+            .join(" ") || (b.canSettle
+              ? `<button class="btn quiet small" data-receipt="${b.id}:${l.id}">+
+                  Attach</button>`
+              : `<span class="muted small">—</span>`)}</td>
+          ${editable ? `<td><button class="btn quiet small" data-rm="${b.id}:${l.id}"
+            title="Remove">✕</button></td>` : ""}</tr>`).join("")}
+        <tr><th>Total</th><th class="num">${inr(b.totalRequested)}</th>
+          <th class="num">${inr(b.totalSanctioned)}</th>
+          <th class="num">${inr(b.totalSpent)}</th><th></th>
+          ${editable ? "<th></th>" : ""}</tr></tbody></table></div>`
+        : (nil ? "" : `<div class="empty" style="padding:20px">Nothing priced yet.</div>`)}
+
+      ${editable ? `<div class="panel" style="background:var(--wash,#f7f5f1)">
+        <h3 style="font-size:.95rem">Add an entry</h3>
+        <div class="row" style="margin-top:10px;align-items:flex-end">
+          <div style="flex:2;min-width:0"><label for="h-${b.id}">Head</label>
+            <input id="h-${b.id}" placeholder="e.g. Sound &amp; lighting"></div>
+          <div style="flex:1;min-width:0"><label for="a-${b.id}">Amount</label>
+            <input id="a-${b.id}" type="number" min="0" placeholder="0"></div>
+          <button class="btn primary" data-add="${b.id}">Add</button></div>
+        ${!nil ? `<div class="row" style="margin-top:14px;align-items:flex-end">
+          <div style="flex:1;min-width:0"><label for="n-${b.id}">Or: this event needs no
+            budget — why?</label>
+            <input id="n-${b.id}" placeholder="e.g. Venue is free and the club owns the
+              equipment"></div>
+          <button class="btn" data-nil="${b.id}">Declare nil</button></div>` : ""}
+        <div id="msg-${b.id}"></div></div>` : ""}
+
+      ${b.canSettle && b.settlementProblems.length ? `<div class="note bad">Cannot
+        settle yet:<ul style="margin:6px 0 0 18px">${b.settlementProblems.map(p =>
+          `<li>${esc(p.message)}</li>`).join("")}</ul></div>` : ""}
+      ${b.settlementHint && b.settlementWaitingOn !== "settled"
+        ? `<p class="note">${esc(b.settlementHint)}</p>` : ""}
+      ${b.canSettle ? `<div class="row">
+        <button class="btn primary" data-settle="${b.id}">Settle budget</button>
+        <span class="small muted">${nil
+          ? "Nothing was spent, but it still has to be closed off."
+          : `Lines over ${inr(b.thresholds.receiptThreshold)} need a receipt.`}</span>
+        </div>` : ""}
+      ${editable ? `<p class="small muted">${b.isReadyToSubmit
+        ? "Ready to send for approval."
+        : "Not ready — add entries, or declare it needs no budget."}</p>` : ""}
+    </div>`;
+  };
+
+  const draw = () => {
+    const rows = api.budget.list(session);
+    main.innerHTML = `
+      <div class="head"><div><h1>Budget</h1>
+        <p class="muted">President, Vice-President and Treasurer build and see this.
+          No club role approves its own budget.</p></div></div>
+      ${rows.map(card).join("") || `<div class="empty">No budgets visible.</div>`}`;
+  };
+  draw();
+
+  const run = (id, work) => {
+    const msg = document.getElementById(`msg-${id}`);
+    if (msg) msg.innerHTML = "";
+    try { work(); draw(); }
+    catch (err) { showError(msg || main, err); }
+  };
+
+  main.addEventListener("click", event => {
+    const add = event.target.closest("[data-add]");
+    if (add) {
+      const id = add.dataset.add;
+      return run(id, () => api.budget.addLine(session, id, {
+        head: document.getElementById(`h-${id}`).value,
+        amountRequested: document.getElementById(`a-${id}`).value || 0,
+      }));
+    }
+    const nil = event.target.closest("[data-nil]");
+    if (nil) {
+      const id = nil.dataset.nil;
+      return run(id, () => api.budget.declareNil(session, id,
+        { reason: document.getElementById(`n-${id}`).value }));
+    }
+    const unnil = event.target.closest("[data-unnil]");
+    if (unnil) return run(unnil.dataset.unnil,
+      () => api.budget.withdrawNil(session, unnil.dataset.unnil));
+
+    const remove = event.target.closest("[data-rm]");
+    if (remove) {
+      const [id, lineId] = remove.dataset.rm.split(":");
+      return run(id, () => api.budget.removeLine(session, id, lineId));
+    }
+    const receipt = event.target.closest("[data-receipt]");
+    if (receipt) {
+      const [id, lineId] = receipt.dataset.receipt.split(":");
+      return run(id, () => api.budget.attachReceipt(session, id, lineId,
+        { fileName: "receipt.pdf", byteSize: 128 }));
+    }
+    const settle = event.target.closest("[data-settle]");
+    if (settle) {
+      const id = settle.dataset.settle;
+      return run(id, () => { api.budget.settle(session, id); toast("Budget settled"); });
+    }
+  });
+
+  main.addEventListener("change", event => {
+    const head = event.target.closest("[data-head]");
+    if (head) {
+      const [id, lineId] = head.dataset.head.split(":");
+      return run(id, () => api.budget.updateLine(session, id, lineId,
+        { head: head.value }));
+    }
+    const req = event.target.closest("[data-req]");
+    if (req) {
+      const [id, lineId] = req.dataset.req.split(":");
+      return run(id, () => api.budget.updateLine(session, id, lineId,
+        { amountRequested: req.value || 0 }));
+    }
+    const spend = event.target.closest("[data-spend]");
+    if (spend) {
+      const [id, lineId] = spend.dataset.spend.split(":");
+      return run(id, () => api.budget.setSpend(session, id, lineId,
+        { amountSpent: spend.value === "" ? null : spend.value }));
+    }
+  });
+});
+</script>
+</body>
+</html>

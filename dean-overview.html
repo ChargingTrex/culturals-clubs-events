@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>This semester — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("dean-overview.html", async (main, session) => {
+  const o = api.reports.overview(session);
+  const maxUse = Math.max(1, ...o.venueUse.map(v => v.bookings));
+  main.innerHTML = `
+    <div class="head"><div><h1>This semester</h1>
+      <p class="muted">${esc(o.semester)}. Running totals, and what needs
+        chasing.</p></div></div>
+
+    <div class="grid3">
+      <div class="panel"><h3>${o.pendingApprovals} approvals waiting</h3>
+        <p class="small muted">${Object.entries(o.pendingByStage).map(([s, n]) =>
+          `${n} at ${esc(s.replace(/_/g, " "))}`).join(" · ") || "none"}</p></div>
+      <div class="panel"><h3>${o.venueClashes} venue clash${
+        o.venueClashes === 1 ? "" : "es"}</h3>
+        <p class="small muted">Resolve under Venues — an approval is blocked until
+          you do</p></div>
+      <div class="panel"><h3>${o.clubsActive} of ${o.clubsTotal} clubs active</h3>
+        <p class="small muted">${o.clubsInactive.map(esc).join(", ")
+          || "All have run something"}</p></div></div>
+
+    <div class="grid2" style="margin-top:18px;align-items:start">
+      <div class="panel"><h3>Completed events missing evidence</h3>
+        <ul class="list" style="margin-top:8px">${o.missingEvidence.map(e =>
+          `<li class="small">${esc(e.title)}
+            <span class="muted">— ${e.missing.join(", ")}</span></li>`).join("")
+          || `<li class="small muted">Nothing outstanding</li>`}</ul>
+        <p class="small muted" style="margin-top:8px">A closed event with no photos is
+          the gap that makes a semester report thinner than the semester was.</p></div>
+      <div class="panel"><h3>Venue use</h3><div style="margin-top:10px">
+        ${o.venueUse.map(v => `<div class="bar"><span class="small">${esc(v.venue)}</span>
+          <div class="meter"><i style="width:${v.bookings / maxUse * 100}%"></i></div>
+          <em>${v.bookings}</em></div>`).join("")}</div></div></div>
+
+    <div class="panel" style="margin-top:18px"><h3>Door reliability</h3>
+      <p class="small muted" style="margin-top:6px">${o.capture.scansAccepted} accepted
+        of ${o.capture.scanAttempts} attempts — capture rate
+        <strong>${o.capture.captureRate ?? "—"}</strong>. Every figure on this page
+        derives from attendance records, so a poor rate is a warning about the figures
+        themselves, not just about the doors.</p></div>`;
+});
+</script>
+</body>
+</html>

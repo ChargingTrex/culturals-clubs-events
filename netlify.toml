@@ -1,0 +1,24 @@
+# Netlify: a plain static publish. No build step — the app is ES modules served
+# as-is, which is also why it works from a file server, GitHub Pages or any CDN.
+[build]
+  publish = "."
+  command = ""
+
+# ES modules need the right content type or the browser refuses to execute them.
+[[headers]]
+  for = "/src/*.js"
+  [headers.values]
+    Content-Type = "text/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    # The walkthrough keeps everything in localStorage; nothing is cached stale.
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

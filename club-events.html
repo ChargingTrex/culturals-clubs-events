@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Club events — Culturals</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { page, esc, inr, dateBox, statusPill, showError, toast } from "./src/ui.js";
+import * as api from "./src/api.js";
+
+await page("club-events.html", async (main, session, caps) => {
+  if (!caps.clubs.length) {
+    throw Object.assign(new Error("You hold no club role."),
+      { status: 403, title: "No club", detail: "This page belongs to club members." });
+  }
+  const clubId = caps.clubs[0];
+  const canOperate = caps.clubsCanOperateEvents.includes(clubId);
+
+  const draw = () => {
+    const events = api.events.list(session, { club: clubId, ordering: "-startsAt" });
+    main.innerHTML = `
+      <div class="head"><div><h1>Club events</h1>
+        <p class="muted">A proposal is created unpriced, priced by the Treasurer, then
+          sent through the gates. Every event closes with photos and actual spend.</p>
+      </div></div>
+      <ul class="list">${events.map(e => `
+        <li class="event">${dateBox(e.startsAt)}
+          <div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
+            <p class="small muted">${e.attended} attended · ${e.registered} registered ·
+              ${e.photoCount} photos
+              ${e.budget ? ` · ${inr(e.budget.totalRequested)} requested
+                (${esc(e.budget.stageLabel)})` : ""}</p>
+            ${e.budget && !e.budget.isReadyToSubmit ? `<p class="small"
+              style="color:var(--bad);margin-top:4px">Unpriced — add entries on the
+              Budget page, or declare it needs none.</p>` : ""}</div>
+          <div class="row end">
+            ${["draft", "returned"].includes(e.status)
+              ? `<a class="btn" href="club-budget.html">Budget</a>` : ""}
+            ${["draft", "returned"].includes(e.status) && e.budget?.isReadyToSubmit
+              ? `<button class="btn primary" data-submit="${e.id}">Send for approval</button>`
+              : ""}
+            ${canOperate && e.status === "published"
+              ? `<button class="btn" data-live="${e.id}">Go live</button>` : ""}
+            ${e.status === "live"
+              ? `<a class="btn primary" href="organiser-scan.html">Scan station</a>` : ""}
+            ${canOperate && ["live", "published"].includes(e.status)
+              ? `<button class="btn" data-close="${e.id}">Close</button>` : ""}
+          </div></li>`).join("") || `<li class="empty">No events yet.
+            <a href="club-new-event.html">Propose one</a>.</li>`}</ul>
+      ${canOperate ? "" : `<p class="note" style="margin-top:16px">You can raise
+        proposals and build budgets, but marking an event live and closing it sit with
+        the President, Vice-President and Secretary. The same rule is checked when you
+        try.</p>`}`;
+  };
+  draw();
+
+  main.addEventListener("click", async event => {
+    const button = event.target.closest("[data-submit],[data-live],[data-close]");
+    if (!button) return;
+    try {
+      if (button.dataset.submit) {
+        const approval = api.events.submit(session, button.dataset.submit);
+        toast(`Sent — now with the ${approval.currentStage.replace(/_/g, " ")}`);
+      } else if (button.dataset.live) {
+        api.events.goLive(session, button.dataset.live);
+        toast("Live — the scan station is open");
+      } else {
+        const photos = prompt("How many photos were uploaded?", "6");
+        if (photos === null) return;
+        api.events.close(session, button.dataset.close, {
+          photoCount: Number(photos) || 0,
+          socialLinks: ["https://www.instagram.com/p/demo"],
+        });
+        toast("Closed and reported");
+      }
+      draw();
+    } catch (err) {
+      const box = document.createElement("div");
+      main.prepend(box);
+      showError(box, err);
+    }
+  });
+});
+</script>
+</body>
+</html>

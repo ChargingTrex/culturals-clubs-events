@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in — Culturals</title>
+<meta name="description" content="Clubs and events workflow for a college student portal: proposals, three-gate approvals, budgets and QR attendance.">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-head">
+    <h1>Culturals</h1>
+    <p>Clubs and events for a college student portal — proposals, budget approvals
+      through three gates, and QR attendance at the door. Pick a role to start;
+      there is no password in this walkthrough build.</p>
+  </div>
+
+  <div id="roles" class="role-grid"><div class="loading">Preparing the dataset…</div></div>
+
+  <div class="login-note note">
+    <strong>What you are looking at</strong>
+    <p style="margin:8px 0 0">Everything runs in this browser. Your data is yours
+      alone — nothing is sent anywhere, and “Reset data” on any page puts it back to
+      the seeded start. The workflow rules are the real ones: who may approve what,
+      who may see a budget, and who may work a door are all enforced, so if a page
+      refuses you, that is the rule and not a missing button.</p>
+    <p style="margin:8px 0 0" class="small">Sign in as different roles to see the
+      same proposal from both sides — a Treasurer raising a budget, then the Cultural
+      Society, the Dean and Management deciding on it.</p>
+  </div>
+</div>
+
+<script type="module">
+import { ensureSeeded } from "./src/bootstrap.js";
+import { PERSONAS, savePersona, sessionFor } from "./src/session.js";
+import { allowedPages, esc } from "./src/ui.js";
+
+await ensureSeeded();
+
+const host = document.getElementById("roles");
+host.innerHTML = PERSONAS.map(p => {
+  const session = sessionFor(p.key);
+  if (!session) return "";
+  const pages = allowedPages(session.capabilities()).length;
+  return `<button class="role-btn" data-persona="${p.key}">
+    <b>${esc(p.label)}</b>
+    <span class="blurb">${esc(session.displayName)} · ${esc(p.blurb)}</span>
+    <span class="hint">${esc(p.hint)} — ${pages} page${pages === 1 ? "" : "s"}</span>
+  </button>`;
+}).join("");
+
+host.addEventListener("click", event => {
+  const button = event.target.closest("[data-persona]");
+  if (!button) return;
+  const key = button.dataset.persona;
+  savePersona(key);
+  // Land on the first page this role can actually open, so nobody's first screen
+  // is a refusal.
+  const first = allowedPages(sessionFor(key).capabilities())[0];
+  location.href = first ? first.file : "student-events.html";
+});
+</script>
+</body>
+</html>
