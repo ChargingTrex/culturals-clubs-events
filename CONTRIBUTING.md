@@ -64,7 +64,17 @@ npm test         # e2e only
 npm run smoke    # wiring only
 ```
 
-Both suites must pass before a pull request is merged. They take about two seconds.
+Both must pass before a pull request is merged. They take about two seconds.
+
+There is a third, optional check that renders every page in headless Chrome and
+fails if any shows an error box. Neither other suite covers that: the e2e suite
+proves the rules without a DOM, and the smoke test checks the wiring without
+executing it.
+
+```bash
+python3 -m http.server 4173 &   # it needs something served
+npm run browser
+```
 
 ---
 
