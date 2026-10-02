@@ -1,0 +1,21 @@
+# Both suites run on every push. They need no dependencies and take ~2 seconds,
+# so there is no excuse for a red main.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Smoke test — wiring, pages, per-role page offers
+        run: node tests/smoke.mjs
+      - name: End-to-end — workflow and role boundaries
+        run: node tests/run.mjs
