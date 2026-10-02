@@ -14,6 +14,7 @@ export const STAGE_LABELS = {
   society_review: "With the Cultural Society",
   dean_review: "With the Dean",
   vc_review: "With the Vice-Chancellor",
+  management_review: "With Management",
   sanctioned: "Sanctioned",
   settled: "Settled",
   returned: "Returned for changes",
@@ -22,7 +23,12 @@ export const STAGE_LABELS = {
 
 export const stageForGate = gate => ({
   cultural_society: "society_review", dean: "dean_review", vc: "vc_review",
+  management: "management_review",
 }[gate]);
+
+/** Every stage in which an approver holds the budget. */
+export const REVIEW_STAGES = ["society_review", "dean_review", "vc_review",
+  "management_review"];
 
 const sum = (lines, key) => lines.reduce((a, l) => a + (Number(l[key]) || 0), 0);
 export const totalRequested = b => sum(b.lines, "amountRequested");

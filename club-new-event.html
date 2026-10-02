@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>New event — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -15,7 +16,6 @@
 <script type="module">
 import { page, esc, inr, showError } from "./src/ui.js";
 import * as api from "./src/api.js";
-import { db } from "./src/db.js";
 
 await page("club-new-event.html", async (main, session, caps) => {
   if (!caps.clubsCanPropose.length) {
@@ -24,48 +24,64 @@ await page("club-new-event.html", async (main, session, caps) => {
       { status: 403, title: "Cannot propose", code: "EVENTS_PROPOSE_DENIED" });
   }
   const clubId = caps.clubsCanPropose[0];
+  const club = api.clubs.list(session).find(c => c.id === clubId);
   const venues = api.venues.list();
   const defaultDate = new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10);
 
   main.innerHTML = `
     <div class="head"><div><h1>New event</h1>
-      <p class="muted">Pick a template and the budget fills itself in, or create it
-        unpriced and let the Treasurer add the entries.</p></div></div>
-    <div class="panel stack" style="max-width:760px">
+      <p class="muted">For ${esc(club.name)}. Pick a template and the budget fills
+        itself in and is sent straight for approval — or create it unpriced and let the
+        Treasurer add the entries first.</p></div></div>
+    <form class="panel stack" id="newEvent" style="max-width:760px" novalidate>
       <div class="grid2">
         <div><label for="t">Event name</label>
-          <input id="t" placeholder="e.g. Monsoon Ragas"></div>
-        <div><label for="k">Budget</label><select id="k">
+          <input id="t" name="title" placeholder="e.g. Monsoon Ragas" required></div>
+        <div><label for="k">Budget</label><select id="k" name="template">
           <option value="">Price it later — the Treasurer adds the entries</option>
           ${api.budget.templates().map(x =>
             `<option value="${esc(x.name)}">From template: ${esc(x.name)}</option>`
           ).join("")}</select></div></div>
       <div class="grid3">
-        <div><label for="d">Date</label><input id="d" type="date" value="${defaultDate}"></div>
-        <div><label for="s">Starts</label><input id="s" type="time" value="16:30"></div>
-        <div><label for="e">Ends</label><input id="e" type="time" value="18:30"></div></div>
+        <div><label for="d">Date</label><input id="d" name="date" type="date"
+          value="${defaultDate}"></div>
+        <div><label for="s">Starts</label><input id="s" name="starts" type="time"
+          value="16:30"></div>
+        <div><label for="e">Ends</label><input id="e" name="ends" type="time"
+          value="18:30"></div></div>
       <div class="grid2">
-        <div><label for="v">Venue</label><select id="v">${venues.map(v =>
-          `<option value="${v.id}" data-cap="${v.capacity}">${esc(v.name)}
-            (${v.capacity})</option>`).join("")}</select></div>
+        <div><label for="v">Venue</label><select id="v" name="venue">${venues.map(v =>
+          `<option value="${v.id}" data-cap="${v.capacity}" data-name="${esc(v.name)}">${
+            esc(v.name)} (${v.capacity} seats)</option>`).join("")}</select></div>
         <div><label for="x">Expected attendance</label>
-          <input id="x" type="number" value="80" min="1"></div></div>
+          <input id="x" name="expected" type="number" value="80" min="1"></div></div>
       <div id="preview"></div>
       <div id="msg"></div>
-      <div class="row"><button class="btn primary" id="go">Create</button></div>
-    </div>`;
+      <div class="row"><button class="btn primary" id="go" type="submit">Create</button>
+        <span class="small muted" id="goHint"></span></div>
+    </form>`;
+
+  const routeLine = amount => {
+    const route = api.governance.previewRoute(session, { clubId, amount }).stages;
+    return `<p class="small" style="margin-top:10px">Route: ${route.map(s =>
+      `<b>${esc(s.label)}</b>${s.reason ? ` <span class="muted">(${esc(s.reason)})</span>`
+        : ""}`).join(" → ")} → published.</p>`;
+  };
 
   const drawPreview = () => {
     const expected = Math.max(1, Number(document.getElementById("x").value) || 80);
     const chosenName = document.getElementById("k").value;
     const box = document.getElementById("preview");
+    const hint = document.getElementById("goHint");
     if (!chosenName) {
+      hint.textContent = "Creates an unpriced draft.";
       box.innerHTML = `<p class="note">No template chosen. The event is created
         unpriced, and the Treasurer or President adds the entries on the Budget page —
         or declares it needs no budget. It cannot be sent for approval until one of
         those happens.</p>`;
       return;
     }
+    hint.textContent = "Creates the event and sends it for approval.";
     const t = api.budget.templates({ expectedAttendance: expected })
       .find(x => x.name === chosenName);
     box.innerHTML = `<label>Budget from template</label>
@@ -77,16 +93,16 @@ await page("club-new-event.html", async (main, session, caps) => {
         <tr><td>Contingency</td><td class="muted small">${t.contingency.percent}%
           added</td><td class="num">${inr(t.contingency.amount)}</td></tr>
         <tr><th>Total requested</th><th></th>
-          <th class="num">${inr(t.totalRequested)}</th></tr></tbody></table></div>
-      ${t.requiresVc ? `<p class="note" style="margin-top:10px">Above
-        ${inr(t.vcThreshold)}, so after the Cultural Society and the Dean it also
-        goes to Management.</p>` : ""}`;
+          <th class="num" id="previewTotal">${inr(t.totalRequested)}</th></tr></tbody>
+        </table></div>
+      ${routeLine(t.totalRequested)}`;
   };
   drawPreview();
   document.getElementById("k").addEventListener("change", drawPreview);
   document.getElementById("x").addEventListener("input", drawPreview);
 
-  document.getElementById("go").addEventListener("click", () => {
+  document.getElementById("newEvent").addEventListener("submit", event => {
+    event.preventDefault();
     const msg = document.getElementById("msg");
     msg.innerHTML = "";
     const date = document.getElementById("d").value;
@@ -102,16 +118,22 @@ await page("club-new-event.html", async (main, session, caps) => {
         template: template || undefined,
         submit: Boolean(template),
       });
+      const route = created.event.approval;
       msg.innerHTML = created.approval
-        ? `<div class="note"><strong>Sent for approval.</strong> Route:
-            ${created.approval.stages.map(s => esc(s.replace(/_/g, " "))).join(" → ")},
-            now with the ${esc(created.approval.currentStage.replace(/_/g, " "))}.
+        ? `<div class="note" data-created="${esc(created.event.title)}">
+            <strong>Sent for approval.</strong> “${esc(created.event.title)}” is with
+            ${esc(route.currentWith)} now, and will travel ${route.stages.map(s =>
+              esc(s.label)).join(" → ")}.
             ${created.softClashes.length ? ` Another club wants this slot too — the Dean
               will resolve it.` : ""}
-            <br><a href="club-events.html">See it under Club events</a>.</div>`
-        : `<div class="note"><strong>Created as an unpriced draft.</strong>
-            <a href="club-budget.html">Add the budget entries</a> — or declare it needs
-            none — then send it for approval.</div>`;
+            <br><a href="club-events.html">Follow it under Club events</a>.</div>`
+        : `<div class="note" data-created="${esc(created.event.title)}">
+            <strong>Created as an unpriced draft.</strong>
+            ${caps.clubsWithBudgetAccess.includes(clubId)
+              ? `<a href="club-budget.html">Add the budget entries</a> — or declare it
+                 needs none — then send it for approval from Club events.`
+              : "Your Treasurer or President adds the budget entries next."}</div>`;
+      document.getElementById("t").value = "";
     } catch (err) {
       showError(msg, err);
     }

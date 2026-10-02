@@ -35,6 +35,55 @@ function visibleEvents(ctx) {
     e => PUBLIC_STATUSES.includes(e.status) || clubs.has(e.clubId) || organiser.has(e.id));
 }
 
+/** The governance tier that sees figures and aggregates, never a student. */
+const aggregateOnly = ctx =>
+  ctx.hasAny(...R.AGGREGATE_ONLY_ROLES) && !ctx.canSeeIndividualRecords();
+
+/** May this caller see money on this club's work? */
+const maySeeMoney = (ctx, clubId) =>
+  ctx.canSeeAllClubs() || ctx.hasClubRole(clubId, ...R.BUDGET_VIEWERS);
+
+/** The most recent approval request for an event, or null if never submitted. */
+const latestRequest = eventId => db().approvals
+  .filter(a => a.eventId === eventId)
+  .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0] || null;
+
+/**
+ * Where a proposal is on its route, for a tracker. Comments are shown only to
+ * people who may see money, because a return comment is often about the money
+ * ("trim the artist fees") and a member has no budget visibility.
+ */
+function routeSummary(request, ctx, clubId) {
+  if (!request) return null;
+  const money = maySeeMoney(ctx, clubId);
+  const doneIndex = request.state === "approved"
+    ? request.stages.length : request.stages.indexOf(request.currentStage);
+  return {
+    id: request.id, state: request.state, currentStage: request.currentStage,
+    currentLabel: R.STAGE_LABELS[request.currentStage],
+    currentWith: R.STAGE_WITH[request.currentStage],
+    stages: request.stages.map((stage, i) => {
+      const step = [...request.steps].reverse().find(x => x.stage === stage);
+      return {
+        stage, label: R.STAGE_LABELS[stage], short: R.STAGE_SHORT[stage],
+        status: i < doneIndex ? "done"
+          : i === doneIndex && request.state === "pending" ? "now"
+          : i === doneIndex ? request.state
+          : "upcoming",
+        decidedBy: step ? step.actorLabel : null, decidedAt: step ? step.at : null,
+      };
+    }),
+    lastDecision: request.steps.length ? (() => {
+      const last = request.steps[request.steps.length - 1];
+      return {
+        stage: last.stage, stageLabel: R.STAGE_LABELS[last.stage],
+        decision: last.decision, actorLabel: last.actorLabel, at: last.at,
+        comment: money ? last.comment : null,
+      };
+    })() : null,
+  };
+}
+
 function decorateEvent(event, ctx) {
   const budget = db().budgets.find(b => b.eventId === event.id);
   const myReg = ctx.studentId
@@ -52,6 +101,8 @@ function decorateEvent(event, ctx) {
     // Omitted entirely, not nulled, when the caller may not see money — so the
     // shape of the response cannot leak an amount.
     budget: maySeeBudget ? budgetView(budget, ctx) : null,
+    approval: (ctx.canSeeAllClubs() || ctx.clubRole(event.clubId))
+      ? routeSummary(latestRequest(event.id), ctx, event.clubId) : null,
     myRegistration: myReg
       ? { id: myReg.id, attended: myReg.attended,
           pass: attendance.livePass(myReg.id) || null }
@@ -170,6 +221,7 @@ export const events = {
         "Only a published event can go live.");
     }
     event.status = "live";
+    approvals.audit(ctx, "event.live", event.id, {});
     return commit(decorateEvent(event, ctx));
   },
 
@@ -196,6 +248,7 @@ export const events = {
     event.socialLinks = socialLinks.filter(Boolean);
     event.status = "reported";
     event.closedAt = now();
+    approvals.audit(ctx, "event.closed", event.id, { photoCount: event.photoCount });
     return commit(decorateEvent(event, ctx));
   },
 
@@ -304,8 +357,9 @@ export const clubs = {
   roster(ctx, clubId) {
     const club = find(db().clubs, clubId);
     if (!club) throw notFound("No such club.");
-    // A roster is names and PRNs, so the Vice-Chancellor is excluded: Management
-    // receives aggregates. Outsiders get 404, not 403 — a 403 would confirm it exists.
+    // A roster is names and PRNs, so the Vice-Chancellor and Management are
+    // excluded: that tier receives aggregates. Outsiders get 404, not 403 — a 403
+    // would confirm it exists.
     if (!(ctx.canSeeIndividualRecords() || ctx.clubRole(club.id))) {
       throw notFound("No such club roster, or it is not visible to you.");
     }
@@ -391,7 +445,8 @@ function budgetView(budget, ctx) {
     settlementHint: budgets.settlementHint(budget),
     settlementProblems: budgets.settlementProblems(budget),
     thresholds: { receiptThreshold: budgets.RECEIPT_THRESHOLD,
-                  vcThreshold: approvals.VC_THRESHOLD },
+                  vcThreshold: approvals.VC_THRESHOLD,
+                  managementThreshold: approvals.MANAGEMENT_THRESHOLD },
     eventTitle: find(db().events, budget.eventId)?.title || "",
     eventStatus: find(db().events, budget.eventId)?.status || "",
   };
@@ -532,10 +587,12 @@ export const budget = {
         name: t.name, lines,
         contingency: { percent: budgets.CONTINGENCY_PERCENT, amount: contingency },
         totalRequested: total,
-        // Told up front, so a club knows before submitting that its proposal will
-        // take three gates rather than two.
+        // Told up front, so a club knows before submitting how many gates its
+        // proposal will take.
         requiresVc: total > approvals.VC_THRESHOLD,
         vcThreshold: approvals.VC_THRESHOLD,
+        requiresManagement: total > approvals.MANAGEMENT_THRESHOLD,
+        managementThreshold: approvals.MANAGEMENT_THRESHOLD,
       };
     });
   },
@@ -547,6 +604,8 @@ export const budget = {
 function approvalView(request, ctx) {
   const event = find(db().events, request.eventId);
   const b = db().budgets.find(x => x.eventId === event.id);
+  // A club member may follow their club's proposal, but never its figures.
+  const money = maySeeMoney(ctx, event.clubId);
   return {
     id: request.id, eventId: event.id, eventTitle: event.title,
     club: find(db().clubs, event.clubId).name, clubId: event.clubId,
@@ -555,18 +614,30 @@ function approvalView(request, ctx) {
     expectedAttendance: event.expectedAttendance,
     stages: request.stages, currentStage: request.currentStage,
     stageLabel: R.STAGE_LABELS[request.currentStage],
-    state: request.state, amountRequested: request.amountRequested,
+    route: routeSummary(request, ctx, event.clubId),
+    state: request.state,
+    amountRequested: money ? request.amountRequested : null,
     requiresVc: request.requiresVc, vcReason: request.vcReason,
+    requiresManagement: Boolean(request.requiresManagement),
+    managementReason: request.managementReason || "",
     requiresMfa: approvals.requiresMfa(request, request.currentStage),
     myStage: ctx.hasAny(R.STAGE_ROLE[request.currentStage]),
-    steps: request.steps.map(s => ({ ...s, stageLabel: R.STAGE_LABELS[s.stage] })),
-    lines: b ? b.lines.map(l => ({
+    // Only the financial gates sanction; the Society recommends.
+    canSanction: R.SANCTIONING_STAGES.includes(request.currentStage),
+    // The submitter is a student; the aggregate-only tier is told "the club".
+    submittedAt: request.createdAt,
+    submittedByLabel: aggregateOnly(ctx) ? "" : request.submittedByLabel || "",
+    steps: request.steps.map(s => ({
+      ...s, stageLabel: R.STAGE_LABELS[s.stage],
+      comment: money ? s.comment : "",
+    })),
+    lines: b && money ? b.lines.map(l => ({
       id: l.id, head: l.head, amountRequested: l.amountRequested,
       amountSanctioned: l.amountSanctioned,
     })) : [],
     // An approver must be able to tell "this costs nothing" from "nobody priced
     // it". A blank line table cannot say which.
-    nilDeclaration: b ? budgets.nilDeclaration(b) : null,
+    nilDeclaration: b && money ? budgets.nilDeclaration(b) : null,
     clashes: approvals.clashesFor(event).map(e => ({
       id: e.id, title: e.title, club: find(db().clubs, e.clubId).name,
       startsAt: e.startsAt, endsAt: e.endsAt,
@@ -576,6 +647,23 @@ function approvalView(request, ctx) {
 }
 
 export const governance = {
+  /**
+   * The gates a proposal from this club would pass for this amount, before it is
+   * sent — so a club knows up front that a big budget takes four gates, not two.
+   */
+  previewRoute(ctx, { clubId, amount = 0, festId = null }) {
+    const club = find(db().clubs, clubId);
+    if (!club) throw notFound("No such club.");
+    const { stages, vcReason, managementReason } =
+      approvals.buildRoute({ clubId, festId }, Number(amount) || 0);
+    return {
+      stages: stages.map(stage => ({
+        stage, label: R.STAGE_LABELS[stage], short: R.STAGE_SHORT[stage],
+        reason: stage === "vc" ? vcReason : stage === "management" ? managementReason : "",
+      })),
+    };
+  },
+
   queue(ctx) {
     const rows = approvals.pendingFor(ctx);
     return {
@@ -613,6 +701,29 @@ export const governance = {
     return commit({ step, request: approvalView(request, ctx) });
   },
 
+  /**
+   * The caller's own recent decisions, newest first, with where each proposal
+   * went next. An approved item leaves the queue; this is how an approver sees
+   * that it went somewhere rather than vanished.
+   */
+  myDecisions(ctx, { limit = 8 } = {}) {
+    const rows = [];
+    for (const request of db().approvals) {
+      for (const step of request.steps.filter(x => x.actorSub === ctx.sub)) {
+        const event = find(db().events, request.eventId);
+        rows.push({
+          requestId: request.id, eventId: event.id, eventTitle: event.title,
+          club: find(db().clubs, event.clubId).name,
+          stage: step.stage, stageLabel: R.STAGE_LABELS[step.stage],
+          decision: step.decision, at: step.at,
+          nowWith: request.state === "pending" ? R.STAGE_WITH[request.currentStage] : null,
+          state: request.state, eventStatus: event.status,
+        });
+      }
+    }
+    return rows.sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
+  },
+
   notifications(ctx, { unread = false } = {}) {
     let rows = db().notifications.filter(n => n.userId === ctx.sub);
     if (unread) rows = rows.filter(n => !n.readAt);
@@ -632,7 +743,9 @@ export const governance = {
   },
 
   audit(ctx) {
-    if (!ctx.hasAny(R.DEAN, R.ADMIN, R.VICE_CHANCELLOR)) {
+    // Actor names include students acting for their clubs, so the aggregate-only
+    // tier is excluded, as the message says.
+    if (!ctx.hasAny(R.DEAN, R.ADMIN)) {
       throw denied("GOVERNANCE_AUDIT_DENIED",
         "The audit trail is available to the Dean and administrators.");
     }
@@ -647,8 +760,8 @@ function requireDoorAccess(ctx, event) {
   if (ctx.organiserEvents().includes(event.id)) return;
   if (ctx.hasClubRole(event.clubId, ...R.DOOR_STAFF)) return;
   if (ctx.hasAny(R.ADMIN)) return;
-  // Deliberately not the Dean, the VC or the society: running a door is the club's
-  // job, and the scan response carries names and PRNs.
+  // Deliberately not the Dean, the VC, Management or the society: running a door
+  // is the club's job, and the scan response carries names and PRNs.
   throw denied("PARTICIPATION_STATION_DENIED",
     "Only this event's organisers and their club's door staff may work a check-in desk.");
 }
@@ -820,8 +933,8 @@ export const participation = {
 // --------------------------------------------------------------------------
 export const directory = {
   students(ctx, query) {
-    // A PRN directory is individual student data, so the VC and the society are
-    // excluded; organisers and door staff need it at the desk.
+    // A PRN directory is individual student data, so the VC, Management and the
+    // society are excluded; organisers and door staff need it at the desk.
     if (!(ctx.canSeeIndividualRecords() || ctx.organiserEvents().length
           || ctx.scopesFor(...R.DOOR_STAFF).length)) {
       throw denied("DIRECTORY_NOT_PERMITTED",
@@ -842,7 +955,8 @@ export const directory = {
 
 export const reports = {
   semester(ctx) {
-    if (!ctx.hasAny(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY)) {
+    if (!ctx.hasAny(R.DEAN, R.VICE_CHANCELLOR, R.MANAGEMENT, R.ADMIN,
+                    R.CULTURAL_SOCIETY)) {
       throw denied("REPORTING_DENIED",
         "The semester report is available to the Dean and management.");
     }
@@ -854,5 +968,65 @@ export const reports = {
       throw denied("REPORTING_DENIED", "This overview is available to the Dean.");
     }
     return reporting.deanOverview();
+  },
+};
+
+// --------------------------------------------------------------------------
+// pilot: the guided journey on the sign-in page
+// --------------------------------------------------------------------------
+const rupees = n => `₹${n.toLocaleString("en-IN")}`;
+
+export const pilot = {
+  /**
+   * Progress through the full journey, derived from what actually happened since
+   * the data was seeded rather than from clicks — so a step done the long way
+   * round still counts, and resetting the data resets the journey.
+   */
+  journey() {
+    const since = db().readyAt || "";
+    const after = at => String(at || "") > since;
+    const acted = (action, test = () => true) => db().audit.some(
+      a => a.action === action && after(a.at) && test(a));
+    const approvedAt = stage =>
+      acted("approval.approve", a => Boolean(a.after) && a.after.stage === stage);
+
+    const steps = [
+      { key: "request", persona: "treasurer", page: "club-new-event.html",
+        title: "Raise a budget request",
+        detail: "Create an event from the Fest night template. At over "
+          + `${rupees(approvals.MANAGEMENT_THRESHOLD)} it needs all four gates.`,
+        done: acted("event.submitted") },
+      { key: "society", persona: "society", page: "society-approvals.html",
+        title: "The Cultural Society recommends it",
+        detail: "Gate 1. Approve it, or return it with a comment the club can act on.",
+        done: approvedAt("cultural_society") },
+      { key: "dean", persona: "dean", page: "dean-approvals.html",
+        title: "The Dean sanctions it",
+        detail: "Gate 2. Trim a head if you like — never above what was asked for.",
+        done: approvedAt("dean") },
+      { key: "vc", persona: "vc", page: "vc-queue.html",
+        title: "The Vice-Chancellor approves",
+        detail: `Gate 3, for budgets over ${rupees(approvals.VC_THRESHOLD)}.`,
+        done: approvedAt("vc") },
+      { key: "management", persona: "management", page: "management-queue.html",
+        title: "Management gives the final approval",
+        detail: `Gate 4, over ${rupees(approvals.MANAGEMENT_THRESHOLD)}. `
+          + "Approving publishes the event.",
+        done: approvedAt("management") },
+      { key: "register", persona: "student", page: "student-events.html",
+        title: "A student registers",
+        detail: "Find it under What's on. The pass appears under My passes.",
+        done: db().registrations.some(
+          r => after(r.registeredAt) && r.source === "pre_registered") },
+      { key: "checkin", persona: "president", page: "organiser-scan.html",
+        title: "Check them in at the door",
+        detail: "At the Scan station, scan the student's pass — then try it twice.",
+        done: db().scans.some(s => after(s.syncedAt) && attendance.isAccepting(s.result)) },
+      { key: "settle", persona: "president", page: "club-events.html",
+        title: "Close the event and settle the budget",
+        detail: "Close it with photos, record what was spent, attach receipts, settle.",
+        done: acted("budget.settled") },
+    ];
+    return { steps, done: steps.filter(x => x.done).length, total: steps.length };
   },
 };

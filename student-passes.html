@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My passes — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -23,7 +24,7 @@ await page("student-passes.html", async (main, session) => {
       <p class="muted">Each pass works once, for that event only. A second scan is
         reported as a duplicate rather than quietly counted twice.</p></div></div>
     ${wallet.passes.length ? `<div class="stack">${wallet.passes.map(p => `
-      <div class="ticket"><div class="main">
+      <div class="ticket" data-pass-title="${esc(p.title)}"><div class="main">
         <span class="small muted">${esc(p.club)} presents</span>
         <h3>${esc(p.title)}</h3>
         <p>${fmtDate(p.startsAt)}, ${fmtTime(p.startsAt)}–${fmtTime(p.endsAt)}</p>

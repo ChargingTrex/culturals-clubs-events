@@ -1,5 +1,6 @@
 /**
- * End to end: a club raises a budget request and it travels the three gates.
+ * End to end: a club raises a budget request and it travels the gates — the
+ * Cultural Society, the Dean, the Vice-Chancellor and Management.
  *
  * This is the workflow the testers are being asked to feel, so it is tested from
  * the outside — through the same api.* calls the pages make — rather than by
@@ -7,7 +8,7 @@
  */
 import { describe, test, beforeEach, expect, refuses, world } from "./harness.mjs";
 import * as api from "../src/api.js";
-import { db } from "../src/db.js";
+import { db, dropMemory, load } from "../src/db.js";
 
 const inDays = (days, hour) => {
   const d = new Date();
@@ -149,7 +150,7 @@ describe("Zero-budget events carry an explicit declaration", () => {
   });
 });
 
-describe("Approvals: Society, then Dean, then Management", () => {
+describe("Approvals: Society, Dean, Vice-Chancellor, Management", () => {
   let as;
   beforeEach(async () => { as = await world(); return { as }; });
 
@@ -157,13 +158,18 @@ describe("Approvals: Society, then Dean, then Management", () => {
     .find(r => r.eventTitle === "Culturals Night 2026");
 
   test("each gate sees only its own queue", () => {
-    const society = api.governance.queue(as.society);
-    const dean = api.governance.queue(as.dean);
-    expect(society.stagesYouHold).toEqual(["cultural_society"]);
-    expect(dean.stagesYouHold).toEqual(["dean"]);
-    expect(society.count).toBeGreaterThan(0);
-    // Everything still sits at gate 1, so the Dean's queue is correctly empty.
-    expect(dean.count).toBe(0);
+    const gates = { society: "cultural_society", dean: "dean", vc: "vc",
+                    management: "management" };
+    for (const [persona, stage] of Object.entries(gates)) {
+      const queue = api.governance.queue(as[persona]);
+      expect(queue.stagesYouHold).toEqual([stage]);
+      // The seed leaves something at every gate, so no approver opens to nothing.
+      expect(queue.count).toBeGreaterThan(0);
+      for (const row of queue.results) expect(row.currentStage).toBe(stage);
+    }
+    // Culturals Night still sits at gate 1, so it is correctly not the Dean's yet.
+    expect(pendingNight(as.dean)).toBeFalsy();
+    expect(pendingNight(as.society)).toBeTruthy();
   });
 
   test("a student sees no queue at all", () => {
@@ -172,28 +178,85 @@ describe("Approvals: Society, then Dean, then Management", () => {
     expect(queue.count).toBe(0);
   });
 
-  test("above the threshold the route gains the VC gate", () => {
+  test("the route grows with the amount: VC over 50,000, Management over 2 lakh", () => {
+    const small = api.governance.queue(as.society).results
+      .find(r => r.eventTitle === "Drishti Street Play");
+    expect(small.stages).toEqual(["cultural_society", "dean"]);
+
+    const middle = api.governance.queue(as.vc).results
+      .find(r => r.eventTitle === "Natya Dance Drama");
+    expect(middle.amountRequested).toBeGreaterThan(50000);
+    expect(middle.stages).toEqual(["cultural_society", "dean", "vc"]);
+    expect(middle.requiresManagement).toBeFalsy();
+
     const row = pendingNight(as.society);
+    expect(row.amountRequested).toBeGreaterThan(200000);
     expect(row.requiresVc).toBeTruthy();
     expect(row.vcReason).toContain("over");
-    expect(row.stages).toEqual(["cultural_society", "dean", "vc"]);
+    expect(row.requiresManagement).toBeTruthy();
+    expect(row.managementReason).toContain("2,00,000");
+    expect(row.stages).toEqual(["cultural_society", "dean", "vc", "management"]);
   });
 
-  test("the full three-gate chain publishes the event", () => {
+  test("the route preview a club sees before sending matches the real route", () => {
+    const swara = db().clubs.find(c => c.name === "Swara");
+    const preview = api.governance.previewRoute(as.treasurer,
+      { clubId: swara.id, amount: pendingNight(as.society).amountRequested });
+    expect(preview.stages.map(s => s.stage))
+      .toEqual(["cultural_society", "dean", "vc", "management"]);
+  });
+
+  test("the full four-gate chain publishes the event", () => {
     const row = pendingNight(as.society);
     api.governance.decide(as.society, row.id, { decision: "approve" });
     expect(api.governance.get(as.society, row.id).currentStage).toBe("dean");
 
     api.governance.decide(as.dean, row.id, { decision: "approve" });
     expect(api.governance.get(as.dean, row.id).currentStage).toBe("vc");
+    expect(api.events.get(as.treasurer, row.eventId).budget.stage).toBe("vc_review");
 
     api.governance.decide(as.vc, row.id, { decision: "approve" });
+    expect(api.governance.get(as.vc, row.id).currentStage).toBe("management");
+    expect(api.events.get(as.treasurer, row.eventId).budget.stageLabel)
+      .toBe("With Management");
+    // Approved by three gates and still not published: the fourth has not spoken.
+    expect(api.events.get(as.dean, row.eventId).status).toBe("submitted");
+
+    api.governance.decide(as.management, row.id, { decision: "approve" });
     const resolved = api.governance.get(as.dean, row.id);
     expect(resolved.state).toBe("approved");
+    expect(resolved.steps.map(x => x.stage))
+      .toEqual(["cultural_society", "dean", "vc", "management"]);
 
     const event = api.events.get(as.dean, resolved.eventId);
     expect(event.status).toBe("published");
     expect(event.budget.stage).toBe("sanctioned");
+    // And it is now open to students.
+    expect(api.events.list(as.student, { status: "published" }).map(e => e.id))
+      .toContain(resolved.eventId);
+  });
+
+  test("Management cannot act while it is with the Vice-Chancellor", async () => {
+    const row = api.governance.queue(as.vc).results
+      .find(r => r.eventTitle === "Natya Dance Drama");
+    // Natya Dance Drama never reaches Management at all: not on its route.
+    await refuses(() => api.governance.decide(as.management, row.id,
+      { decision: "approve" }), { code: "GOVERNANCE_NOT_APPROVER", status: 403 });
+
+    const night = pendingNight(as.society);
+    api.governance.decide(as.society, night.id, { decision: "approve" });
+    api.governance.decide(as.dean, night.id, { decision: "approve" });
+    const err = await refuses(() => api.governance.decide(as.management, night.id,
+      { decision: "approve" }), { code: "GOVERNANCE_WRONG_STAGE", status: 409 });
+    expect(err.detail).toContain("Vice-Chancellor");
+  });
+
+  test("Management's approval of the seeded championship publishes it", () => {
+    const row = api.governance.queue(as.management).results
+      .find(r => r.eventTitle === "Inter-College Dance Championship");
+    expect(row.steps.map(x => x.stage)).toEqual(["cultural_society", "dean", "vc"]);
+    api.governance.decide(as.management, row.id, { decision: "approve" });
+    expect(api.events.get(as.dean, row.eventId).status).toBe("published");
   });
 
   test("the Dean cannot act while it is with the Society", async () => {
@@ -254,6 +317,89 @@ describe("Approvals: Society, then Dean, then Management", () => {
       { code: "BUDGET_SANCTION_EXCEEDS_REQUEST", status: 422 });
   });
 
+  test("a later gate may cut the Dean's sanction, never restore it", async () => {
+    const row = pendingNight(as.society);
+    api.governance.decide(as.society, row.id, { decision: "approve" });
+    const [first, second] = api.governance.get(as.dean, row.id).lines;
+    api.governance.decide(as.dean, row.id, {
+      decision: "approve", sanctioned: { [first.id]: first.amountRequested - 10000 },
+    });
+    // Restoring the cut is refused, even though it is within what was requested.
+    await refuses(() => api.governance.decide(as.vc, row.id, {
+      decision: "approve", sanctioned: { [first.id]: first.amountRequested },
+    }), { code: "BUDGET_SANCTION_RAISED", status: 422 });
+
+    api.governance.decide(as.vc, row.id, {
+      decision: "approve", sanctioned: { [second.id]: 1000 },
+    });
+    const lines = api.budget.forEvent(as.dean, row.eventId).lines;
+    expect(lines[0].amountSanctioned).toBe(first.amountRequested - 10000);
+    expect(lines[1].amountSanctioned).toBe(1000);
+  });
+
+  test("a refused sanction changes no head at all", async () => {
+    const row = pendingNight(as.society);
+    api.governance.decide(as.society, row.id, { decision: "approve" });
+    const [first, second] = api.governance.get(as.dean, row.id).lines;
+    await refuses(() => api.governance.decide(as.dean, row.id, {
+      decision: "approve",
+      sanctioned: { [first.id]: 10, [second.id]: second.amountRequested + 1 },
+    }), { code: "BUDGET_SANCTION_EXCEEDS_REQUEST", status: 422 });
+    // The valid figure for the first head must not have been half-applied.
+    expect(api.budget.forEvent(as.dean, row.eventId).lines[0].amountSanctioned)
+      .toBeNull();
+  });
+
+  test("the Society recommends but does not sanction figures", () => {
+    const row = pendingNight(as.society);
+    expect(row.canSanction).toBeFalsy();
+    const line = row.lines[0];
+    api.governance.decide(as.society, row.id,
+      { decision: "approve", sanctioned: { [line.id]: 1 } });
+    expect(api.budget.forEvent(as.dean, row.eventId).lines[0].amountSanctioned)
+      .toBeNull();
+    expect(api.governance.get(as.dean, row.id).canSanction).toBeTruthy();
+  });
+
+  test("a resubmitted proposal starts with nothing sanctioned", () => {
+    const row = pendingNight(as.society);
+    api.governance.decide(as.society, row.id, { decision: "approve" });
+    api.governance.decide(as.dean, row.id, { decision: "approve" });
+    expect(api.budget.forEvent(as.dean, row.eventId).totalSanctioned).toBeGreaterThan(0);
+    api.governance.decide(as.vc, row.id,
+      { decision: "return", comment: "Find a sponsor for the artist fee." });
+    api.events.submit(as.treasurer, row.eventId);
+    // Last round's figures would read as already decided while this one is open.
+    expect(api.budget.forEvent(as.dean, row.eventId).totalSanctioned).toBe(0);
+  });
+
+  test("the club sees why it was returned; a plain member sees no figures", () => {
+    const row = pendingNight(as.society);
+    api.governance.decide(as.society, row.id,
+      { decision: "return", comment: "Trim the artist fees." });
+    const forTreasurer = api.events.get(as.treasurer, row.eventId).approval;
+    expect(forTreasurer.state).toBe("returned");
+    expect(forTreasurer.lastDecision.comment).toBe("Trim the artist fees.");
+    expect(forTreasurer.stages[0].status).toBe("returned");
+
+    const forMember = api.events.get(as.member, row.eventId).approval;
+    expect(forMember.state).toBe("returned");
+    // A return comment is usually about the money; a member has no budget access.
+    expect(forMember.lastDecision.comment).toBeNull();
+  });
+
+  test("a club member can follow a proposal but never read its figures", () => {
+    const rows = api.governance.list(as.member);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.amountRequested).toBeNull();
+      expect(row.lines).toHaveLength(0);
+    }
+    // The Treasurer of the same club still sees them.
+    expect(api.governance.list(as.treasurer).some(r => r.amountRequested > 0))
+      .toBeTruthy();
+  });
+
   test("heads the Dean did not touch are sanctioned as requested", () => {
     const row = pendingNight(as.society);
     api.governance.decide(as.society, row.id, { decision: "approve" });
@@ -289,6 +435,75 @@ describe("Approvals: Society, then Dean, then Management", () => {
       { decision: "return", comment: "Another club wants this slot; pick another." });
     expect(returned.request.state).toBe("returned");
   });
+});
+
+describe("State survives a page load", () => {
+  let as;
+  beforeEach(async () => { as = await world(); return { as }; });
+
+  test("records created on separate page loads get distinct ids", () => {
+    // Every page is a fresh load. The id counter used to restart at zero on each,
+    // so two events created on two pages were both ev_0001 and shared one budget.
+    const first = newDraft(as, { title: "First Page Draft" });
+    dropMemory();
+    load();
+    const second = newDraft(as, { title: "Second Page Draft" });
+    expect(first.event.id === second.event.id).toBeFalsy();
+    expect(first.budget.id === second.budget.id).toBeFalsy();
+    const ids = db().events.map(e => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("a returned trip through storage keeps every rule intact", () => {
+    const created = newDraft(as, { title: "Stored Then Priced" });
+    dropMemory();
+    load();
+    api.budget.addLine(as.treasurer, created.budget.id,
+      { head: "Sound", amountRequested: 5000 });
+    const approval = api.events.submit(as.president, created.event.id);
+    expect(approval.currentStage).toBe("cultural_society");
+    expect(db().budgets.filter(b => b.eventId === created.event.id)).toHaveLength(1);
+  });
+});
+
+describe("The guided journey counts only what the tester did", () => {
+  let as;
+  beforeEach(async () => { as = await world(); return { as }; });
+
+  test("a fresh dataset starts at zero, and real actions tick it forward", () => {
+    // The seed walks proposals through every gate itself; none of that may count.
+    expect(api.pilot.journey().done).toBe(0);
+    const night = api.governance.queue(as.society).results
+      .find(r => r.eventTitle === "Culturals Night 2026");
+    api.governance.decide(as.society, night.id, { decision: "approve" });
+    const journey = api.pilot.journey();
+    expect(journey.steps.find(x => x.key === "society").done).toBeTruthy();
+    expect(journey.steps.find(x => x.key === "dean").done).toBeFalsy();
+    expect(journey.done).toBe(1);
+  });
+
+  test("seeding before today's live event starts still counts nothing as done",
+    async () => {
+      // The seed backfills check-ins at today's live event. Seeded at 9am, before
+      // that event opens, a naive backfill lands in the future — after the moment
+      // the tester's own actions start counting — and ticks the journey for them.
+      const RealDate = Date;
+      const morning = new RealDate();
+      morning.setHours(9, 0, 0, 0);
+      const offset = morning.getTime() - RealDate.now();
+      globalThis.Date = class extends RealDate {
+        constructor(...args) { super(...(args.length ? args : [RealDate.now() + offset])); }
+        static now() { return RealDate.now() + offset; }
+      };
+      try {
+        await world();
+        expect(api.pilot.journey().done).toBe(0);
+        const late = db().scans.filter(s => s.scannedAt > db().readyAt);
+        expect(late).toHaveLength(0);
+      } finally {
+        globalThis.Date = RealDate;
+      }
+    });
 });
 
 describe("Settlement happens last, and says so", () => {

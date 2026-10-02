@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Scan station — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
 </div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script type="module">
-import { page, esc, fmtTime, showError, qrImage } from "./src/ui.js";
+import { page, esc, fmtTime, showError } from "./src/ui.js";
 import * as api from "./src/api.js";
 import { db } from "./src/db.js";
 import QR from "./src/qrcode.js";
@@ -23,180 +24,206 @@ await page("organiser-scan.html", async (main, session, caps) => {
   // Swara president the Lens door and then collect a refusal.
   const candidates = api.events.list(session, { status: "live,published" })
     .filter(e => caps.clubsDoorStaff.includes(e.clubId)
-      || caps.organiserEvents.includes(e.id));
+      || caps.organiserEvents.includes(e.id))
+    .sort((a, b) => (a.status === "live" ? -1 : 0) - (b.status === "live" ? -1 : 0)
+      || a.startsAt.localeCompare(b.startsAt));
   if (!candidates.length) {
     throw Object.assign(new Error(caps.clubsDoorStaff.length
-      ? "You are door staff for your club, but none of its events is open right now."
+      ? "You are door staff for your club, but none of its events is open right now. "
+        + "An event's door opens once it is published."
       : "Only an event's organisers and their club's door staff may work a desk."),
       { status: 404, title: "No door to work" });
   }
 
-  let eventId = candidates[0].id;
+  const wanted = new URLSearchParams(location.search).get("event");
+  let eventId = (candidates.find(e => e.id === wanted) || candidates[0]).id;
   let stopCamera = null;
 
-  const draw = async () => {
+  main.innerHTML = `
+    <div class="head"><div><h1>Scan station</h1>
+      <p class="muted" id="where"></p></div>
+      <div style="min-width:240px"><label for="ev">Event</label>
+        <select id="ev">${candidates.map(e =>
+          `<option value="${e.id}">${esc(e.title)}${e.status === "live"
+            ? " — live" : ""}</option>`).join("")}</select></div></div>
+
+    <div class="grid2" style="align-items:start">
+      <div class="stack">
+        <div class="gate idle" id="gate" role="status" aria-live="assertive">
+          <div class="verdict">Ready to scan</div></div>
+        <div class="panel counter" id="counters"></div>
+        <div class="panel">
+          <label for="tok">Paste or type a code</label>
+          <form class="row" id="scanForm"><input id="tok" placeholder="demo.eyJ…"
+            autocomplete="off" style="flex:1;min-width:0">
+            <button class="btn primary" id="scan" type="submit">Scan</button></form>
+          <div class="row" style="margin-top:10px">
+            <button class="btn" id="camera" type="button">Use camera</button>
+            <button class="btn" id="forge" type="button">Try a forged code</button></div>
+          <div id="reader" style="margin-top:10px"></div>
+          <p class="small muted" style="margin-top:8px">Failed scans are recorded
+            too — the gap between attempts and check-ins is the capture rate, and
+            without it a station rejecting half its queue looks like a quiet
+            event.</p></div>
+      </div>
+
+      <div class="stack">
+        <div class="panel"><h3>Simulate the queue</h3>
+          <p class="small muted" style="margin:4px 0 10px">No second phone? Pick
+            someone and their code is presented to the door, exactly as if they held
+            it up.</p>
+          <div id="whoHere"></div></div>
+        <div class="panel"><h3>Look up by PRN or name</h3>
+          <p class="small muted" style="margin-top:4px">For a flat phone. Still
+            recorded against you as the operator.</p>
+          <input id="q" placeholder="e.g. 23CS1007 or Meera" style="margin-top:10px"
+            autocomplete="off">
+          <ul class="list" id="hits" style="margin-top:8px"></ul></div>
+        <div class="panel"><h3>Recent scans</h3>
+          <ul class="list" id="recent" style="margin-top:8px"></ul>
+          <p class="small muted" id="captureLine" style="margin-top:8px"></p></div>
+      </div></div>`;
+
+  const select = document.getElementById("ev");
+  select.value = eventId;
+
+  /** Redraw everything that changes with a scan, and nothing the operator owns. */
+  const refresh = () => {
     const state = api.participation.station(session, eventId);
-    main.innerHTML = `
-      <div class="head"><div><h1>Scan station</h1>
-        <p class="muted">${esc(state.event.title)} · ${esc(state.event.venue)} ·
-          station GATE-1</p></div>
-        <div style="min-width:230px"><label for="ev">Event</label>
-          <select id="ev">${candidates.map(e =>
-            `<option value="${e.id}" ${e.id === eventId ? "selected" : ""}>${
-              esc(e.title)}</option>`).join("")}</select></div></div>
+    document.getElementById("where").textContent =
+      `${state.event.title} · ${state.event.venue} · station GATE-1`;
+    document.getElementById("counters").innerHTML = `
+      <div><b data-count="checked-in">${state.counters.checkedIn}</b><span>checked in</span></div>
+      <div><b>${state.counters.registered}</b><span>registered</span></div>
+      <div><b>${state.counters.capacity}</b><span>capacity</span></div>
+      <div><b data-count="capture">${state.capture.captureRate ?? "—"}</b><span>capture
+        rate</span></div>`;
+    document.getElementById("recent").innerHTML = state.recent.map(r =>
+      `<li class="small row" style="justify-content:space-between">
+        <span>${esc(r.resultLabel)}${r.who ? ` — ${esc(r.who)}` : ""}
+          ${r.wasOffline ? `<span class="pill">offline</span>` : ""}</span>
+        <span class="muted">${fmtTime(r.scannedAt)}</span></li>`).join("")
+      || `<li class="small muted">No scans yet</li>`;
+    document.getElementById("captureLine").dataset.attempts = state.capture.attempts;
+    document.getElementById("captureLine").textContent =
+      `${state.capture.accepted} accepted of ${state.capture.attempts} attempts · `
+      + `${state.capture.unknown} unrecognised · ${state.capture.duplicates} duplicate · `
+      + `${state.capture.wrongEvent} wrong event`;
 
-      <div class="grid2" style="align-items:start">
-        <div class="stack">
-          <div class="gate idle" id="gate" role="status" aria-live="assertive">
-            <div class="verdict">Ready to scan</div></div>
-          <div class="panel counter">
-            <div><b>${state.counters.checkedIn}</b><span>checked in</span></div>
-            <div><b>${state.counters.registered}</b><span>registered</span></div>
-            <div><b>${state.counters.capacity}</b><span>capacity</span></div>
-            <div><b>${state.capture.captureRate ?? "—"}</b><span>capture rate</span></div>
-          </div>
-          <div class="panel">
-            <label for="tok">Paste or type a code</label>
-            <div class="row"><input id="tok" placeholder="demo.eyJ…"
-              style="flex:1;min-width:0">
-              <button class="btn primary" id="scan">Scan</button></div>
-            <div class="row" style="margin-top:10px">
-              <button class="btn" id="camera">Use camera</button>
-              <button class="btn" id="forge">Try a forged code</button></div>
-            <div id="reader" style="margin-top:10px"></div>
-            <p class="small muted" style="margin-top:8px">Failed scans are recorded
-              too — the gap between attempts and check-ins is the capture rate, and
-              without it a station rejecting half its queue looks like a quiet
-              event.</p></div>
-        </div>
-
-        <div class="stack">
-          <div class="panel"><h3>Who is here</h3>
-            <p class="small muted" style="margin:4px 0 10px">Pick someone to get their
-              code, so you can try the door without a second device.</p>
-            <div id="whoHere"></div></div>
-          <div class="panel"><h3>Look up by PRN or name</h3>
-            <input id="q" placeholder="e.g. 23CS1007 or Meera" style="margin-top:10px">
-            <ul class="list" id="hits" style="margin-top:8px"></ul></div>
-          <div class="panel"><h3>Recent scans</h3>
-            <ul class="list" style="margin-top:8px">${state.recent.map(r =>
-              `<li class="small row" style="justify-content:space-between">
-                <span>${esc(r.resultLabel)}${r.who ? ` — ${esc(r.who)}` : ""}
-                  ${r.wasOffline ? `<span class="pill">offline</span>` : ""}</span>
-                <span class="muted">${fmtTime(r.scannedAt)}</span></li>`).join("")
-              || `<li class="small muted">No scans yet</li>`}</ul>
-            <p class="small muted" style="margin-top:8px">${state.capture.accepted}
-              accepted of ${state.capture.attempts} attempts ·
-              ${state.capture.unknown} unrecognised ·
-              ${state.capture.duplicates} duplicate ·
-              ${state.capture.wrongEvent} wrong event</p></div>
-        </div></div>`;
-
-    document.getElementById("ev").addEventListener("change", e => {
-      eventId = e.target.value; draw();
-    });
-
-    // Offer real codes from the roster, so a tester can exercise every branch.
+    // Real codes from the roster, so a tester can exercise every branch.
     const roster = api.participation.roster(session, eventId);
     const waiting = roster.results.filter(r => !r.attended).slice(0, 3);
     const alreadyIn = roster.results.find(r => r.attended);
     document.getElementById("whoHere").innerHTML = `<div class="stack">
-      ${waiting.map(r => `<button class="btn" data-pass="${r.id}">🎫
+      ${waiting.map(r => `<button class="btn" type="button" data-pass="${r.id}">🎫
         ${esc(r.fullName)} shows their pass</button>`).join("")}
-      ${alreadyIn ? `<button class="btn" data-pass="${alreadyIn.id}">🔁
+      ${alreadyIn ? `<button class="btn" type="button" data-pass="${alreadyIn.id}">🔁
         ${esc(alreadyIn.fullName)} — already checked in</button>` : ""}
-      <button class="btn" id="walkin">🚶 A walk-in shows their profile QR</button>
-    </div>`;
-
-    const verdict = outcome => {
-      const gate = document.getElementById("gate");
-      gate.className = `gate ${outcome.tone}`;
-      gate.innerHTML = `<div class="verdict">${esc(outcome.verdict)}</div>
-        ${outcome.student ? `<div class="person"><b>${esc(outcome.student.fullName)}</b> ·
-          ${esc(outcome.student.prn)} · ${esc(outcome.student.programme)},
-          Y${outcome.student.year}</div>` : ""}
-        ${outcome.detail ? `<div class="person" style="font-size:1rem;opacity:.9">${
-          esc(outcome.detail)}</div>` : ""}`;
-      setTimeout(draw, 1500);
-    };
-
-    const doScan = async token => {
-      try { verdict(await api.participation.scan(session, eventId, { token })); }
-      catch (err) { showError(document.getElementById("gate"), err); }
-    };
-
-    document.getElementById("scan").addEventListener("click", () => {
-      const value = document.getElementById("tok").value.trim();
-      if (value) doScan(value);
-    });
-    document.getElementById("tok").addEventListener("keydown", e => {
-      if (e.key !== "Enter") return;
-      e.preventDefault();
-      const value = e.target.value.trim();
-      if (value) doScan(value);
-    });
-    document.getElementById("forge").addEventListener("click",
-      () => doScan("demo.bm90LXJlYWw.forged"));
-
-    document.getElementById("camera").addEventListener("click", async e => {
-      if (stopCamera) { await stopCamera(); stopCamera = null; e.target.textContent = "Use camera"; return; }
-      e.target.textContent = "Starting…";
-      stopCamera = await QR.startCamera("reader", doScan);
-      if (!stopCamera) {
-        document.getElementById("reader").innerHTML = `<p class="note bad">The camera
-          could not start — no permission, no camera, or the scanner library did not
-          load. Use the buttons above or paste a code instead.</p>`;
-        e.target.textContent = "Use camera";
-      } else {
-        e.target.textContent = "Stop camera";
-      }
-    });
-
-    main.addEventListener("click", async event => {
-      const pass = event.target.closest("[data-pass]");
-      if (pass) {
-        const registration = db().registrations.find(r => r.id === pass.dataset.pass);
-        const row = db().passes.find(
-          p => p.registrationId === registration.id && !p.revokedAt);
-        return doScan(row ? row.token : "demo.no-pass.found");
-      }
-      if (event.target.closest("#walkin")) {
-        const held = new Set(roster.results.map(r => r.prn));
-        const student = db().students.find(s => !held.has(s.prn));
-        if (!student) return;
-        const { profileTokenFor } = await import("./src/attendance.js");
-        const record = await profileTokenFor(student.id);
-        return doScan(record.token);
-      }
-    }, { once: true });
-
-    document.getElementById("q").addEventListener("input", e => {
-      const box = document.getElementById("hits");
-      try {
-        const results = api.directory.students(session, e.target.value);
-        box.innerHTML = results.map(s => `<li class="row"
-          style="justify-content:space-between;padding:9px 2px">
-          <span class="small"><b>${esc(s.fullName)}</b>
-            <span class="muted">${esc(s.prn)}</span></span>
-          <button class="btn" data-manual="${s.studentId}">Check in</button></li>`
-        ).join("") || (e.target.value.trim().length < 2
-          ? `<li class="small muted" style="padding:9px 2px">Type at least two
-              characters.</li>`
-          : `<li class="small muted" style="padding:9px 2px">No match. Check the PRN on
-              their ID card.</li>`);
-      } catch (err) { showError(box, err); }
-    });
-    document.getElementById("hits").addEventListener("click", event => {
-      const button = event.target.closest("[data-manual]");
-      if (!button) return;
-      try {
-        verdict(api.participation.checkInManually(session, eventId,
-          { studentId: button.dataset.manual }));
-      } catch (err) { showError(document.getElementById("gate"), err); }
-    });
+      <button class="btn" type="button" data-walkin>🚶 A walk-in shows their profile
+        QR</button></div>`;
   };
 
-  await draw();
+  const verdict = outcome => {
+    const gate = document.getElementById("gate");
+    gate.className = `gate ${outcome.tone}`;
+    gate.dataset.result = outcome.result;
+    gate.innerHTML = `<div class="verdict">${esc(outcome.verdict)}</div>
+      ${outcome.student ? `<div class="person"><b>${esc(outcome.student.fullName)}</b> ·
+        ${esc(outcome.student.prn)} · ${esc(outcome.student.programme)},
+        Y${outcome.student.year}</div>` : ""}
+      ${outcome.detail ? `<div class="person" style="font-size:1rem;opacity:.9">${
+        esc(outcome.detail)}</div>` : ""}`;
+    refresh();
+  };
+
+  const doScan = async token => {
+    try { verdict(await api.participation.scan(session, eventId, { token })); }
+    catch (err) { showError(document.getElementById("gate"), err); }
+  };
+
+  select.addEventListener("change", () => {
+    eventId = select.value;
+    const gate = document.getElementById("gate");
+    gate.className = "gate idle";
+    delete gate.dataset.result;
+    gate.innerHTML = `<div class="verdict">Ready to scan</div>`;
+    refresh();
+  });
+
+  document.getElementById("scanForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const input = document.getElementById("tok");
+    const value = input.value.trim();
+    if (!value) return;
+    input.value = "";
+    doScan(value);
+  });
+  document.getElementById("forge").addEventListener("click",
+    () => doScan("demo.bm90LXJlYWw.forged"));
+
+  document.getElementById("camera").addEventListener("click", async e => {
+    const button = e.currentTarget;
+    if (stopCamera) {
+      await stopCamera(); stopCamera = null; button.textContent = "Use camera";
+      return;
+    }
+    button.textContent = "Starting…";
+    stopCamera = await QR.startCamera("reader", doScan);
+    if (!stopCamera) {
+      document.getElementById("reader").innerHTML = `<p class="note bad">The camera
+        could not start — no permission, no camera, or the scanner did not load. Use
+        the buttons above or paste a code instead.</p>`;
+      button.textContent = "Use camera";
+    } else {
+      button.textContent = "Stop camera";
+    }
+  });
+
+  document.getElementById("whoHere").addEventListener("click", async event => {
+    const pass = event.target.closest("[data-pass]");
+    if (pass) {
+      // Stands in for the student's phone: their current pass, as they would show it.
+      const row = db().passes.find(
+        p => p.registrationId === pass.dataset.pass && !p.revokedAt);
+      return doScan(row ? row.token : "demo.no-pass.found");
+    }
+    if (event.target.closest("[data-walkin]")) {
+      const held = new Set(api.participation.roster(session, eventId)
+        .results.map(r => r.prn));
+      const student = db().students.find(s => !held.has(s.prn));
+      if (!student) return;
+      const { profileTokenFor } = await import("./src/attendance.js");
+      const record = await profileTokenFor(student.id);
+      return doScan(record.token);
+    }
+  });
+
+  document.getElementById("q").addEventListener("input", e => {
+    const box = document.getElementById("hits");
+    try {
+      const results = api.directory.students(session, e.target.value);
+      box.innerHTML = results.map(s => `<li class="row"
+        style="justify-content:space-between;padding:9px 2px">
+        <span class="small"><b>${esc(s.fullName)}</b>
+          <span class="muted">${esc(s.prn)}</span></span>
+        <button class="btn" type="button" data-manual="${s.studentId}">Check in</button></li>`
+      ).join("") || (e.target.value.trim().length < 2
+        ? `<li class="small muted" style="padding:9px 2px">Type at least two
+            characters.</li>`
+        : `<li class="small muted" style="padding:9px 2px">No match. Check the PRN on
+            their ID card.</li>`);
+    } catch (err) { showError(box, err); }
+  });
+  document.getElementById("hits").addEventListener("click", event => {
+    const button = event.target.closest("[data-manual]");
+    if (!button) return;
+    try {
+      verdict(api.participation.checkInManually(session, eventId,
+        { studentId: button.dataset.manual }));
+    } catch (err) { showError(document.getElementById("gate"), err); }
+  });
+
+  refresh();
 });
 </script>
 </body>

@@ -6,7 +6,7 @@
  * If a rule breaks, the seed breaks — which is the point: the demo data is evidence
  * that the workflow runs, not a picture of it having run.
  */
-import { db, find, load, rng, save } from "./db.js";
+import { db, find, load, now, rng, save } from "./db.js";
 import { buildSeed, TEMPLATES } from "./seed.js";
 import { Session } from "./session.js";
 import * as R from "./roles.js";
@@ -37,7 +37,8 @@ export async function seedAll() {
   const society = staffSession(staffIds.society);
   const dean = staffSession(staffIds.dean);
   const vc = staffSession(staffIds.vc);
-  const byStage = { cultural_society: society, dean, vc };
+  const management = staffSession(staffIds.management);
+  const byStage = { cultural_society: society, dean, vc, management };
 
   // ---- price and submit every event, then approve to its target --------
   for (const event of [...db().events]) {
@@ -51,11 +52,13 @@ export async function seedAll() {
 
     const request = approvals.submit(event, ctx);
     if (event.targetStatus === "submitted") continue;
+    const stopAt = event.targetStatus.startsWith("at:") ? event.targetStatus.slice(3) : null;
 
     // Walk the route with the real decide(), so the seeded history is a genuine
     // approval trail rather than a fabricated one.
     let guard = 0;
-    while (request.state === "pending" && guard < 4) {
+    while (request.state === "pending" && guard < request.stages.length) {
+      if (stopAt && request.currentStage === stopAt) break;
       guard += 1;
       const stage = request.currentStage;
       let sanctioned = {};
@@ -89,10 +92,18 @@ export async function seedAll() {
       const registration = await attendance.registerStudent(event, chosen[i].id);
       if (i < attending) {
         const pass = attendance.livePass(registration.id);
-        const at = new Date(new Date(event.startsAt).getTime() + (5 + i) * 60000)
-          .toISOString();
+        // A few minutes after the doors opened — but never later than now. Today's
+        // live event may not have started yet when the seed runs, and a check-in
+        // time in the future would count as the tester's own action.
+        const at = new Date(Math.min(
+          new Date(event.startsAt).getTime() + (5 + i) * 60000,
+          Date.now() - (chosen.length - i) * 60000,
+        )).toISOString();
         await attendance.resolve(pass.token, event,
           { operatorId: operator.sub, stationId: "GATE-1", scannedAt: at });
+        // Backfilled history reached the server when it happened. Left at the seed
+        // time, every one of these would read as an offline scan synced later.
+        db().scans[0].syncedAt = at;
       }
     }
     // A couple of forged scans, so the capture rate is not a meaningless 1.0 and
@@ -134,6 +145,9 @@ export async function seedAll() {
   // their own actions, not a hundred messages from the fixture build.
   db().notifications = [];
   db().events.forEach(e => { delete e.targetStatus; delete e.templateName; });
+  // Everything after this instant is the tester's own doing. The guided journey
+  // on the sign-in page counts progress from here.
+  db().readyAt = now();
 
   save();
   return db();

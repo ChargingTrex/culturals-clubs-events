@@ -10,6 +10,7 @@ export const STUDENT = "student";
 export const CULTURAL_SOCIETY = "cultural_society";
 export const DEAN = "dean";
 export const VICE_CHANCELLOR = "vice_chancellor";
+export const MANAGEMENT = "management";
 export const ADMIN = "admin";
 
 // Club-scoped roles, most senior first
@@ -60,21 +61,55 @@ export const EVENT_OPERATORS = [CLUB_PRESIDENT, CLUB_VICE_PRESIDENT, CLUB_SECRET
 /** Who may work a check-in desk. Not a plain member, and not the Treasurer. */
 export const DOOR_STAFF = [CLUB_PRESIDENT, CLUB_VICE_PRESIDENT, CLUB_SECRETARY, CLUB_CORE];
 
-/** Approval stages, and the role that holds each gate. */
+/**
+ * Approval stages, and the role that holds each gate. The order here is the order
+ * a proposal travels: each later gate holds a higher delegation of financial power.
+ */
 export const STAGE_ROLE = {
   cultural_society: CULTURAL_SOCIETY,
   dean: DEAN,
   vc: VICE_CHANCELLOR,
+  management: MANAGEMENT,
 };
 
 export const STAGE_LABELS = {
   cultural_society: "Cultural Society",
   dean: "Dean of Student Affairs",
   vc: "Vice-Chancellor",
+  management: "Management",
 };
 
+/** How a sentence names the gate holding something: "with the Dean", "with Management". */
+export const STAGE_WITH = {
+  cultural_society: "the Cultural Society",
+  dean: "the Dean",
+  vc: "the Vice-Chancellor",
+  management: "Management",
+};
+
+/** Short forms for tight spaces: route trackers, pills, toasts. */
+export const STAGE_SHORT = {
+  cultural_society: "Society",
+  dean: "Dean",
+  vc: "VC",
+  management: "Management",
+};
+
+/**
+ * Gates that sanction money. The Cultural Society recommends on merit and the
+ * calendar; the figures are first sanctioned by the Dean, and each later gate may
+ * reduce them further but never raise them.
+ */
+export const SANCTIONING_STAGES = ["dean", "vc", "management"];
+
 /** Roles for which a second factor is mandatory. */
-export const MFA_REQUIRED_ROLES = [DEAN, VICE_CHANCELLOR, ADMIN, CULTURAL_SOCIETY];
+export const MFA_REQUIRED_ROLES = [DEAN, VICE_CHANCELLOR, MANAGEMENT, ADMIN, CULTURAL_SOCIETY];
+
+/**
+ * The governance tier that receives aggregates and never an individual student:
+ * no roster, no attendee list, no PRN lookup.
+ */
+export const AGGREGATE_ONLY_ROLES = [VICE_CHANCELLOR, MANAGEMENT];
 
 export function splitRole(role) {
   const [name, scope] = String(role).split(":");

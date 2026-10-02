@@ -1,9 +1,14 @@
 /**
- * The approval chain: Cultural Society -> Dean -> Vice-Chancellor.
+ * The approval chain: Cultural Society -> Dean -> Vice-Chancellor -> Management.
  *
  * The chain is DATA, not branching. `buildRoute` produces an ordered list at
  * submission and `decide` walks it, which is what lets the Society gate be switched
  * off in config without touching the decision code.
+ *
+ * The later gates follow a delegation of financial powers: the Dean sanctions
+ * every budget, the Vice-Chancellor is added above VC_THRESHOLD (or for a fest),
+ * and Management is added above MANAGEMENT_THRESHOLD. A bigger request travels
+ * further; it never skips a gate a smaller one would have passed.
  */
 import { db, find, now, uid } from "./db.js";
 import * as R from "./roles.js";
@@ -11,6 +16,9 @@ import { conflict, denied, invalid, notFound } from "./errors.js";
 import { totalRequested, isReadyToSubmit, stageForGate } from "./budget.js";
 
 export const VC_THRESHOLD = 50000;
+export const MANAGEMENT_THRESHOLD = 200000;
+
+const rupees = n => `₹${n.toLocaleString("en-IN")}`;
 
 /** Default chain. `dean` alone restores the chain the source documents fix. */
 export const APPROVAL_CHAIN = ["cultural_society", "dean"];
@@ -34,11 +42,19 @@ export function buildRoute(event, amount) {
   if (!stages.includes("dean")) stages.push("dean");
 
   const reasons = [];
-  if (amount > VC_THRESHOLD) reasons.push(`budget over ${VC_THRESHOLD.toLocaleString("en-IN")}`);
+  if (amount > VC_THRESHOLD) reasons.push(`budget over ${rupees(VC_THRESHOLD)}`);
   if (event.festId) reasons.push("part of a fest");
   if (reasons.length) stages.push("vc");
 
-  return { stages, vcReason: reasons.join(", ") };
+  // Management sits above the Vice-Chancellor, never instead of them: anything
+  // over this threshold is necessarily over VC_THRESHOLD too.
+  let managementReason = "";
+  if (amount > MANAGEMENT_THRESHOLD) {
+    managementReason = `budget over ${rupees(MANAGEMENT_THRESHOLD)}`;
+    stages.push("management");
+  }
+
+  return { stages, vcReason: reasons.join(", "), managementReason };
 }
 
 export function pendingFor(ctx) {
@@ -66,17 +82,22 @@ export function submit(event, ctx) {
   }
 
   const amount = totalRequested(budget);
-  const { stages, vcReason } = buildRoute(event, amount);
+  const { stages, vcReason, managementReason } = buildRoute(event, amount);
   const request = {
     id: uid("ap"), eventId: event.id, stages, currentStage: stages[0],
     state: "pending", amountRequested: amount,
     requiresVc: stages.includes("vc"), vcReason,
-    submittedBy: ctx.sub, steps: [], createdAt: now(), resolvedAt: null,
+    requiresManagement: stages.includes("management"), managementReason,
+    submittedBy: ctx.sub, submittedByLabel: ctx.displayName,
+    steps: [], createdAt: now(), resolvedAt: null,
   };
   db().approvals.push(request);
   event.status = "submitted";
   event.submittedAt = now();
   budget.stage = stageForGate(stages[0]);
+  // A resubmission after a return is a new request. Figures sanctioned in the
+  // previous round would read as already decided while this one is still open.
+  for (const line of budget.lines) line.amountSanctioned = null;
   notifyStage(request);
   audit(ctx, "event.submitted", event.id, { stages, amount });
   return request;
@@ -97,11 +118,11 @@ export function assertCanDecide(request, ctx) {
       s => s !== current && ctx.hasAny(R.STAGE_ROLE[s]));
     if (elsewhere.length) {
       throw conflict("GOVERNANCE_WRONG_STAGE", "Not at your stage",
-        `This request is with the ${R.STAGE_LABELS[current]}. It reaches you at the `
+        `This request is with ${R.STAGE_WITH[current]}. It reaches you at the `
         + `${R.STAGE_LABELS[elsewhere[0]]} stage.`);
     }
     throw denied("GOVERNANCE_NOT_APPROVER",
-      `Only the ${R.STAGE_LABELS[current]} may decide this request.`);
+      `Only ${R.STAGE_WITH[current]} may decide this request.`);
   }
   // No club role approves its own budget — even if the holder also has a gate.
   if (ctx.clubRole(event.clubId)) {
@@ -112,7 +133,7 @@ export function assertCanDecide(request, ctx) {
 }
 
 export const requiresMfa = (request, stage) =>
-  stage === "vc" || request.amountRequested > VC_THRESHOLD;
+  stage === "vc" || stage === "management" || request.amountRequested > VC_THRESHOLD;
 
 export function decide(request, ctx, { decision, comment = "", sanctioned = {} }) {
   assertCanDecide(request, ctx);
@@ -138,7 +159,9 @@ export function decide(request, ctx, { decision, comment = "", sanctioned = {} }
     }
   }
 
-  if (decision === "approve" && stage === "dean") applySanctions(budget, sanctioned);
+  if (decision === "approve" && R.SANCTIONING_STAGES.includes(stage)) {
+    applySanctions(budget, sanctioned, stage);
+  }
 
   const step = {
     id: uid("st"), stage, decision, comment: comment.trim(),
@@ -165,7 +188,7 @@ export function decide(request, ctx, { decision, comment = "", sanctioned = {} }
       if (budget) budget.stage = stageForGate(remaining[0]);
       notifyStage(request);
       notifyClub(event, `“${event.title}” cleared the ${R.STAGE_LABELS[stage]}`,
-        `It is now with the ${R.STAGE_LABELS[remaining[0]]}.`);
+        `It is now with ${R.STAGE_WITH[remaining[0]]}.`);
     } else {
       // Last gate cleared: published in the same step. An "approved but not
       // published" limbo is a state nobody watches, and proposals rot in it.
@@ -181,8 +204,13 @@ export function decide(request, ctx, { decision, comment = "", sanctioned = {} }
   return step;
 }
 
-function applySanctions(budget, sanctioned) {
+/**
+ * Validate every figure before writing any of them, so a refusal on the third
+ * head does not leave the first two half-applied.
+ */
+function applySanctions(budget, sanctioned, stage) {
   if (!budget) return;
+  const updates = [];
   for (const [lineId, raw] of Object.entries(sanctioned || {})) {
     const line = find(budget.lines, lineId);
     if (!line) {
@@ -195,8 +223,19 @@ function applySanctions(budget, sanctioned) {
         [{ field: `sanctioned.${lineId}`, code: "ABOVE_REQUESTED",
            message: String(line.amountRequested) }]);
     }
-    line.amountSanctioned = amount;
+    // A later gate may cut an earlier sanction, never restore what was cut: the
+    // Dean's reduction stands unless somebody above reduces further.
+    if (stage !== "dean" && line.amountSanctioned != null
+        && amount > line.amountSanctioned) {
+      throw invalid("BUDGET_SANCTION_RAISED", "Sanction cannot be raised",
+        `“${line.head}” was sanctioned at ${line.amountSanctioned} by an earlier gate; `
+        + "a later gate may reduce it, never raise it.",
+        [{ field: `sanctioned.${lineId}`, code: "ABOVE_EARLIER_SANCTION",
+           message: String(line.amountSanctioned) }]);
+    }
+    updates.push([line, amount]);
   }
+  for (const [line, amount] of updates) line.amountSanctioned = amount;
   // Heads the approver did not touch are sanctioned as requested. A null there
   // would read as "not yet decided" after the decision was made.
   for (const line of budget.lines) {
@@ -252,8 +291,8 @@ export function notifyStage(request) {
   const role = R.STAGE_ROLE[request.currentStage];
   for (const user of db().users.filter(u => (u.globalRoles || []).includes(role))) {
     push(user.id, `${club.name} sent “${event.title}” for approval`,
-      `Requesting ${request.amountRequested.toLocaleString("en-IN")}. `
-      + `It is with the ${R.STAGE_LABELS[request.currentStage]}.`);
+      `Requesting ${rupees(request.amountRequested)}. `
+      + `It is with ${R.STAGE_WITH[request.currentStage]}.`);
   }
 }
 

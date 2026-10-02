@@ -156,6 +156,53 @@ describe("Management gets a dashboard, never a roster", () => {
     }
   });
 
+  test("Management gets the same: its queue and the report, never a student", async () => {
+    expect(api.reports.semester(as.management).eventsRun).toBeGreaterThan(0);
+    expect(api.governance.queue(as.management).stagesYouHold).toEqual(["management"]);
+    for (const club of db().clubs) {
+      await refuses(() => api.clubs.roster(as.management, club.id),
+        { code: "NOT_FOUND", status: 404 });
+    }
+    const live = db().events.find(e => e.status === "live");
+    await refuses(() => api.participation.roster(as.management, live.id),
+      { code: "NOT_FOUND", status: 404 });
+    await refuses(() => api.participation.scan(as.management, live.id,
+      { token: "demo.anything.at-all" }),
+      { code: "PARTICIPATION_STATION_DENIED", status: 403 });
+    await refuses(() => api.directory.students(as.management, "Meera"),
+      { code: "DIRECTORY_NOT_PERMITTED", status: 403 });
+    await refuses(() => api.reports.overview(as.management),
+      { code: "REPORTING_DENIED", status: 403 });
+  });
+
+  test("no PRN or student name reaches the VC or Management, even by first name", () => {
+    for (const who of [as.vc, as.management]) {
+      const readable = JSON.stringify({
+        report: api.reports.semester(who),
+        queue: api.governance.queue(who),
+        list: api.governance.list(who),
+        decisions: api.governance.myDecisions(who),
+        events: api.events.list(who),
+        calendar: api.venues.calendar(who),
+        budgets: api.budget.list(who),
+      });
+      for (const student of db().students) {
+        expect(readable).notToContain(student.prn);
+        expect(readable).notToContain(student.fullName);
+      }
+      // The submitting office bearer is a student too; the tier sees "the club".
+      expect(readable).notToContain(as.president.displayName);
+    }
+  });
+
+  test("the audit trail names students, so the aggregate-only tier cannot read it",
+    async () => {
+      await refuses(() => api.governance.audit(as.vc),
+        { code: "GOVERNANCE_AUDIT_DENIED", status: 403 });
+      await refuses(() => api.governance.audit(as.management),
+        { code: "GOVERNANCE_AUDIT_DENIED", status: 403 });
+    });
+
   test("the Dean is unaffected and still sees rosters", () => {
     expect(api.clubs.roster(as.dean, db().clubs[0].id).results.length)
       .toBeGreaterThan(0);

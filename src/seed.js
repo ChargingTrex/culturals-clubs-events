@@ -6,7 +6,7 @@
  * overlap the report's headline figure looks right whether or not the DISTINCT
  * count is.
  */
-import { resetIds, rng, setState, uid } from "./db.js";
+import { SCHEMA_VERSION, resetIds, rng, setState, uid } from "./db.js";
 import * as R from "./roles.js";
 
 const FIRST = ["Meera", "Arjun", "Kavya", "Rohan", "Divya", "Karthik", "Ananya",
@@ -47,6 +47,14 @@ export const TEMPLATES = [
   { name: "Exhibition", lines: [
     { head: "Printing & framing", basis: "lump_sum", rate: 9000 },
     { head: "Display stands", basis: "lump_sum", rate: 4000 }] },
+  // A headline night: the artist fee alone puts it over the Management threshold,
+  // so it is the template that walks a proposal through all four gates.
+  { name: "Fest night", lines: [
+    { head: "Artist & performers' fee", basis: "lump_sum", rate: 150000 },
+    { head: "Sound, light & stage", basis: "lump_sum", rate: 45000 },
+    { head: "Security & crowd control", basis: "per_head", rate: 20 },
+    { head: "Refreshments", basis: "per_head", rate: 60 },
+    { head: "Publicity", basis: "lump_sum", rate: 8000 }] },
 ];
 
 const iso = (daysFromToday, hour, minute = 0) => {
@@ -89,6 +97,8 @@ export function buildSeed() {
   };
   const dean = staff("dean@college.edu", "Dr. Revathi Srinivasan", R.DEAN);
   const vc = staff("vc@college.edu", "Prof. K. Ramanathan", R.VICE_CHANCELLOR);
+  const management = staff("finance.director@college.edu", "Anand Krishnamurthy",
+    R.MANAGEMENT);
   const society = staff("cultural.secretary@college.edu", "Nivedita Raman",
     R.CULTURAL_SOCIETY);
 
@@ -118,6 +128,10 @@ export function buildSeed() {
   const venueBy = name => venues.find(v => v.name === name).id;
   const clubBy = name => clubs.find(c => c.name === name).id;
 
+  // The last column is where the seed leaves each event: a status, or "at:<gate>"
+  // for a proposal waiting at that gate. Every approver opens the app to at least
+  // one item of their own, and Culturals Night is left at gate 1 so a tester can
+  // walk it through all four.
   const eventSpecs = [
     ["Swara Unplugged", "Swara", -17, 18, 20, "Amphitheatre", "Performance", 120, "reported"],
     ["Natya Showcase", "Natya", -10, 17, 20, "Main Auditorium", "Performance", 250, "reported"],
@@ -126,12 +140,18 @@ export function buildSeed() {
     ["Lens Heritage Photowalk", "Lens", 0, 16, 18, "Open Air Theatre", "Workshop", 45, "live"],
     ["Kalam Lit Quiz", "Kalam", 8, 15, 17, "Seminar Hall B", "Competition", 70, "published"],
     ["Drishti Street Play", "Drishti", 10, 17, 19, "Amphitheatre", "Performance", 150, "submitted"],
+    ["Kalam Debating Championship", "Kalam", 12, 10, 13, "Seminar Hall B", "Competition", 80,
+      "at:dean"],
     ["Swara Open Mic", "Swara", 16, 16, 18, "Seminar Hall A", "Performance", 90, "submitted"],
     // Deliberate clash with Swara Open Mic: same venue, overlapping window, so the
     // Dean's calendar has something real to resolve.
     ["Natya Contemporary Workshop", "Natya", 16, 17, 19, "Seminar Hall A", "Workshop", 60, "submitted"],
-    // Above the VC threshold, so it routes Society -> Dean -> VC.
-    ["Culturals Night 2026", "Swara", 25, 17, 22, "Open Air Theatre", "Performance", 700, "submitted"],
+    // Over the VC threshold, under Management's: Society -> Dean -> VC.
+    ["Natya Dance Drama", "Natya", 20, 17, 20, "Main Auditorium", "Performance", 500, "at:vc"],
+    // Over the Management threshold, so it routes Society -> Dean -> VC -> Management.
+    ["Culturals Night 2026", "Swara", 25, 17, 22, "Open Air Theatre", "Fest night", 700, "submitted"],
+    ["Inter-College Dance Championship", "Natya", 40, 16, 21, "Open Air Theatre", "Fest night", 600,
+      "at:management"],
   ];
 
   const events = eventSpecs.map(
@@ -154,12 +174,12 @@ export function buildSeed() {
   };
 
   return setState({
-    version: 1, seededAt: new Date().toISOString(),
+    version: SCHEMA_VERSION, seededAt: new Date().toISOString(), readyAt: null,
     users, students, clubs, venues, memberships, events, semester,
     templates: TEMPLATES,
     budgets: [], approvals: [], registrations: [], passes: [], qrTokens: [],
     scans: [], notifications: [], audit: [],
-    staffIds: { dean: dean.id, vc: vc.id, society: society.id },
+    staffIds: { dean: dean.id, vc: vc.id, management: management.id, society: society.id },
     attendancePlan: {
       "Swara Unplugged": [34, 28],
       "Natya Showcase": [40, 33],

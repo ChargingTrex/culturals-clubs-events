@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dean approvals — Culturals</title>
+<title>Management approvals — Culturals</title>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
@@ -15,13 +15,16 @@
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script type="module">
 import { approvalQueuePage } from "./src/approval-queue.js";
+import { MANAGEMENT_THRESHOLD } from "./src/approvals.js";
+import { inr } from "./src/ui.js";
 
 await approvalQueuePage({
-  file: "dean-approvals.html", stage: "dean", heading: "Dean approvals",
-  intro: "Gate 2 — every proposal passes here, and this is where the money is "
-    + "sanctioned. Reduce a head if you need to; you can never raise one above what "
-    + "was asked for. A comment is required to return or reject.",
-  emptyHint: "Proposals reach you once the Cultural Society recommends them.",
+  file: "management-queue.html", stage: "management", heading: "Management approvals",
+  intro: `Gate 4 — the final word on proposals over ${inr(MANAGEMENT_THRESHOLD)}, after `
+    + "the Vice-Chancellor. Approving publishes the event. You see figures and "
+    + "aggregates only — never an individual student.",
+  emptyHint: `Only proposals over ${inr(MANAGEMENT_THRESHOLD)} reach this gate, after `
+    + "the Vice-Chancellor.",
 });
 </script>
 </body>

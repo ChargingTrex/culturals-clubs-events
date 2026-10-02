@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Venues — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
 </div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script type="module">
-import { page, esc, fmtTime, showError, toast } from "./src/ui.js";
+import { page, esc, fmtTime, showError, toast, dialogForm } from "./src/ui.js";
 import * as api from "./src/api.js";
 
 await page("dean-venues.html", async (main, session) => {
@@ -45,15 +46,15 @@ await page("dean-venues.html", async (main, session) => {
           }${calendar.clashes.some(c => c.events[0].startsAt.startsWith(x))
             ? " — clash" : ""}</option>`).join("")}</select></div></div>
 
-      ${todaysClashes.map(c => `<div class="note bad" style="margin-bottom:12px">
+      ${todaysClashes.map(c => `<div class="note bad clash" style="margin-bottom:12px">
         <div class="row" style="justify-content:space-between;gap:12px">
           <span><b>${esc(c.events[0].title)}</b> (${c.events[0].expectedAttendance}
             expected) and <b>${esc(c.events[1].title)}</b>
             (${c.events[1].expectedAttendance} expected) both want
             ${esc(c.venue)}.</span>
           <span class="row">${c.events.map(e =>
-            `<button class="btn" data-move="${e.id}">Move ${esc(e.title)}</button>`)
-            .join("")}</span></div></div>`).join("")}
+            `<button class="btn" data-move="${e.id}" data-title="${esc(e.title)}">Move
+              ${esc(e.title)}</button>`).join("")}</span></div></div>`).join("")}
 
       <div class="table-wrap"><div class="cal">
         <div class="cal-hours"><div></div><div>${
@@ -80,24 +81,39 @@ await page("dean-venues.html", async (main, session) => {
   };
   draw();
 
-  main.addEventListener("click", event => {
+  main.addEventListener("click", async event => {
     const button = event.target.closest("[data-move]");
     if (!button) return;
     const msg = document.getElementById("msg");
     msg.innerHTML = "";
     try {
-      const options = api.events.clashes(session, button.dataset.move);
+      const id = button.dataset.move;
+      const options = api.events.clashes(session, id);
       if (!options.freeVenues.length) {
         msg.innerHTML = `<div class="note bad">No venue is free and large enough at
-          that time. Propose a different time to the club instead.</div>`;
+          that time. Return the proposal to the club and ask for another time.</div>`;
         return;
       }
-      const target = options.freeVenues[0];
-      const reason = prompt(`Move to ${target.name}? Give a reason — the club is `
-        + `shown this text.`, "Hall double-booked; this one has the same setup");
-      if (!reason) return;
-      const moved = api.events.reassign(session, button.dataset.move,
-        { toVenue: target.id, reason });
+      const title = button.dataset.title || "this event";
+      const values = await dialogForm({
+        title: `Move “${title}”`, testId: "move-event",
+        intro: "Only venues free at that time — including the setup buffer — and large "
+          + "enough for the expected crowd are offered.",
+        fields: [
+          { name: "venue", label: "Move to", type: "select",
+            options: options.freeVenues.map(v =>
+              ({ value: v.id, label: `${v.name} (${v.capacity} seats)` })) },
+          { name: "reason", label: "Reason — the club is shown this text",
+            type: "textarea", rows: 2, required: true,
+            value: "Hall double-booked; this one has the same setup" },
+        ],
+        submitLabel: "Move event",
+        validate: v => (v.reason.trim().length >= 5 ? null
+          : "Give a reason the club can act on — at least a few words."),
+      });
+      if (!values) return;
+      const moved = api.events.reassign(session, id,
+        { toVenue: values.venue, reason: values.reason });
       toast(`Moved to ${moved.to}. The club has been notified.`);
       draw();
     } catch (err) { showError(msg, err); }
