@@ -1,15 +1,32 @@
-# Both suites run on every push. They need no dependencies and take ~2 seconds,
-# so there is no excuse for a red main.
-name: tests
+# Every push runs both test layers: the Node suites prove the rules, the Robot
+# Framework suites prove the pages let people follow them in a real browser.
+# A push to main that passes both is published to GitHub Pages together with its
+# test report, so nothing reaches the pilot URL untested.
+name: ci
 
 on:
   push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseded branch runs are dropped; runs on main finish, so every published
+  # build is one that completed.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  check:
+  node:
+    name: Node — smoke and end-to-end rules
+    # A pull request from this repository already ran on its push.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,5 +34,83 @@ jobs:
           node-version: "20"
       - name: Smoke test — wiring, pages, per-role page offers
         run: node tests/smoke.mjs
-      - name: End-to-end — workflow and role boundaries
+      - name: End-to-end — workflow rules and role boundaries
         run: node tests/run.mjs
+
+  robot:
+    name: Robot Framework — smoke and end-to-end in a browser
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tests/robot/requirements.txt
+      - name: Install Robot Framework, the Browser library and Chromium
+        run: |
+          pip install -r tests/robot/requirements.txt
+          rfbrowser init --with-deps chromium
+      - name: Run the browser suites
+        run: tests/robot/run.sh
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-report
+          path: results/robot
+          retention-days: 30
+
+  deploy:
+    name: Publish the pilot to GitHub Pages
+    needs: [node, robot]
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site — the app only, no tests or tooling
+        run: |
+          mkdir -p _site
+          cp ./*.html .nojekyll _site/
+          cp -r assets src _site/
+      - name: Include the test report this build passed
+        uses: actions/download-artifact@v4
+        with:
+          name: robot-report
+          path: _site/test-report
+      - name: Stamp the build, so feedback names the version it is about
+        run: |
+          cat > _site/build.json <<JSON
+          {
+            "commit": "${GITHUB_SHA}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "testReport": "test-report/report.html"
+          }
+          JSON
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
