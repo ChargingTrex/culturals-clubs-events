@@ -6,29 +6,50 @@
  */
 import { db, find } from "./db.js";
 import * as R from "./roles.js";
+import { MANAGEMENT_THRESHOLD, VC_THRESHOLD } from "./approvals.js";
 
 const KEY = "culturals.persona";
+const rupees = n => `₹${n.toLocaleString("en-IN")}`;
 
-/** The login page's buttons, in the order they appear. */
+/**
+ * The login page's buttons, in the order they appear, grouped the way people
+ * think about them: the campus side that runs events, and the gates that approve
+ * them.
+ */
+export const PERSONA_GROUPS = [
+  { key: "campus", label: "Students and clubs",
+    blurb: "Register for events, raise proposals, build budgets, run the door." },
+  { key: "approver", label: "Approvers",
+    blurb: "Each gate sees only the proposals waiting with it." },
+];
+
+/** `home` is where each role lands after signing in: its own work, not a student page. */
 export const PERSONAS = [
-  { key: "student", label: "Student", blurb: "Any enrolled student",
-    hint: "Browse, register, show a QR at the door" },
-  { key: "member", label: "Club member", blurb: "Member, Swara",
-    hint: "Club internals — but never the budget" },
-  { key: "secretary", label: "Secretary", blurb: "Secretary, Swara",
-    hint: "Raise proposals and run events" },
-  { key: "treasurer", label: "Treasurer", blurb: "Treasurer, Swara",
-    hint: "Build the budget, record spend, settle" },
-  { key: "president", label: "President", blurb: "President, Swara",
-    hint: "Everything the club can do, plus roles" },
-  { key: "organiser", label: "Organiser", blurb: "President, Lens",
-    hint: "Runs the live event and its scan station" },
-  { key: "society", label: "Cultural Society", blurb: "Cultural secretary",
-    hint: "Approval gate 1 for cultural clubs" },
-  { key: "dean", label: "Dean", blurb: "Dean of Student Affairs",
-    hint: "The mandatory gate. Venues, overview" },
-  { key: "vc", label: "Management", blurb: "Vice-Chancellor",
-    hint: "Above-threshold approvals. Dashboard only" },
+  { key: "student", group: "campus", label: "Student", blurb: "Any enrolled student",
+    hint: "Browse, register, show a QR at the door", home: "student-events.html" },
+  { key: "member", group: "campus", label: "Club member", blurb: "Member, Swara",
+    hint: "Club internals — but never the budget", home: "club-events.html" },
+  { key: "secretary", group: "campus", label: "Secretary", blurb: "Secretary, Swara",
+    hint: "Raise proposals and run events", home: "club-events.html" },
+  { key: "treasurer", group: "campus", label: "Treasurer", blurb: "Treasurer, Swara",
+    hint: "Build the budget, request it, settle it", home: "club-budget.html" },
+  { key: "president", group: "campus", label: "President", blurb: "President, Swara",
+    hint: "Everything the club can do, plus roles", home: "club-events.html" },
+  { key: "organiser", group: "campus", label: "Organiser", blurb: "President, Lens",
+    hint: "Runs the live event and its scan station", home: "organiser-scan.html" },
+  { key: "society", group: "approver", label: "Cultural Society",
+    blurb: "Cultural secretary", hint: "Gate 1 — recommends cultural and literary events",
+    home: "society-approvals.html" },
+  { key: "dean", group: "approver", label: "Dean", blurb: "Dean of Student Affairs",
+    hint: "Gate 2 — sanctions every budget. Venues, overview",
+    home: "dean-approvals.html" },
+  { key: "vc", group: "approver", label: "Vice-Chancellor", blurb: "Head of the university",
+    hint: `Gate 3 — budgets over ${rupees(VC_THRESHOLD)}, and fests`,
+    home: "vc-queue.html" },
+  { key: "management", group: "approver", label: "Management",
+    blurb: "Director of Finance, for the Trust",
+    hint: `Gate 4 — budgets over ${rupees(MANAGEMENT_THRESHOLD)}. Aggregates only`,
+    home: "management-queue.html" },
 ];
 
 function clubIdByName(name) {
@@ -61,6 +82,7 @@ function resolvePersona(key) {
     case "society":   return { user: find(db().users, staffIds.society) };
     case "dean":      return { user: find(db().users, staffIds.dean) };
     case "vc":        return { user: find(db().users, staffIds.vc) };
+    case "management": return { user: find(db().users, staffIds.management) };
     default:          return {};
   }
 }
@@ -125,12 +147,12 @@ export class Session {
 
   /** Cross-club visibility of aggregates and of the work itself. */
   canSeeAllClubs() {
-    return this.hasAny(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY);
+    return this.hasAny(R.DEAN, R.VICE_CHANCELLOR, R.MANAGEMENT, R.ADMIN, R.CULTURAL_SOCIETY);
   }
 
   /**
-   * Names and PRNs of identifiable students. The Vice-Chancellor is excluded on
-   * purpose: Management receives aggregates, not the roster.
+   * Names and PRNs of identifiable students. The Vice-Chancellor and Management
+   * are excluded on purpose: that tier receives aggregates, not the roster.
    */
   canSeeIndividualRecords() { return this.hasAny(R.DEAN, R.ADMIN); }
 
@@ -139,6 +161,9 @@ export class Session {
       isStudent: this.hasAny(R.STUDENT),
       isDean: this.hasAny(R.DEAN),
       isViceChancellor: this.hasAny(R.VICE_CHANCELLOR),
+      isManagement: this.hasAny(R.MANAGEMENT),
+      isAggregateOnly: this.hasAny(...R.AGGREGATE_ONLY_ROLES)
+        && !this.canSeeIndividualRecords(),
       isCulturalSociety: this.hasAny(R.CULTURAL_SOCIETY),
       canSeeAllClubs: this.canSeeAllClubs(),
       canSeeIndividualRecords: this.canSeeIndividualRecords(),
@@ -166,12 +191,23 @@ export function sessionFor(personaKey) {
   return new Session({ personaKey, user, student });
 }
 
+/**
+ * The signed-in role is kept per TAB, so a tester can hold the Treasurer in one
+ * tab and the Dean in the next and watch a proposal move between them. The last
+ * choice is also remembered for new tabs.
+ */
 export function savePersona(key) {
+  try { sessionStorage.setItem(KEY, key); } catch {}
   try { localStorage.setItem(KEY, key); } catch {}
 }
 export function currentPersonaKey() {
+  try {
+    const mine = sessionStorage.getItem(KEY);
+    if (mine) return mine;
+  } catch {}
   try { return localStorage.getItem(KEY); } catch { return null; }
 }
 export function clearPersona() {
+  try { sessionStorage.removeItem(KEY); } catch {}
   try { localStorage.removeItem(KEY); } catch {}
 }

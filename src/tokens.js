@@ -61,13 +61,20 @@ async function sign(payload) {
  * payloads and therefore identical signatures — which meant reissuing a profile QR
  * returned the SAME string and silently failed to invalidate the lost one. The
  * nonce makes every issued token distinct.
+ *
+ * Random rather than a counter: every page is a fresh load, so a module counter
+ * restarts at 1 on each one and two pages could mint the same token in the same
+ * second.
  */
-let nonce = 0;
+function nonce() {
+  const bytes = new Uint8Array(6);
+  globalThis.crypto.getRandomValues(bytes);
+  return b64e(bytes);
+}
 
 export async function issue(purpose, subject, { eventId = null, ttlSeconds = null } = {}) {
-  nonce += 1;
   const body = {
-    p: purpose, s: String(subject), iat: Math.floor(Date.now() / 1000), n: nonce,
+    p: purpose, s: String(subject), iat: Math.floor(Date.now() / 1000), n: nonce(),
   };
   if (eventId) body.e = String(eventId);
   if (ttlSeconds) body.exp = body.iat + ttlSeconds;

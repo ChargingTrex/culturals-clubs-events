@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Profile QR — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -39,7 +40,7 @@ await page("student-profile.html", async (main, session) => {
             <p class="small muted" style="margin-top:6px">The code holds a signed
               reference. Someone photographing it learns nothing about you, and
               reissuing it stops the old one working at the door immediately.</p></div>
-          <div class="tokenbox">${esc(qr.token)}</div>
+          <div class="tokenbox" id="profileToken">${esc(qr.token)}</div>
         </div></div>`;
 
     const src = await qrImage(qr.token, 220);

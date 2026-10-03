@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Semester report — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -73,10 +74,11 @@ await page("vc-report.html", async (main, session, caps) => {
     <ul class="list" style="margin-top:14px">${r.caveats.map(c =>
       `<li class="small muted">${esc(c)}</li>`).join("")}</ul>
 
-    ${caps.isViceChancellor ? `<p class="note" style="margin-top:14px">You are signed
-      in as Management. This page is aggregates only — no attendee list, no roster and
-      no PRN lookup is reachable from this session. Those pages are not in your
-      sidebar, and the rules refuse them if you go looking.</p>` : ""}`;
+    ${caps.isAggregateOnly ? `<p class="note" style="margin-top:14px">You are signed
+      in as ${caps.isManagement ? "Management" : "the Vice-Chancellor"}. This page is
+      aggregates only — no attendee list, no roster and no PRN lookup is reachable from
+      this session. Those pages are not in your sidebar, and the rules refuse them if
+      you go looking.</p>` : ""}`;
 });
 </script>
 </body>

@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 *.log
 .netlify/
+# Robot Framework output: report, log, screenshots
+results/

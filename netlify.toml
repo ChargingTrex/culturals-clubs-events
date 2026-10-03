@@ -13,7 +13,7 @@
 [[headers]]
   for = "/*.html"
   [headers.values]
-    # The walkthrough keeps everything in localStorage; nothing is cached stale.
+    # The pilot keeps everything in localStorage; nothing is cached stale.
     Cache-Control = "public, max-age=0, must-revalidate"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"

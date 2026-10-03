@@ -1,16 +1,20 @@
 {
   "name": "culturals-walkthrough",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Clubs and events workflow for a college student portal — proposals, three-gate budget approvals, and QR attendance. A browser-only walkthrough build.",
+  "description": "Clubs and events workflow for a college student portal — proposals, budget approvals by the Cultural Society, Dean, Vice-Chancellor and Management, and QR attendance. A browser-only pilot build.",
   "type": "module",
   "scripts": {
     "test": "node tests/run.mjs",
     "smoke": "node tests/smoke.mjs",
     "check": "node tests/smoke.mjs && node tests/run.mjs",
     "start": "python3 -m http.server 4173",
-    "browser": "./tests/browser.sh"
+    "robot": "tests/robot/run.sh",
+    "robot:smoke": "tests/robot/run.sh --include smoke",
+    "robot:e2e": "tests/robot/run.sh --include e2e"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "license": "MIT"
 }

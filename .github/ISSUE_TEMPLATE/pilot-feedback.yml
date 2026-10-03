@@ -1,0 +1,52 @@
+name: Pilot feedback
+description: Something in the Culturals pilot felt wrong, confusing, broken or missing.
+title: "[Feedback] "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying the pilot. The app's **Give feedback** button fills most of
+        this in for you. **"This rule is wrong for how we actually work"** is the most
+        useful kind of feedback — say what your college does instead.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feedback is this?
+      options:
+        - A rule is wrong for how we work
+        - It let me do something it should not
+        - Confusing — the screen did not explain it
+        - Bug — something broke or contradicted itself
+        - A step in our real process is missing
+        - Idea or praise
+  - type: input
+    id: role
+    attributes:
+      label: Which role were you signed in as?
+      placeholder: e.g. Treasurer, Dean, Vice-Chancellor, Management
+  - type: input
+    id: page
+    attributes:
+      label: Which page were you on?
+      placeholder: e.g. Budget, Dean approvals, Scan station
+  - type: textarea
+    id: tried
+    attributes:
+      label: What were you trying to do?
+      description: In the words you would use to a colleague.
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the exact message if the app refused you.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Filled in by the app — role, page, build and recent actions.
+      render: text

@@ -1,14 +1,18 @@
 /**
  * QR rendering and camera scanning.
  *
- * Both libraries load from a CDN on first use and are optional: if either fails —
- * offline, blocked, a locked-down network — the page falls back to showing the
- * token as text, which still demonstrates the workflow because the scan station
- * accepts a pasted code. A walkthrough that dies because a CDN is unreachable
- * teaches nothing.
+ * Both libraries are vendored under assets/vendor (qrcode 1.4.4, MIT; html5-qrcode
+ * 2.3.8, Apache-2.0) and loaded on first use. They used to come from a CDN, which
+ * failed twice over: the pinned qrcode 1.5.4 ships no browser build at all, so
+ * every pass silently fell back to raw text, and college networks block CDNs often
+ * enough that the door cannot depend on one.
+ *
+ * Both stay optional: if either fails to load, the page falls back to showing the
+ * token as text, which still works because the scan station accepts a pasted code.
  */
-const QR_LIB = "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js";
-const SCANNER_LIB = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
+const base = new URL("../assets/vendor/", import.meta.url);
+const QR_LIB = new URL("qrcode.min.js", base).href;
+const SCANNER_LIB = new URL("html5-qrcode.min.js", base).href;
 
 const loaded = new Map();
 
@@ -33,7 +37,8 @@ async function toDataUrl(text, size = 160) {
   try {
     return await globalThis.QRCode.toDataURL(String(text), {
       width: size, margin: 1,
-      // High error correction: these get scanned off a phone screen in a dark hall.
+      // Medium error correction: dense enough to stay small, sturdy enough to scan
+      // off a cracked phone screen in a dark hall.
       errorCorrectionLevel: "M",
       color: { dark: "#1a1a1aff", light: "#ffffffff" },
     });

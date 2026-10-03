@@ -8,7 +8,13 @@ to help.
 
 ## Giving feedback
 
-Open an issue. The most useful ones say:
+The quickest way is the 💬 **Feedback** button on every page of the app. It asks for
+the two things only you can say — what you were trying to do, and what happened —
+and attaches your role, the page, the build and your last few actions, then opens a
+pre-filled GitHub issue for you to submit. A copy stays in your browser, and *Copy
+text* or *download all* work for testers without a GitHub account.
+
+Or open an issue with the **Pilot feedback** form. The most useful ones say:
 
 1. **Which role you were signed in as** — the app behaves differently for each, and
    that is usually the crux.
@@ -24,9 +30,10 @@ people hit most:
 |---|---|
 | A member cannot see the budget | Budget visibility begins at Treasurer |
 | The Treasurer cannot close an event | Preparing a budget and running the night are different jobs |
-| The Dean's queue is empty | It is still with the Cultural Society |
+| A proposal is not in the Dean's queue | It is still with the Cultural Society |
+| The VC cannot restore the Dean's cut | A later gate may only reduce further |
 | Cannot approve — venue clash | The Dean moves one event first |
-| Management cannot open a roster | Management gets aggregates, never individuals |
+| Management or the VC cannot open a roster | That tier gets aggregates, never individuals |
 | Cannot settle yet | Sanction → event runs → settle, in that order |
 
 **That does not make them right.** If a rule is wrong for how your college actually
@@ -48,8 +55,8 @@ than a bug report. Say what your process does instead.
 No build step, no dependencies to install. Node 18+ only for the tests.
 
 ```bash
-git clone <this repo>
-cd web-app
+git clone https://github.com/ChargingTrex/culturals-clubs-events
+cd culturals-clubs-events
 python3 -m http.server 4173      # or: npx serve, or any static server
 ```
 
@@ -64,43 +71,55 @@ npm test         # e2e only
 npm run smoke    # wiring only
 ```
 
-Both must pass before a pull request is merged. They take about two seconds.
+These take a few seconds and need no install.
 
-There is a third, optional check that renders every page in headless Chrome and
-fails if any shows an error box. Neither other suite covers that: the e2e suite
-proves the rules without a DOM, and the smoke test checks the wiring without
-executing it.
+The **Robot Framework** suites drive the real pages in Chromium, the way a tester
+would — sign in from the role buttons, approve at each gate, scan a pass at the door.
+They catch what the Node suites cannot see: a page that renders an error box, a
+button that does nothing, state lost between page loads.
 
 ```bash
-python3 -m http.server 4173 &   # it needs something served
-npm run browser
+pip install -r tests/robot/requirements.txt
+rfbrowser init chromium
+npm run robot            # all 85; starts a static server if none is running
+npm run robot:smoke      # just the smoke suites
 ```
+
+All of these run in CI on every push, and all must pass before a change is merged.
+[TESTING.md](TESTING.md) has the detail.
 
 ---
 
 ## How the code is laid out
 
 ```
-index.html              the login page: one button per role
+index.html              the sign-in page: one button per role, the guided journey
+404.html                not-found page for GitHub Pages
 <role>-<thing>.html      one page per view, no router, no framework
 src/
   db.js                 the single state document, localStorage or memory
-  seed.js               the demo dataset
+  seed.js               the pilot dataset
   bootstrap.js          drives the seed through the REAL engines
   roles.js              the role vocabulary and every capability set
   session.js            who the caller is, and what they may do
   api.js                the API surface — the only module pages talk to
-  approvals.js          the gate chain
+  approvals.js          the gate chain and its thresholds
   budget.js             budget lifecycle and settlement rules
   attendance.js         registration, passes, the seven-branch resolver
   reporting.js          semester report and the Dean's overview
   tokens.js             HMAC-signed QR tokens
   errors.js             RFC 9457 problem details
-  ui.js                 page chrome, the role-scoped sidebar, helpers
+  ui.js                 page chrome, the role-scoped sidebar, dialogs, helpers
+  approval-queue.js     one approval queue, rendered for any of the four gates
+  feedback.js           the in-app feedback form
+  config.js             version, and where feedback goes
+  qrcode.js             loads the vendored QR drawing and camera libraries
+assets/vendor/          qrcode (MIT) and html5-qrcode (Apache-2.0), with licences
 tests/
   harness.mjs           a dependency-free test harness
   e2e.*.mjs             the workflow suites
   smoke.mjs             wiring: imports, pages, per-role page offers
+  robot/                Robot Framework: smoke and end-to-end in a browser
 ```
 
 ### Three conventions that matter
@@ -173,15 +192,20 @@ until you know what they prevent. Compare:
 
 Two-space indent, double quotes, semicolons, ~90 columns. No build step and no
 dependencies in `src/` — the app must keep running from a plain static server. The two
-CDN libraries (QR drawing and camera scanning) are **optional by design**: if they
-fail to load the pages fall back to showing the token as text, because a walkthrough
-that dies on an unreachable CDN teaches nothing.
+libraries for QR drawing and camera scanning are **vendored** in `assets/vendor/` and
+**optional by design**: if they fail to load the pages fall back to showing the token
+as text. They used to come from a CDN, which failed silently — the pinned version
+shipped no browser build — and college networks block CDNs often enough that the door
+must not depend on one.
+
+Give anything a test needs to find a stable hook (`data-event-title`, `data-stage`,
+`data-dialog`, …) rather than letting the Robot suites lean on wording or layout.
 
 ---
 
 ## Relationship to the production backend
 
-This is the **walkthrough build**. There is a Django + DRF backend that runs the same
+This is the **pilot build**. There is a Django + DRF backend that runs the same
 rules server-side, with real signing keys, real sessions and database constraints.
 `api.js` is deliberately shaped like its REST endpoints so that pointing this frontend
 at the real server is a change to one module.

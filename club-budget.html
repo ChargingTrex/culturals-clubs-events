@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Budget — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -28,7 +29,7 @@ await page("club-budget.html", async (main, session, caps) => {
     const reached = b.stage === "settled" ? 4
       : b.canSettle ? 3
       : b.stage === "sanctioned" ? 2
-      : ["society_review", "dean_review", "vc_review"].includes(b.stage) ? 1 : 0;
+      : b.stage.endsWith("_review") ? 1 : 0;
     return `<div class="stages">${steps.map((s, i) =>
       `<span class="stage ${i < reached ? "done" : i === reached ? "now" : ""}">${s}</span>`
     ).join("")}</div>`;
@@ -37,14 +38,15 @@ await page("club-budget.html", async (main, session, caps) => {
   const card = b => {
     const nil = b.nilDeclaration;
     const editable = b.isEditable;
-    return `<div class="panel stack" style="margin-bottom:20px">
+    return `<div class="panel stack budget-card" style="margin-bottom:20px"
+      data-budget-title="${esc(b.eventTitle)}" data-stage="${esc(b.stage)}">
       <div class="row" style="justify-content:space-between">
         <h2 style="font-size:1.05rem">${esc(b.eventTitle)}</h2>
         <span class="pill ${b.stage === "settled" ? "ok" : ""}">${esc(b.stageLabel)}</span>
       </div>
       ${track(b)}
 
-      ${nil ? `<div class="note" style="border-left:3px solid var(--marigold,#c8a04a)">
+      ${nil ? `<div class="note nil">
         <strong>${esc(nil.head)}</strong>
         <p style="margin:6px 0 0">${esc(nil.reason)}</p>
         <p class="small muted" style="margin:8px 0 0">Declared by
@@ -73,13 +75,20 @@ await page("club-budget.html", async (main, session, caps) => {
             ? `<span class="muted">—</span>` : inr(l.amountSanctioned)}</td>
           <td class="num">${b.canSettle
             ? `<input type="number" min="0" value="${l.amountSpent ?? ""}"
-                 data-spend="${b.id}:${l.id}" style="width:100px;text-align:right">`
+                 data-spend="${b.id}:${l.id}" data-sanctioned="${l.amountSanctioned ?? ""}"
+                 aria-label="Spent on ${esc(l.head)}" style="width:100px;text-align:right">
+               ${l.isOverspent ? `<input class="variance" value="${esc(l.varianceNote)}"
+                 data-variance="${b.id}:${l.id}" placeholder="Why over sanctioned?"
+                 aria-label="Why ${esc(l.head)} went over">` : ""}`
             : (l.amountSpent == null ? `<span class="muted">—</span>` : inr(l.amountSpent))}</td>
           <td>${l.receipts.map(r => `<span class="pill">📎 ${esc(r.fileName)}</span>`)
-            .join(" ") || (b.canSettle
-              ? `<button class="btn quiet small" data-receipt="${b.id}:${l.id}">+
-                  Attach</button>`
-              : `<span class="muted small">—</span>`)}</td>
+            .join(" ")} ${b.canSettle && b.stage !== "settled"
+              ? `<label class="btn quiet small attach">+ ${l.receipts.length ? "Another"
+                  : "Attach receipt"}<input type="file" accept="image/*,.pdf" hidden
+                  data-receipt="${b.id}:${l.id}" data-line-head="${esc(l.head)}"
+                  data-needs-receipt="${l.amountSpent > b.thresholds.receiptThreshold
+                    && !l.receipts.length}"></label>`
+              : (l.receipts.length ? "" : `<span class="muted small">—</span>`)}</td>
           ${editable ? `<td><button class="btn quiet small" data-rm="${b.id}:${l.id}"
             title="Remove">✕</button></td>` : ""}</tr>`).join("")}
         <tr><th>Total</th><th class="num">${inr(b.totalRequested)}</th>
@@ -88,7 +97,7 @@ await page("club-budget.html", async (main, session, caps) => {
           ${editable ? "<th></th>" : ""}</tr></tbody></table></div>`
         : (nil ? "" : `<div class="empty" style="padding:20px">Nothing priced yet.</div>`)}
 
-      ${editable ? `<div class="panel" style="background:var(--wash,#f7f5f1)">
+      ${editable ? `<div class="panel" style="background:var(--sunk)">
         <h3 style="font-size:.95rem">Add an entry</h3>
         <div class="row" style="margin-top:10px;align-items:flex-end">
           <div style="flex:2;min-width:0"><label for="h-${b.id}">Head</label>
@@ -102,7 +111,8 @@ await page("club-budget.html", async (main, session, caps) => {
             <input id="n-${b.id}" placeholder="e.g. Venue is free and the club owns the
               equipment"></div>
           <button class="btn" data-nil="${b.id}">Declare nil</button></div>` : ""}
-        <div id="msg-${b.id}"></div></div>` : ""}
+        </div>` : ""}
+      <div id="msg-${b.id}" class="card-msg"></div>
 
       ${b.canSettle && b.settlementProblems.length ? `<div class="note bad">Cannot
         settle yet:<ul style="margin:6px 0 0 18px">${b.settlementProblems.map(p =>
@@ -121,12 +131,19 @@ await page("club-budget.html", async (main, session, caps) => {
     </div>`;
   };
 
+  // What needs the club's hand first: drafts to price, then budgets ready to
+  // settle, then those with an approver, then the finished ones.
+  const priority = b => (b.isEditable ? 0 : b.canSettle && b.stage !== "settled" ? 1
+    : b.stage.endsWith("_review") ? 2 : b.stage === "sanctioned" ? 3 : 4);
+
   const draw = () => {
-    const rows = api.budget.list(session);
+    const rows = api.budget.list(session)
+      .sort((a, b) => priority(a) - priority(b));
     main.innerHTML = `
       <div class="head"><div><h1>Budget</h1>
         <p class="muted">President, Vice-President and Treasurer build and see this.
-          No club role approves its own budget.</p></div></div>
+          No club role approves its own budget. Receipts stay on your device in this
+          pilot — only the file name is recorded.</p></div></div>
       ${rows.map(card).join("") || `<div class="empty">No budgets visible.</div>`}`;
   };
   draw();
@@ -162,12 +179,6 @@ await page("club-budget.html", async (main, session, caps) => {
       const [id, lineId] = remove.dataset.rm.split(":");
       return run(id, () => api.budget.removeLine(session, id, lineId));
     }
-    const receipt = event.target.closest("[data-receipt]");
-    if (receipt) {
-      const [id, lineId] = receipt.dataset.receipt.split(":");
-      return run(id, () => api.budget.attachReceipt(session, id, lineId,
-        { fileName: "receipt.pdf", byteSize: 128 }));
-    }
     const settle = event.target.closest("[data-settle]");
     if (settle) {
       const id = settle.dataset.settle;
@@ -176,6 +187,17 @@ await page("club-budget.html", async (main, session, caps) => {
   });
 
   main.addEventListener("change", event => {
+    const receipt = event.target.closest("[data-receipt]");
+    if (receipt) {
+      const file = receipt.files && receipt.files[0];
+      if (!file) return;
+      const [id, lineId] = receipt.dataset.receipt.split(":");
+      return run(id, () => {
+        api.budget.attachReceipt(session, id, lineId,
+          { fileName: file.name, byteSize: file.size });
+        toast(`Attached ${file.name}`);
+      });
+    }
     const head = event.target.closest("[data-head]");
     if (head) {
       const [id, lineId] = head.dataset.head.split(":");
@@ -187,6 +209,12 @@ await page("club-budget.html", async (main, session, caps) => {
       const [id, lineId] = req.dataset.req.split(":");
       return run(id, () => api.budget.updateLine(session, id, lineId,
         { amountRequested: req.value || 0 }));
+    }
+    const variance = event.target.closest("[data-variance]");
+    if (variance) {
+      const [id, lineId] = variance.dataset.variance.split(":");
+      return run(id, () => api.budget.setSpend(session, id, lineId,
+        { varianceNote: variance.value }));
     }
     const spend = event.target.closest("[data-spend]");
     if (spend) {

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Management approvals — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Your pages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script type="module">
+import { approvalQueuePage } from "./src/approval-queue.js";
+import { MANAGEMENT_THRESHOLD } from "./src/approvals.js";
+import { inr } from "./src/ui.js";
+
+await approvalQueuePage({
+  file: "management-queue.html", stage: "management", heading: "Management approvals",
+  intro: `Gate 4 — the final word on proposals over ${inr(MANAGEMENT_THRESHOLD)}, after `
+    + "the Vice-Chancellor. Approving publishes the event. You see figures and "
+    + "aggregates only — never an individual student.",
+  emptyHint: `Only proposals over ${inr(MANAGEMENT_THRESHOLD)} reach this gate, after `
+    + "the Vice-Chancellor.",
+});
+</script>
+</body>
+</html>

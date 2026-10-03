@@ -18,6 +18,8 @@ const fail = m => problems.push(m);
 const note = m => notes.push(m);
 
 const pageFiles = readdirSync(root).filter(f => f.endsWith(".html")).sort();
+// Pages that stand outside the signed-in app: no sidebar entry, no <main> layout.
+const STANDALONE = ["index.html", "404.html"];
 
 // --- 1. the pages exist, and match the sidebar's list ---------------------
 const { PAGES } = await import("../src/ui.js");
@@ -27,12 +29,12 @@ for (const page of PAGES) {
   }
 }
 for (const file of pageFiles) {
-  if (file === "index.html") continue;
+  if (STANDALONE.includes(file)) continue;
   if (!PAGES.some(p => p.file === file)) {
     fail(`${file} exists but no sidebar entry points at it — unreachable page`);
   }
 }
-note(`${pageFiles.length} pages, all listed in the sidebar`);
+note(`${pageFiles.length} pages, all listed in the sidebar or standalone by design`);
 
 // --- 2. every import resolves, and every named import is exported ---------
 const exportsOf = new Map();
@@ -86,10 +88,14 @@ function checkImports(file, source, baseDir) {
 
 for (const file of pageFiles) {
   const html = readFileSync(join(root, file), "utf8");
+  if (!html.includes("assets/app.css")) fail(`${file} does not load the stylesheet`);
+  if (file === "404.html") {
+    if (!html.includes('href="index.html"')) fail("404.html does not lead back to sign-in");
+    continue;
+  }
   const script = html.split('<script type="module">')[1];
   if (!script) { fail(`${file} has no module script`); continue; }
   checkImports(file, script.split("</script>")[0], root);
-  if (!html.includes("assets/app.css")) fail(`${file} does not load the stylesheet`);
   // index.html is the login page: no sidebar and no <main>, by design.
   if (file !== "index.html") {
     if (!html.includes('<main id="main"')) fail(`${file} has no <main id="main">`);
@@ -127,7 +133,8 @@ const EXPECTED = {
               "Budget", "Members & roles", "Scan station"],
   society: ["Society approvals", "This semester", "Semester report"],
   dean: ["Dean approvals", "Venues", "This semester", "Semester report"],
-  vc: ["Above-threshold", "Semester report"],
+  vc: ["VC approvals", "Semester report"],
+  management: ["Management approvals", "Semester report"],
 };
 
 for (const [key, expected] of Object.entries(EXPECTED)) {
@@ -155,6 +162,7 @@ const PROBE = {
   "society-approvals.html": s => api.governance.queue(s),
   "dean-approvals.html": s => api.governance.queue(s),
   "vc-queue.html": s => api.governance.queue(s),
+  "management-queue.html": s => api.governance.queue(s),
   "dean-venues.html": s => api.venues.calendar(s),
   "dean-overview.html": s => api.reports.overview(s),
   "vc-report.html": s => api.reports.semester(s),
@@ -185,8 +193,10 @@ const state = db();
 const checks = [
   [state.events.length >= 10, "at least 10 events"],
   [state.students.length >= 40, "at least 40 students"],
-  [state.approvals.some(a => a.stages.length === 3), "a three-gate route to show"],
-  [state.approvals.some(a => a.state === "pending"), "something pending to decide"],
+  [state.approvals.some(a => a.stages.length === 4), "a four-gate route to show"],
+  ...["cultural_society", "dean", "vc", "management"].map(stage =>
+    [state.approvals.some(a => a.state === "pending" && a.currentStage === stage),
+     `a proposal waiting at the ${stage} gate`]),
   [state.budgets.some(b => b.stage === "settled"), "a settled budget"],
   [state.scans.some(s => s.result === "unknown_code"),
    "a failed scan, so the capture rate is not a meaningless 1.0"],

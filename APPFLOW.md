@@ -22,15 +22,20 @@ with the button.
    └─────────────► Cultural Society  (gate 1, cultural + literary clubs)
                           │
                           ▼
-                   Dean of Student Affairs  (gate 2, ALWAYS)
+                   Dean of Student Affairs  (gate 2, ALWAYS — sanctions)
                           │
                    ┌──────┴───────┐
             under  │              │  over ₹50,000, or a fest
-          threshold│              ▼
-                   │       Management / Vice-Chancellor  (gate 3)
+            ₹50,000│              ▼
+                   │       Vice-Chancellor  (gate 3)
                    │              │
-                   └──────┬───────┘
-                          ▼
+                   │       ┌──────┴───────┐
+                   │ under │              │  over ₹2,00,000
+                   │ ₹2 L  │              ▼
+                   │       │       Management  (gate 4)
+                   │       │              │
+                   └───────┴──────┬───────┘
+                                  ▼
                       PUBLISHED ──► students register, get a pass
                                         │
                                         ▼
@@ -67,7 +72,8 @@ a decision the club cannot act on is not a decision.
 | **President** | Yes | Yes | Yes | Yes | Yes | — | Yes | own club |
 | **Cultural Society** | — | — | — | — | No | **gate 1** | Yes | No |
 | **Dean** | — | — | — | — | **No** | **gate 2** | Yes | Yes |
-| **Management** | — | — | — | — | No | **gate 3** | aggregates | **No** |
+| **Vice-Chancellor** | — | — | — | — | No | **gate 3** | aggregates | **No** |
+| **Management** | — | — | — | — | No | **gate 4** | aggregates | **No** |
 
 Six of those cells surprise people, so they are worth stating plainly:
 
@@ -80,8 +86,10 @@ Six of those cells surprise people, so they are worth stating plainly:
   and standing at the door on the night are different jobs.
 - **The Treasurer does not work a door.** The scan response carries names and PRNs.
 - **The Dean does not mark attendance.** The Dean approves events; the club runs them.
-- **Management never sees an individual student.** No roster, no attendee list, no
-  PRN lookup. Aggregates in the semester report, and the above-threshold queue.
+- **The Vice-Chancellor and Management never see an individual student.** No
+  roster, no attendee list, no PRN lookup, no audit trail (it names students acting
+  for their clubs), and a proposal reaches them from "the club", not a named student.
+  Aggregates in the semester report, and their own approval queue.
 
 **No club role approves its own budget** — not even a President who also happens to
 hold an approval role. The club role wins.
@@ -133,9 +141,28 @@ A **return** reopens it, which is what returning is for.
 
 ## 4. Approving
 
-Each gate sees **only its own queue**. Open the Dean's approvals while everything
-still sits with the Cultural Society and it is correctly empty — that is the chain
-working, not a bug.
+The route follows a **delegation of financial powers**, and is fixed when the
+proposal is sent:
+
+| Requested | Route |
+|---|---|
+| up to ₹50,000 | Cultural Society → Dean |
+| over ₹50,000, or part of a fest | Cultural Society → Dean → Vice-Chancellor |
+| over ₹2,00,000 | Cultural Society → Dean → Vice-Chancellor → Management |
+
+(The Cultural Society gate applies to cultural and literary clubs; the Dean's always
+applies.) A bigger budget travels further — it never skips a gate a smaller one would
+have passed. The New event page shows the route before anything is sent.
+
+**The Cultural Society recommends; the Dean sanctions.** The Society judges merit and
+the calendar and sees the figures, but sanctioning starts at the Dean, who may reduce
+any head. The Vice-Chancellor and Management see what the Dean sanctioned and may
+reduce it further — **never restore what an earlier gate cut**.
+
+Each gate sees **only its own queue**. Culturals Night 2026 sits with the Cultural
+Society at the start, so it is correctly absent from the Dean's queue — that is the
+chain working, not a bug. Every gate opens with one proposal of its own already
+waiting, and a list of its recent decisions showing where each one went next.
 
 | What you try | What happens |
 |---|---|
@@ -145,6 +172,7 @@ working, not a bug.
 | Return or reject with no comment | `422` — say what the club should change |
 | Approve over an unresolved venue clash | `409` — the Dean moves one event first |
 | Sanction a head above what was asked for | `422` — you may reduce, never raise |
+| Raise a head an earlier gate cut | `422` — a later gate may only cut further |
 | Approve above the threshold without a verified session | `403` |
 
 Heads the approver does not touch are sanctioned **as requested**, not left null — a
@@ -152,6 +180,11 @@ null after the decision would read as "not yet decided".
 
 The **route is frozen at submission**. If the threshold changed mid-flight, a
 recomputed route could drop a gate the proposal had already passed.
+
+A **return** sends it back to the club with the comment, which the Treasurer and
+President see on Club events (a plain member sees that it came back, not why — a
+return is usually about the money). Resubmitting starts a new request from gate 1,
+with no sanctioned figures carried over from the last round.
 
 ### Venue clashes
 
@@ -267,17 +300,19 @@ they are not participation.
 ## 8. What this build is not
 
 - **No server.** Everything runs in your browser and nothing is sent anywhere. Your
-  data is yours; "Reset data" puts it back to the start.
+  data is yours; "Reset data" puts it back to the start. Two tabs share it — each can
+  hold a different role — and a tab shows a **Refresh** prompt (or simply catches up
+  when you return to it) after another tab changes something.
 - **Not security.** The rules run client-side here, so they shape the *workflow*
   faithfully but defend nothing. The production backend runs the identical rules
   server-side, where a tampered client gets refused anyway.
 - **The signing key ships to the browser**, so a determined tester can mint a valid
   code. The signature is here to keep the data *structure* honest — purposes, event
   binding, single use — not to protect anything.
-- **Staff sessions skip the second factor**, because a walkthrough cannot read an
-  authenticator app. In production, MFA is mandatory for the Dean, Management, the
-  Cultural Society and admins, and separately required to sanction above the
-  threshold.
+- **Staff sessions skip the second factor**, because a pilot cannot read an
+  authenticator app. In production, MFA is mandatory for the Dean, the
+  Vice-Chancellor, Management, the Cultural Society and admins, and separately
+  required to sanction above the threshold. Queue cards mark where it would apply.
 - **Not yet built:** waitlists, feedback surveys, the annual handover of office
   bearers, fest sub-events, and external (non-college) participants.
 
@@ -285,17 +320,26 @@ they are not participation.
 
 ## 9. Things worth trying
 
+The sign-in page has a **guided walk through the whole workflow** — eight steps, one
+button per step, progress taken from what you actually did. Beyond it:
+
 1. Sign in as **Treasurer** → *New event* → "price it later" → *Budget* → add two
    entries → *Club events* → send for approval. Then try adding another entry.
-2. Sign in as **Treasurer**, create another, and declare it needs **no budget** with a
+2. As the **Treasurer**, create another and declare it needs **no budget** with a
    reason. Then look at it as the **Cultural Society** — the declaration appears where
    the figures would be.
-3. Follow *Culturals Night 2026* through all three gates: **Society → Dean →
-   Management**. Watch it pick up the third gate because it is over ₹50,000.
-4. As the **Dean**, open *Approvals* before the Society has acted. Empty, correctly.
-5. As the **Dean**, open *Venues* — two clubs want Seminar Hall A. Try approving one
+3. Follow *Culturals Night 2026* through all four gates: **Society → Dean → VC →
+   Management**. As the Dean, trim the artist fee; as the VC, try to put it back.
+4. Each approver already has one proposal waiting: the Dean has *Kalam Debating
+   Championship*, the VC *Natya Dance Drama*, Management *Inter-College Dance
+   Championship*.
+5. As the **Cultural Society**, return *Culturals Night 2026* with a comment. Then
+   read it as the **Treasurer**, and again as a **Club member**.
+6. As the **Dean**, open *Venues* — two clubs want Seminar Hall A. Try approving one
    first; it refuses. Move one, then approve.
-6. As the **Organiser**, open the *Scan station*. Check someone in, then scan the same
+7. As the **Organiser**, open the *Scan station*. Check someone in, then scan the same
    pass again. Try the forged code. Watch the capture rate move.
-7. As a **Student**, go to *Profile QR*, reissue it, then try the old code at the door.
-8. As **Management**, notice the sidebar has two pages. Then try to find a roster.
+8. As a **Student**, go to *Profile QR*, reissue it, then try the old code at the door.
+9. Open two tabs: the **Treasurer** in one, the **Dean** in the other. Approve in one
+   and watch the other catch up.
+10. As **Management**, notice the sidebar has two pages. Then try to find a roster.

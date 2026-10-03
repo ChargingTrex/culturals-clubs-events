@@ -1,0 +1,5 @@
+# Robot Framework browser tests. Install, then fetch the browser once:
+#   pip install -r tests/robot/requirements.txt
+#   rfbrowser init chromium
+robotframework==7.5
+robotframework-browser==20.5.0

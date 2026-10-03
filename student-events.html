@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>What's on — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -24,7 +25,7 @@ await page("student-events.html", async (main, session) => {
         <p class="muted">Register once and your pass appears under My passes. Show it
           at the door, or just show your profile QR.</p></div></div>
       ${events.length ? `<ul class="list">${events.map(e => `
-        <li class="event">${dateBox(e.startsAt)}
+        <li class="event" data-event-title="${esc(e.title)}">${dateBox(e.startsAt)}
           <div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
             <p class="muted small">${esc(e.clubName)} · ${esc(e.venueName)} ·
               ${fmtTime(e.startsAt)}–${fmtTime(e.endsAt)}</p>

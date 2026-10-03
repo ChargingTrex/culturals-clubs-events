@@ -95,7 +95,7 @@ export async function world() {
   await seedAll();
   const as = {};
   for (const key of ["student", "member", "secretary", "treasurer", "president",
-                     "organiser", "society", "dean", "vc"]) {
+                     "organiser", "society", "dean", "vc", "management"]) {
     as[key] = sessionFor(key);
   }
   return as;

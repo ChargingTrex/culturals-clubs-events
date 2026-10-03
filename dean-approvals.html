@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dean approvals — Culturals</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
@@ -13,107 +14,14 @@
 </div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script type="module">
-import { page, esc, inr, dateBox, fmtTime, showError, toast } from "./src/ui.js";
-import * as api from "./src/api.js";
+import { approvalQueuePage } from "./src/approval-queue.js";
 
-const STAGE = "dean";
-const HEADING = "Approvals";
-
-await page("dean-approvals.html", async (main, session) => {
-  const queue = api.governance.queue(session);
-  if (!queue.stagesYouHold.includes(STAGE)) {
-    throw Object.assign(new Error(`This queue belongs to the ${
-      STAGE.replace(/_/g, " ")} gate. You hold: ${
-      queue.stagesYouHold.join(", ") || "no gate"}.`),
-      { status: 403, title: "Not your gate", code: "GOVERNANCE_NOT_APPROVER" });
-  }
-
-  const draw = () => {
-    const rows = api.governance.queue(session).results
-      .filter(r => r.currentStage === STAGE);
-    main.innerHTML = `
-      <div class="head"><div><h1>${esc(HEADING)}</h1>
-        <p class="muted">${rows.length} waiting. A comment is required to return or
-          reject — a decision the club cannot act on is not a decision.</p></div></div>
-      ${rows.length ? `<ul class="list">${rows.map(r => `
-        <li><div class="event" style="grid-template-columns:64px 1fr">
-          ${dateBox(r.startsAt)}
-          <div>
-            <div class="row"><h3>${esc(r.eventTitle)}</h3>
-              <span class="pill">${esc(r.club)}</span>
-              ${r.requiresVc ? `<span class="pill warn">Management after:
-                ${esc(r.vcReason)}</span>` : ""}
-              ${r.clashes.length ? `<span class="pill bad">Venue clash</span>` : ""}</div>
-            <p class="small muted">${esc(r.venue)} ·
-              ${fmtTime(r.startsAt)}–${fmtTime(r.endsAt)} ·
-              expecting ${r.expectedAttendance} · requesting
-              ${inr(r.amountRequested)}</p>
-            <p class="small muted">Route:
-              ${r.stages.map(s => esc(s.replace(/_/g, " "))).join(" → ")}</p>
-            ${r.clashes.length ? `<p class="small" style="color:var(--bad);margin-top:4px">
-              Overlaps ${r.clashes.map(c => esc(c.title)).join(", ")} in the same
-              venue. The Dean resolves it under Venues before this can be
-              approved.</p>` : ""}
-
-            ${r.nilDeclaration ? `<div class="note"
-              style="margin-top:10px;border-left:3px solid var(--marigold,#c8a04a)">
-              <strong>${esc(r.nilDeclaration.head)}</strong>
-              <p style="margin:6px 0 0">${esc(r.nilDeclaration.reason)}</p>
-              <p class="small muted" style="margin:6px 0 0">Declared by
-                ${esc(r.nilDeclaration.declaredBy)} — nothing to sanction.</p></div>`
-            : r.lines.length ? `<div class="table-wrap" style="margin-top:10px">
-              <table style="min-width:330px"><thead><tr><th>Head</th>
-                <th class="num">Requested</th><th class="num">Sanction</th></tr></thead>
-              <tbody>${r.lines.map(l => `<tr><td>${esc(l.head)}</td>
-                <td class="num">${inr(l.amountRequested)}</td>
-                <td class="num"><input type="number" min="0"
-                  value="${l.amountSanctioned ?? l.amountRequested}"
-                  data-sanc="${r.id}:${l.id}"
-                  style="width:100px;text-align:right"></td></tr>`).join("")}
-              </tbody></table></div>
-              <p class="small muted" style="margin-top:6px">You may reduce a head,
-                never raise it above what was asked for.</p>`
-            : `<p class="note bad" style="margin-top:10px">No entries and no nil
-                declaration — this should not have reached you.</p>`}
-
-            <label for="c-${r.id}" style="margin-top:12px">Comment
-              <span class="muted">(required to return or reject)</span></label>
-            <textarea id="c-${r.id}" rows="2"></textarea>
-            <div id="m-${r.id}"></div>
-            <div class="row" style="margin-top:10px">
-              <button class="btn primary" data-go="approve:${r.id}">Approve</button>
-              <button class="btn" data-go="return:${r.id}">Return</button>
-              <button class="btn danger" data-go="reject:${r.id}">Reject</button></div>
-            ${r.steps.length ? `<p class="small muted" style="margin-top:10px">History:
-              ${r.steps.map(s => `${esc(s.stageLabel)} ${esc(s.decision)}`)
-                .join(" · ")}</p>` : ""}
-          </div></div></li>`).join("")}</ul>`
-        : `<div class="empty">All caught up at this gate.</div>`}`;
-  };
-  draw();
-
-  main.addEventListener("click", event => {
-    const button = event.target.closest("[data-go]");
-    if (!button) return;
-    const [decision, id] = button.dataset.go.split(":");
-    const msg = document.getElementById(`m-${id}`);
-    msg.innerHTML = "";
-    const sanctioned = {};
-    for (const input of main.querySelectorAll(`[data-sanc^="${id}:"]`)) {
-      sanctioned[input.dataset.sanc.split(":")[1]] = input.value;
-    }
-    try {
-      const result = api.governance.decide(session, id, {
-        decision, comment: document.getElementById(`c-${id}`).value, sanctioned,
-      });
-      const state = result.request.state;
-      toast(state === "approved" ? "Approved and published"
-        : state === "pending" ? `Approved — now with the ${
-            result.request.currentStage.replace(/_/g, " ")}`
-        : state === "returned" ? "Returned to the club" : "Rejected");
-      draw();
-    } catch (err) { showError(msg, err); }
-  });
+await approvalQueuePage({
+  file: "dean-approvals.html", stage: "dean", heading: "Dean approvals",
+  intro: "Gate 2 — every proposal passes here, and this is where the money is "
+    + "sanctioned. Reduce a head if you need to; you can never raise one above what "
+    + "was asked for. A comment is required to return or reject.",
+  emptyHint: "Proposals reach you once the Cultural Society recommends them.",
 });
 </script>
 </body>
