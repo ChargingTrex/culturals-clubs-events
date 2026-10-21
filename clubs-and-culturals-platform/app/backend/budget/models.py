@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from common.models import MONEY, UUIDModel
@@ -239,6 +240,11 @@ class ReceiptDocument(UUIDModel):
     byte_size = models.PositiveIntegerField(default=0)
     sha256 = models.CharField(max_length=64, blank=True)
     amount = models.DecimalField(**MONEY, null=True, blank=True)
+    # PRD §5.19.4: each upload records the file, amount claimed, vendor, date
+    # and who uploaded it. Both optional: a phone photo taken at the counter is
+    # worth keeping even before the treasurer has typed the vendor in.
+    vendor = models.CharField(max_length=120, blank=True)
+    document_date = models.DateField(null=True, blank=True)
     uploaded_by_sub = models.UUIDField(null=True, blank=True)
     superseded_by = models.OneToOneField("self", on_delete=models.SET_NULL, null=True,
                                          blank=True, related_name="supersedes")
@@ -252,3 +258,43 @@ class ReceiptDocument(UUIDModel):
     @property
     def is_current(self):
         return self.superseded_by_id is None
+
+
+class ClubBudgetEnvelope(UUIDModel):
+    """
+    The annual amount a club may draw against (PRD §5.7.3, §5.19.5).
+
+    Lives here rather than as `Club.annual_envelope` because the figure is
+    per year, not per club: last year's envelope is still needed to read last
+    year's utilisation, and a single column on Club would overwrite it.
+
+    Utilisation is not stored. `budget.services.envelope_summary` sums
+    `amount_sanctioned` over the club's sanctioned and settled budgets for
+    events starting in that calendar year, so the figure cannot drift from the
+    budgets it is made of.
+
+    Set by the Dean or an administrator. PRD §5.13 names the Student Life
+    Office as the configuring body, but no such role exists in common/roles.py
+    yet; when it is added, grant it here and nowhere else.
+    """
+
+    club = models.ForeignKey("clubs.Club", on_delete=models.CASCADE, related_name="envelopes")
+    year = models.PositiveSmallIntegerField()
+    amount = models.DecimalField(**MONEY)
+    set_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name="envelopes_set")
+    set_by_label = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        ordering = ("-year", "club__name")
+        constraints = [
+            # One figure per club per year. Two rows would make "remaining"
+            # depend on which one a query happened to read first.
+            models.UniqueConstraint(fields=["club", "year"],
+                                    name="one_envelope_per_club_per_year"),
+            models.CheckConstraint(condition=models.Q(amount__gte=0),
+                                   name="envelope_amount_non_negative"),
+        ]
+
+    def __str__(self):
+        return f"{self.club_id} {self.year}: {self.amount}"

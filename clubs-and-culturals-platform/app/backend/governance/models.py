@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from common.models import MONEY, UUIDModel
 
@@ -56,10 +57,17 @@ class ApprovalRequest(UUIDModel):
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                      null=True, blank=True, related_name="approvals_submitted")
     resolved_at = models.DateTimeField(null=True, blank=True)
+    # When the request reached `current_stage`. Reset on every advance, so the
+    # SLA clock measures the gate that is actually holding it, not the whole
+    # journey (PRD §5.11: approvals pending beyond the SLA are escalated).
+    stage_entered_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ("-created_at",)
-        indexes = [models.Index(fields=["state", "current_stage"])]
+        indexes = [
+            models.Index(fields=["state", "current_stage"]),
+            models.Index(fields=["state", "stage_entered_at"]),
+        ]
         constraints = [
             # One live request per event. Two open requests means two approvers
             # can each approve a different version of the same proposal.
@@ -80,6 +88,26 @@ class ApprovalRequest(UUIDModel):
             return []
         return self.stages[index + 1:]
 
+    def _hours_at_stage(self):
+        end = self.resolved_at if self.state != ApprovalState.PENDING else timezone.now()
+        delta = (end or timezone.now()) - self.stage_entered_at
+        return max(0.0, delta.total_seconds() / 3600)
+
+    @property
+    def age_hours(self):
+        """Hours since the current stage was entered, to one decimal."""
+        return round(self._hours_at_stage(), 1)
+
+    @property
+    def escalated(self):
+        """
+        Pending past the SLA. Only a pending request can be escalated: a resolved
+        one is somebody's finished work, however long it took. Compared on the
+        unrounded age, so the flag and the queue filter agree.
+        """
+        return (self.state == ApprovalState.PENDING
+                and self._hours_at_stage() > settings.APPROVAL_SLA_HOURS)
+
 
 class ApprovalStep(UUIDModel):
     """
@@ -97,6 +125,12 @@ class ApprovalStep(UUIDModel):
     actor_role = models.CharField(max_length=40)
     mfa_verified = models.BooleanField(default=False)
     amount_sanctioned = models.DecimalField(**MONEY, null=True, blank=True)
+    # Set when a delegate decided: the principal whose gate it was. The step
+    # then carries both names, which is what "the delegation is recorded"
+    # (PRD §5.13) has to mean for an auditor reading the history later.
+    on_behalf_of = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name="steps_delegated")
+    on_behalf_of_label = models.CharField(max_length=80, blank=True)
 
     class Meta:
         ordering = ("created_at",)
@@ -110,6 +144,85 @@ class ApprovalStep(UUIDModel):
 
     def __str__(self):
         return f"{self.stage}:{self.decision} by {self.actor_label}"
+
+
+class Delegation(UUIDModel):
+    """
+    Cover for an approval gate while its holder is away (MASTER_SPEC §11.3,
+    PRD §5.13).
+
+    A delegation is a window, not a role grant. Granting the Dean role to a
+    deputy was the only route before this existed, and it leaves no record of
+    who was standing in for whom, or until when. Here the principal stays the
+    accountable holder, the delegate acts within [starts_at, ends_at), and every
+    step decided under it names both.
+
+    Rules enforced in governance.services:
+      - only the holder of the stage's role, or an admin, may create one;
+      - the principal must hold the stage's role;
+      - the VC gate may only be delegated to a staff account (is_staff, or any
+        non-student global role) unless an admin created the delegation;
+      - the self-approval rule still wins: a delegate with a club role in the
+        proposing club is refused at decision time, whatever the delegation says;
+      - the MFA rule is unchanged: the delegate's own session needs the claim.
+    """
+
+    stage = models.CharField(max_length=20, choices=ApprovalStage.choices)
+    principal_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                       related_name="delegations_given")
+    delegate_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                      related_name="delegations_received")
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    reason = models.CharField(max_length=400, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name="delegations_created")
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by_label = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        ordering = ("-starts_at",)
+        indexes = [models.Index(fields=["stage", "starts_at", "ends_at"])]
+        constraints = [
+            # A window that ends before it starts is never active and only
+            # confuses the list; refuse it rather than store it.
+            models.CheckConstraint(
+                condition=models.Q(ends_at__gt=models.F("starts_at")),
+                name="delegation_window_ends_after_it_starts",
+            ),
+            # Delegating to yourself records nothing and would let a revoked
+            # role holder keep acting through their own delegation.
+            models.CheckConstraint(
+                condition=~models.Q(principal_user=models.F("delegate_user")),
+                name="delegation_not_to_self",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.stage}: {self.principal_user_id} -> {self.delegate_user_id}"
+
+    @property
+    def is_revoked(self):
+        return self.revoked_at is not None
+
+    def is_active_at(self, when=None):
+        when = when or timezone.now()
+        return (not self.is_revoked and self.starts_at <= when < self.ends_at)
+
+    @property
+    def is_active(self):
+        return self.is_active_at()
+
+    @property
+    def status(self):
+        now = timezone.now()
+        if self.is_revoked:
+            return "revoked"
+        if now < self.starts_at:
+            return "scheduled"
+        if now >= self.ends_at:
+            return "expired"
+        return "active"
 
 
 class Notification(UUIDModel):
