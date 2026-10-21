@@ -1,0 +1,7 @@
+dist
+node_modules
+openapi.yaml
+src/shared/api/schema.d.ts
+playwright-report
+test-results
+package-lock.json

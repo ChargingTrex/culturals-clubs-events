@@ -1,0 +1,2688 @@
+openapi: 3.0.3
+info:
+  title: Clubs & Events API
+  version: 1.0.0
+  description: Clubs, events, participation, budget and approvals for the Student
+    Management Portal.
+paths:
+  /api/v1/budget/budget-templates:
+    get:
+      operationId: budget_budget_templates_retrieve
+      description: |-
+        Templates, with the amounts a club would get for a given headcount.
+
+        The preview is computed server-side so the figure a club sees while proposing
+        is the figure that will be created — the prototype computed it in the browser,
+        which meant two implementations of the same arithmetic.
+      summary: Budget templates, priced for an expected attendance
+      tags:
+      - budget
+      responses:
+        '200':
+          description: No response body
+  /api/v1/budget/budgets:
+    get:
+      operationId: budget_budgets_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - budget
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBudgetList'
+          description: ''
+  /api/v1/budget/budgets/{id}:
+    get:
+      operationId: budget_budgets_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - budget
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/declare-nil:
+    post:
+      operationId: budget_budgets_declare_nil_create
+      summary: Declare that the event needs no budget
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nil'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Nil'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Nil'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/lines:
+    post:
+      operationId: budget_budgets_lines_create
+      summary: Add a budget line
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Line'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Line'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Line'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/lines/{line_id}:
+    patch:
+      operationId: budget_budgets_lines_partial_update
+      summary: Record spend on one budget line
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: line_id
+        schema:
+          type: string
+          pattern: ^[0-9a-f-]+$
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSpend'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSpend'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSpend'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/lines/{line_id}/edit:
+    put:
+      operationId: budget_budgets_lines_edit_update
+      summary: Edit a budget line's head or amount
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: line_id
+        schema:
+          type: string
+          pattern: ^[0-9a-f-]+$
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LineEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LineEdit'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/lines/{line_id}/receipts:
+    post:
+      operationId: budget_budgets_lines_receipts_create
+      summary: Attach a receipt to one budget line
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: line_id
+        schema:
+          type: string
+          pattern: ^[0-9a-f-]+$
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Budget'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Budget'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Budget'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/lines/{line_id}/remove:
+    delete:
+      operationId: budget_budgets_lines_remove_destroy
+      summary: Remove a budget line before submission
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: line_id
+        schema:
+          type: string
+          pattern: ^[0-9a-f-]+$
+        required: true
+      tags:
+      - budget
+      responses:
+        '204':
+          description: No response body
+  /api/v1/budget/budgets/{id}/settle:
+    post:
+      operationId: budget_budgets_settle_create
+      summary: Settle the budget once spend and evidence are complete
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Budget'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Budget'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Budget'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/budgets/{id}/withdraw-nil:
+    post:
+      operationId: budget_budgets_withdraw_nil_create
+      summary: Withdraw a nil declaration so the budget can be priced
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Budget'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Budget'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Budget'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/clubs:
+    get:
+      operationId: clubs_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - clubs
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClubList'
+          description: ''
+    post:
+      operationId: clubs_create
+      tags:
+      - clubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Club'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Club'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Club'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+          description: ''
+  /api/v1/clubs/{id}:
+    get:
+      operationId: clubs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+          description: ''
+    put:
+      operationId: clubs_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Club'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Club'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Club'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+          description: ''
+    patch:
+      operationId: clubs_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClub'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClub'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClub'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+          description: ''
+    delete:
+      operationId: clubs_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      responses:
+        '204':
+          description: No response body
+  /api/v1/clubs/{id}/members:
+    get:
+      operationId: clubs_members_retrieve
+      summary: Members of a club, with their roles
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Club'
+          description: ''
+  /api/v1/events:
+    get:
+      operationId: events_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - events
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventList'
+          description: ''
+    post:
+      operationId: events_create
+      summary: Propose an event and send it for approval
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/v1/events/{id}:
+    get:
+      operationId: events_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+    put:
+      operationId: events_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Event'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Event'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+    patch:
+      operationId: events_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEvent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEvent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEvent'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+    delete:
+      operationId: events_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      responses:
+        '204':
+          description: No response body
+  /api/v1/events/{id}/clashes:
+    get:
+      operationId: events_clashes_retrieve
+      summary: Clashes and free alternatives for this event
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/v1/events/{id}/close:
+    post:
+      operationId: events_close_create
+      summary: Close an event with its evidence
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseEvent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CloseEvent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CloseEvent'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/v1/events/{id}/go-live:
+    post:
+      operationId: events_go_live_create
+      summary: Mark an event live so the scan station can open
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Event'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Event'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/v1/events/{id}/reassign:
+    post:
+      operationId: events_reassign_create
+      summary: Move an event to another venue (Dean only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReassignRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReassignRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReassignRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/v1/events/{id}/submit:
+    post:
+      operationId: events_submit_create
+      summary: Submit or resubmit a proposal for approval
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Event'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Event'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+          description: ''
+  /api/v1/governance/approvals:
+    get:
+      operationId: governance_approvals_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - governance
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApprovalRequestList'
+          description: ''
+  /api/v1/governance/approvals/{id}:
+    get:
+      operationId: governance_approvals_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - governance
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequest'
+          description: ''
+  /api/v1/governance/approvals/{id}/decide:
+    post:
+      operationId: governance_approvals_decide_create
+      summary: Approve, return or reject
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decide'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Decide'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Decide'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequest'
+          description: ''
+  /api/v1/governance/approvals/queue:
+    get:
+      operationId: governance_approvals_queue_retrieve
+      summary: Your approval queue — only the stages you hold
+      tags:
+      - governance
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequest'
+          description: ''
+  /api/v1/governance/audit:
+    get:
+      operationId: governance_audit_retrieve
+      description: |-
+        Read-only audit trail. Append-only by construction: nothing in the API writes
+        to it except the adapter, and nothing anywhere updates or deletes an entry.
+      tags:
+      - governance
+      responses:
+        '200':
+          description: No response body
+  /api/v1/governance/notifications:
+    get:
+      operationId: governance_notifications_list
+      description: |-
+        In-app notifications for the caller only. Email copies go out through the same
+        adapter call; no third channel exists.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - governance
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/governance/notifications/mark-read:
+    post:
+      operationId: governance_notifications_mark_read_create
+      description: |-
+        In-app notifications for the caller only. Email copies go out through the same
+        adapter call; no third channel exists.
+      summary: Mark all as read
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/governance/notifications/unread-count:
+    get:
+      operationId: governance_notifications_unread_count_retrieve
+      description: |-
+        In-app notifications for the caller only. Email copies go out through the same
+        adapter call; no third channel exists.
+      summary: Unread count for the bell
+      tags:
+      - governance
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/memberships/{id}/role:
+    post:
+      operationId: memberships_role_create
+      description: |-
+        AGENT_PROMPT §6: only President and Vice-President may assign roles, and
+        the Treasurer explicitly may not. The check happens here, on save — the
+        frontend also hides the control, but hiding a control is not a permission.
+      summary: Assign a club role (President or Vice-President only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - memberships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleChangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleChangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleChangeRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/module/auth/demo/{persona}:
+    post:
+      operationId: module_auth_demo_create
+      description: |-
+        Issue a real token for a demo persona, with no password.
+
+        The token is ordinary: same claims, same expiry, same signature. Every
+        permission check downstream runs untouched, which is why the demo can show a
+        403 on the Vice-Chancellor's roster attempt and mean it.
+      summary: Passwordless login for a demo persona (DEMO_MODE only)
+      parameters:
+      - in: path
+        name: persona
+        schema:
+          type: string
+        required: true
+      tags:
+      - module
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/auth/demo/personas:
+    get:
+      operationId: module_auth_demo_personas_retrieve
+      description: The personas a demo can switch between. 404 when DEMO_MODE is off.
+      summary: Demo personas (DEMO_MODE only)
+      tags:
+      - module
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/auth/login:
+    post:
+      operationId: module_auth_login_create
+      description: Standalone mode only (§5.2). Refused outright in platform mode.
+      summary: Password login (standalone mode)
+      tags:
+      - module
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/auth/logout:
+    post:
+      operationId: module_auth_logout_create
+      summary: Revoke the refresh token; the access token expires naturally
+      tags:
+      - module
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/auth/me:
+    get:
+      operationId: module_auth_me_retrieve
+      summary: The caller's claims, as the frontend sees them
+      tags:
+      - module
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/auth/mode:
+    get:
+      operationId: module_auth_mode_retrieve
+      summary: Which login flow this deployment uses
+      tags:
+      - module
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/auth/refresh:
+    post:
+      operationId: module_auth_refresh_create
+      summary: Exchange a refresh token, rotating it
+      tags:
+      - module
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/directory/students:
+    get:
+      operationId: module_directory_students_retrieve
+      description: |-
+        PRN or name lookup for the check-in desk.
+
+        Scoped deliberately: an organiser may see attendee identities for their own
+        event only (AGENT_PROMPT §6), so this requires either an approval role or an
+        organiser scope, and returns the minimum a desk needs to identify someone.
+      summary: Find a student by PRN or name (desk lookup)
+      tags:
+      - module
+      responses:
+        '200':
+          description: No response body
+  /api/v1/module/semesters:
+    get:
+      operationId: module_semesters_retrieve
+      summary: Academic calendar (platform-owned; read only)
+      tags:
+      - module
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/events/{event_id}/check-in:
+    post:
+      operationId: participation_events_check_in_create
+      summary: Check in by PRN lookup
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualCheckIn'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualCheckIn'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualCheckIn'
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/events/{event_id}/roster:
+    get:
+      operationId: participation_events_roster_retrieve
+      description: |-
+        The attendee list for one event.
+
+        Scoped to the people who need it: this event's organisers, the club's door
+        staff, and the staff cleared for individual records. The Vice-Chancellor is
+        excluded — this list is names and PRNs, and Management receives aggregates.
+
+        Everyone else gets 404 rather than 403: the existence of an attendee list is
+        itself disclosure (API_Standards §3.3).
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/events/{event_id}/scan:
+    get:
+      operationId: participation_events_scan_retrieve
+      description: |-
+        The door.
+
+        The organiser scans the student, never the reverse (AGENT_PROMPT §2), which is
+        why the presented code arrives in the body of a request the *operator* makes.
+      summary: 'Station state: counters, capture rate, recent scans'
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: participation_events_scan_create
+      description: |-
+        The door.
+
+        The organiser scans the student, never the reverse (AGENT_PROMPT §2), which is
+        why the presented code arrives in the body of a request the *operator* makes.
+      summary: Resolve one presented code
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/events/{event_id}/scan-session:
+    post:
+      operationId: participation_events_scan_session_create
+      description: |-
+        Issue the long-lived, event-bound station session (Identity §5.3).
+
+        Deliberately an exception to the 15-minute access token: an organiser cannot
+        re-authenticate mid-queue, and a station that logs out during an event is
+        abandoned in favour of a paper list. The session expires with the event, and
+        IsEventOrganiser refuses it at any other event.
+      summary: Issue a scan-station session bound to one event
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/events/{event_id}/scan/sync:
+    post:
+      operationId: participation_events_scan_sync_create
+      description: Replay a station's offline queue (AGENT_PROMPT §5).
+      summary: Replay queued offline scans
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfflineBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OfflineBatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OfflineBatch'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/me/qr:
+    get:
+      operationId: participation_me_qr_retrieve
+      description: 'The student''s wallet: one pass per live registration, plus the
+        profile QR.'
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: participation_me_qr_create
+      description: 'The student''s wallet: one pass per live registration, plus the
+        profile QR.'
+      summary: Reissue the profile QR (lost phone)
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/my-passes:
+    get:
+      operationId: participation_my_passes_retrieve
+      description: 'The student''s wallet: one pass per live registration, plus the
+        profile QR.'
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: participation_my_passes_create
+      description: 'The student''s wallet: one pass per live registration, plus the
+        profile QR.'
+      summary: Reissue the profile QR (lost phone)
+      tags:
+      - participation
+      responses:
+        '200':
+          description: No response body
+  /api/v1/participation/registrations:
+    get:
+      operationId: participation_registrations_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - participation
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRegistrationList'
+          description: ''
+    post:
+      operationId: participation_registrations_create
+      summary: Register for a published event
+      tags:
+      - participation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Registration'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+          description: ''
+  /api/v1/participation/registrations/{id}/cancel:
+    post:
+      operationId: participation_registrations_cancel_create
+      summary: Cancel your own registration
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - participation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Registration'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+          description: ''
+  /api/v1/participation/registrations/{id}/reissue-pass:
+    post:
+      operationId: participation_registrations_reissue_pass_create
+      summary: Reissue your pass, revoking the old one
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - participation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Registration'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+          description: ''
+  /api/v1/reporting/reports/overview:
+    get:
+      operationId: reporting_reports_overview_retrieve
+      summary: Running totals and what needs chasing
+      tags:
+      - reporting
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reporting/reports/semester:
+    get:
+      operationId: reporting_reports_semester_retrieve
+      description: |-
+        The semester report.
+
+        Available to the Dean and the Vice-Chancellor. The VC sees aggregates only —
+        AGENT_PROMPT §6 is explicit that the Vice-Chancellor gets no individual
+        records, and this endpoint returns none.
+      summary: Semester report — aggregates only, no individual records
+      tags:
+      - reporting
+      responses:
+        '200':
+          description: No response body
+  /api/v1/venue-calendar:
+    get:
+      operationId: venue_calendar_retrieve
+      description: |-
+        The master calendar: every venue, every booking, clashes flagged.
+
+        Restricted to staff. A student does not need to see which club is pitching
+        for Friday evening, and a pending proposal is not public information.
+      tags:
+      - venue-calendar
+      responses:
+        '200':
+          description: No response body
+  /api/v1/venues:
+    get:
+      operationId: venues_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - venues
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVenueList'
+          description: ''
+  /api/v1/venues/{id}:
+    get:
+      operationId: venues_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this venue.
+        required: true
+      tags:
+      - venues
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+          description: ''
+components:
+  schemas:
+    ApprovalRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        event:
+          type: string
+          format: uuid
+        event_title:
+          type: string
+          readOnly: true
+        club:
+          type: string
+          readOnly: true
+        club_id:
+          type: string
+          format: uuid
+          readOnly: true
+        venue:
+          type: string
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ends_at:
+          type: string
+          format: date-time
+          readOnly: true
+        expected_attendance:
+          type: integer
+          readOnly: true
+        stages: {}
+        current_stage:
+          $ref: '#/components/schemas/CurrentStageEnum'
+        stage_label:
+          type: string
+          readOnly: true
+        state:
+          $ref: '#/components/schemas/StateEnum'
+        amount_requested:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        requires_vc:
+          type: boolean
+        vc_reason:
+          type: string
+          maxLength: 120
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStep'
+          readOnly: true
+        lines:
+          type: string
+          readOnly: true
+        clashes:
+          type: string
+          readOnly: true
+        my_stage:
+          type: string
+          readOnly: true
+        requires_mfa:
+          type: string
+          readOnly: true
+        nil_declaration:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - clashes
+      - club
+      - club_id
+      - created_at
+      - current_stage
+      - ends_at
+      - event
+      - event_title
+      - expected_attendance
+      - id
+      - lines
+      - my_stage
+      - nil_declaration
+      - requires_mfa
+      - stage_label
+      - starts_at
+      - steps
+      - venue
+    ApprovalStep:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        stage:
+          $ref: '#/components/schemas/Stage69eEnum'
+        stage_label:
+          type: string
+          readOnly: true
+        decision:
+          $ref: '#/components/schemas/ApprovalStepDecisionEnum'
+        comment:
+          type: string
+        actor_label:
+          type: string
+          maxLength: 80
+        actor_role:
+          type: string
+          maxLength: 40
+        mfa_verified:
+          type: boolean
+        amount_sanctioned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_label
+      - actor_role
+      - created_at
+      - decision
+      - id
+      - stage
+      - stage_label
+    ApprovalStepDecisionEnum:
+      enum:
+      - approve
+      - return
+      - reject
+      type: string
+      description: |-
+        * `approve` - Approve
+        * `return` - Return for changes
+        * `reject` - Reject
+    Budget:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        event:
+          type: string
+          format: uuid
+          nullable: true
+        fest:
+          type: string
+          format: uuid
+          nullable: true
+        stage:
+          $ref: '#/components/schemas/BudgetStageEnum'
+        stage_label:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLine'
+          readOnly: true
+        total_requested:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        total_sanctioned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        total_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        settled_at:
+          type: string
+          format: date-time
+          nullable: true
+        settlement_problems:
+          type: string
+          readOnly: true
+        thresholds:
+          type: string
+          readOnly: true
+        nil_declaration:
+          type: string
+          readOnly: true
+        is_editable:
+          type: boolean
+          readOnly: true
+        is_ready_to_submit:
+          type: boolean
+          readOnly: true
+        can_settle:
+          type: boolean
+          readOnly: true
+        settlement_waiting_on:
+          type: string
+          readOnly: true
+          nullable: true
+        settlement_hint:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - can_settle
+      - id
+      - is_editable
+      - is_ready_to_submit
+      - lines
+      - nil_declaration
+      - settlement_hint
+      - settlement_problems
+      - settlement_waiting_on
+      - stage_label
+      - thresholds
+      - total_requested
+      - total_sanctioned
+      - total_spent
+    BudgetLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        head:
+          type: string
+          maxLength: 120
+        basis:
+          type: string
+          maxLength: 16
+        amount_requested:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        amount_sanctioned:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        amount_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        variance_note:
+          type: string
+          maxLength: 400
+        is_overspent:
+          type: boolean
+          readOnly: true
+        receipts:
+          type: string
+          readOnly: true
+        position:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+      required:
+      - amount_requested
+      - amount_sanctioned
+      - head
+      - id
+      - is_overspent
+      - receipts
+    BudgetStageEnum:
+      enum:
+      - draft
+      - society_review
+      - dean_review
+      - vc_review
+      - sanctioned
+      - settled
+      - returned
+      - rejected
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `society_review` - With the Cultural Society
+        * `dean_review` - With the Dean
+        * `vc_review` - With the Vice-Chancellor
+        * `sanctioned` - Sanctioned
+        * `settled` - Settled
+        * `returned` - Returned for changes
+        * `rejected` - Rejected
+    CategoryEnum:
+      enum:
+      - cultural
+      - literary
+      - technical
+      - sports
+      - social
+      type: string
+      description: |-
+        * `cultural` - Cultural
+        * `literary` - Literary
+        * `technical` - Technical
+        * `sports` - Sports
+        * `social` - Social service
+    CloseEvent:
+      type: object
+      properties:
+        photo_count:
+          type: integer
+          minimum: 0
+        social_links:
+          type: array
+          items:
+            type: string
+            format: uri
+      required:
+      - photo_count
+    Club:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        tag:
+          type: string
+          maxLength: 40
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        description:
+          type: string
+        instagram_handle:
+          type: string
+          maxLength: 64
+        status:
+          $ref: '#/components/schemas/ClubStatusEnum'
+        member_count:
+          type: string
+          readOnly: true
+        my_role:
+          type: string
+          readOnly: true
+      required:
+      - category
+      - id
+      - member_count
+      - my_role
+      - name
+      - slug
+    ClubStatusEnum:
+      enum:
+      - active
+      - dormant
+      - archived
+      type: string
+      description: |-
+        * `active` - Active
+        * `dormant` - Dormant
+        * `archived` - Archived
+    CurrentStageEnum:
+      enum:
+      - cultural_society
+      - dean
+      - vc
+      type: string
+      description: |-
+        * `cultural_society` - Cultural Society
+        * `dean` - Dean of Student Affairs
+        * `vc` - Vice-Chancellor
+    Decide:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecideDecisionEnum'
+        comment:
+          type: string
+          default: ''
+        sanctioned:
+          type: object
+          additionalProperties: {}
+      required:
+      - decision
+    DecideDecisionEnum:
+      enum:
+      - approve
+      - return
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `return` - return
+        * `reject` - reject
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        club:
+          type: string
+          format: uuid
+        club_name:
+          type: string
+          readOnly: true
+        fest:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        description:
+          type: string
+        venue:
+          type: string
+          format: uuid
+        venue_name:
+          type: string
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        expected_attendance:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        status:
+          allOf:
+          - $ref: '#/components/schemas/EventStatusEnum'
+          readOnly: true
+        status_label:
+          type: string
+          readOnly: true
+        photo_count:
+          type: integer
+          readOnly: true
+        social_links:
+          readOnly: true
+        registered:
+          type: string
+          readOnly: true
+        attended:
+          type: string
+          readOnly: true
+        budget:
+          type: string
+          readOnly: true
+        my_registration:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - attended
+      - budget
+      - capacity
+      - closed_at
+      - club
+      - club_name
+      - ends_at
+      - expected_attendance
+      - id
+      - my_registration
+      - photo_count
+      - registered
+      - social_links
+      - starts_at
+      - status
+      - status_label
+      - submitted_at
+      - title
+      - venue
+      - venue_name
+    EventCreate:
+      type: object
+      description: |-
+        Proposal intake. Budget arrives either as a template name or explicit lines —
+        a proposal with no budget cannot be submitted (governance/services.submit).
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        club:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        description:
+          type: string
+        venue:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        expected_attendance:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        fest:
+          type: string
+          format: uuid
+          nullable: true
+        budget_template:
+          type: string
+        budget_lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        submit:
+          type: boolean
+          default: true
+      required:
+      - capacity
+      - club
+      - ends_at
+      - expected_attendance
+      - starts_at
+      - title
+      - venue
+    EventStatusEnum:
+      enum:
+      - draft
+      - submitted
+      - returned
+      - rejected
+      - approved
+      - published
+      - live
+      - completed
+      - reported
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `submitted` - Awaiting approval
+        * `returned` - Returned for changes
+        * `rejected` - Rejected
+        * `approved` - Approved
+        * `published` - Published
+        * `live` - Live now
+        * `completed` - Completed
+        * `reported` - Reported
+        * `cancelled` - Cancelled
+    KindEnum:
+      enum:
+      - performance
+      - workshop
+      - competition
+      - exhibition
+      - talk
+      type: string
+      description: |-
+        * `performance` - Performance
+        * `workshop` - Workshop
+        * `competition` - Competition
+        * `exhibition` - Exhibition
+        * `talk` - Talk
+    Line:
+      type: object
+      properties:
+        head:
+          type: string
+          maxLength: 120
+        amount_requested:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        basis:
+          type: string
+      required:
+      - amount_requested
+      - head
+    LineEdit:
+      type: object
+      properties:
+        head:
+          type: string
+          maxLength: 120
+        amount_requested:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        basis:
+          type: string
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+        mfa_code:
+          type: string
+      required:
+      - email
+      - password
+    ManualCheckIn:
+      type: object
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        prn:
+          type: string
+        station_id:
+          type: string
+          default: ''
+    Membership:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        club:
+          type: string
+          format: uuid
+        student:
+          type: string
+          format: uuid
+        prn:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        department:
+          type: string
+          readOnly: true
+        programme:
+          type: string
+          readOnly: true
+        year:
+          type: integer
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/MembershipRoleEnum'
+        role_label:
+          type: string
+          readOnly: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - club
+      - department
+      - full_name
+      - id
+      - joined_at
+      - prn
+      - programme
+      - role_label
+      - student
+      - year
+    MembershipRoleEnum:
+      enum:
+      - club_president
+      - club_vice_president
+      - club_treasurer
+      - club_secretary
+      - club_core
+      - club_member
+      type: string
+      description: |-
+        * `club_president` - President
+        * `club_vice_president` - Vice-President
+        * `club_treasurer` - Treasurer
+        * `club_secretary` - Secretary
+        * `club_core` - Core team
+        * `club_member` - Member
+    Nil:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 400
+      required:
+      - reason
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        subject:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+        kind:
+          type: string
+          maxLength: 40
+        link:
+          type: string
+          maxLength: 300
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - kind
+      - subject
+    OfflineBatch:
+      type: object
+      properties:
+        station_id:
+          type: string
+          default: ''
+        scans:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - scans
+    PaginatedApprovalRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalRequest'
+    PaginatedBudgetList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Budget'
+    PaginatedClubList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Club'
+    PaginatedEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedRegistrationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Registration'
+    PaginatedVenueList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venue'
+    PatchedClub:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        tag:
+          type: string
+          maxLength: 40
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        description:
+          type: string
+        instagram_handle:
+          type: string
+          maxLength: 64
+        status:
+          $ref: '#/components/schemas/ClubStatusEnum'
+        member_count:
+          type: string
+          readOnly: true
+        my_role:
+          type: string
+          readOnly: true
+    PatchedEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        club:
+          type: string
+          format: uuid
+        club_name:
+          type: string
+          readOnly: true
+        fest:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        description:
+          type: string
+        venue:
+          type: string
+          format: uuid
+        venue_name:
+          type: string
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        expected_attendance:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        status:
+          allOf:
+          - $ref: '#/components/schemas/EventStatusEnum'
+          readOnly: true
+        status_label:
+          type: string
+          readOnly: true
+        photo_count:
+          type: integer
+          readOnly: true
+        social_links:
+          readOnly: true
+        registered:
+          type: string
+          readOnly: true
+        attended:
+          type: string
+          readOnly: true
+        budget:
+          type: string
+          readOnly: true
+        my_registration:
+          type: string
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+    PatchedSpend:
+      type: object
+      properties:
+        amount_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        variance_note:
+          type: string
+          maxLength: 400
+    ReassignRequest:
+      type: object
+      properties:
+        to_venue:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          maxLength: 280
+      required:
+      - reason
+      - to_venue
+    Registration:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        event:
+          type: string
+          format: uuid
+        event_title:
+          type: string
+          readOnly: true
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        attended:
+          type: boolean
+        checked_in_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        pass_token:
+          type: string
+          readOnly: true
+        registered_at:
+          type: string
+          format: date-time
+      required:
+      - event
+      - event_title
+      - id
+      - pass_token
+    RoleChangeRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/RoleChangeRequestRoleEnum'
+        reason:
+          type: string
+          maxLength: 280
+      required:
+      - role
+    RoleChangeRequestRoleEnum:
+      enum:
+      - club_president
+      - club_vice_president
+      - club_treasurer
+      - club_secretary
+      - club_core
+      - club_member
+      type: string
+      description: |-
+        * `club_president` - club_president
+        * `club_vice_president` - club_vice_president
+        * `club_treasurer` - club_treasurer
+        * `club_secretary` - club_secretary
+        * `club_core` - club_core
+        * `club_member` - club_member
+    ScanRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        station_id:
+          type: string
+          default: ''
+        scanned_at:
+          type: string
+          format: date-time
+      required:
+      - token
+    SourceEnum:
+      enum:
+      - pre_registered
+      - spot
+      - manual
+      - imported
+      type: string
+      description: |-
+        * `pre_registered` - Registered in advance
+        * `spot` - Walk-in, registered at the door
+        * `manual` - Entered by an organiser at the desk
+        * `imported` - Imported from a prior record
+    Stage69eEnum:
+      enum:
+      - cultural_society
+      - dean
+      - vc
+      type: string
+      description: |-
+        * `cultural_society` - Cultural Society
+        * `dean` - Dean of Student Affairs
+        * `vc` - Vice-Chancellor
+    StateEnum:
+      enum:
+      - pending
+      - approved
+      - returned
+      - rejected
+      - withdrawn
+      type: string
+      description: |-
+        * `pending` - Awaiting a decision
+        * `approved` - Approved
+        * `returned` - Returned for changes
+        * `rejected` - Rejected
+        * `withdrawn` - Withdrawn by the club
+    Venue:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        location:
+          type: string
+          maxLength: 160
+        active:
+          type: boolean
+      required:
+      - capacity
+      - id
+      - name

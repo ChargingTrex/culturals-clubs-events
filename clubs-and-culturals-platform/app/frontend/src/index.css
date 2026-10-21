@@ -1,0 +1,185 @@
+@import 'tailwindcss';
+
+/* Design tokens ported from web-app/assets/app.css. Same colours, same radii,
+   same type stacks; light and dark. */
+:root {
+  --ink: #1e1b3a;
+  --ink-2: #3a3660;
+  --muted: #6b6a86;
+  --line: #dddce8;
+  --paper: #f6f7fb;
+  --surface: #ffffff;
+  --sunk: #eeeef5;
+  --marigold: #e8a317;
+  --marigold-ink: #3a2600;
+  --marigold-soft: #fbefd2;
+  --ok: #2f7d5b;
+  --ok-soft: #ddf0e6;
+  --warn: #b26b00;
+  --warn-soft: #fcebcb;
+  --bad: #c23b3b;
+  --bad-soft: #f8dede;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --ink: #ecebf7;
+    --ink-2: #c9c7e3;
+    --muted: #9d9bbb;
+    --line: #35325a;
+    --paper: #141228;
+    --surface: #1d1a36;
+    --sunk: #262345;
+    --marigold: #f2b535;
+    --marigold-ink: #241700;
+    --marigold-soft: #3a2e12;
+    --ok: #5fc495;
+    --ok-soft: #173a2b;
+    --warn: #f2b535;
+    --warn-soft: #3a2e12;
+    --bad: #f07a7a;
+    --bad-soft: #3e1c22;
+  }
+}
+:root[data-theme='dark'] {
+  --ink: #ecebf7;
+  --ink-2: #c9c7e3;
+  --muted: #9d9bbb;
+  --line: #35325a;
+  --paper: #141228;
+  --surface: #1d1a36;
+  --sunk: #262345;
+  --marigold: #f2b535;
+  --marigold-ink: #241700;
+  --marigold-soft: #3a2e12;
+  --ok: #5fc495;
+  --ok-soft: #173a2b;
+  --warn: #f2b535;
+  --warn-soft: #3a2e12;
+  --bad: #f07a7a;
+  --bad-soft: #3e1c22;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunk: var(--sunk);
+  --color-marigold: var(--marigold);
+  --color-marigold-ink: var(--marigold-ink);
+  --color-marigold-soft: var(--marigold-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+}
+
+html {
+  height: 100%;
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+:focus-visible {
+  outline: 3px solid var(--marigold);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  line-height: 1.1;
+}
+h1 {
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Small set of composed classes that are reused across every page. */
+@layer components {
+  .btn {
+    @apply inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-line bg-surface px-4 py-2 text-[0.92rem] font-semibold hover:border-ink-2 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .btn-primary {
+    @apply border-marigold bg-marigold text-marigold-ink hover:brightness-105 hover:border-marigold;
+  }
+  .btn-quiet {
+    @apply border-transparent bg-transparent px-2 hover:border-transparent hover:underline;
+  }
+  .btn-danger {
+    @apply border-current bg-transparent text-bad;
+  }
+  .field {
+    @apply w-full rounded-sm border border-line bg-surface px-3 py-2;
+  }
+  .label {
+    @apply mb-1 block text-[0.85rem] font-semibold text-ink-2;
+  }
+  .panel {
+    @apply rounded-md border border-line bg-surface p-5;
+  }
+  .pill {
+    @apply inline-block rounded-full bg-sunk px-2.5 py-0.5 text-[0.78rem] font-semibold text-ink-2;
+  }
+  .pill-ok {
+    @apply bg-ok-soft text-ok;
+  }
+  .pill-warn {
+    @apply bg-warn-soft text-warn;
+  }
+  .pill-bad {
+    @apply bg-bad-soft text-bad;
+  }
+  .pill-gold {
+    @apply bg-marigold-soft text-ink;
+  }
+  .note {
+    @apply rounded-r-sm border-l-[3px] border-marigold bg-marigold-soft px-3.5 py-3 text-[0.92rem];
+  }
+  .meter {
+    @apply h-2 overflow-hidden rounded-[4px] bg-sunk;
+  }
+  .meter > i {
+    @apply block h-full bg-marigold;
+  }
+  .tokenbox {
+    @apply rounded-[8px] bg-sunk px-3 py-2 font-mono text-[0.7rem] break-all text-ink-2;
+  }
+  .nav-link {
+    @apply block rounded-sm px-3 py-2 text-[0.91rem] font-medium text-ink-2 no-underline hover:text-ink;
+  }
+  .nav-link[aria-current='page'] {
+    @apply bg-marigold-soft text-ink shadow-[inset_3px_0_0_var(--marigold)];
+  }
+  .nav-link-bottom {
+    @apply whitespace-nowrap rounded-sm px-3 py-2 text-[0.85rem] font-medium text-ink-2 no-underline;
+  }
+  .nav-link-bottom[aria-current='page'] {
+    @apply bg-marigold-soft text-ink shadow-[inset_0_-3px_0_var(--marigold)];
+  }
+}
