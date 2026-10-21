@@ -21,14 +21,14 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 
 | Id | PRD § | Feature | Existing | Owner | Status | Acceptance test (must exist and pass) |
 |---|---|---|---|---|---|---|
-| B-00a | – | **Hotfix:** `EventViewSet.destroy` — only PROPOSERS of the owning club may delete, and only in `draft`/`returned`/`rejected`; everything else is `409`; cancel is the route for published events | MISSING (X-1) | W2 | qa-pass-with-findings | student 404/403 on DELETE of a published event; president cannot delete a published event |
+| B-00a | – | **Hotfix:** `EventViewSet.destroy` — only PROPOSERS of the owning club may delete, and only in `draft`/`returned`/`rejected`; everything else is `409`; cancel is the route for published events | MISSING (X-1) | W2 | qa-pass | student 404/403 on DELETE of a published event; president cannot delete a published event |
 | B-00b | §4 | **Hotfix:** venue booking integrity — `select_for_update` on the venue inside `EventViewSet.create`/`submit` clash check; Postgres `ExclusionConstraint` (btree_gist) migration on (venue, tstzrange with buffer) guarded by `vendor == postgresql` | MISSING (X-2) | W2 | qa-pass-with-findings | two concurrent creates for one slot: exactly one succeeds (threaded test on Postgres, skip on SQLite) |
-| B-00c | – | Grant `event_organiser:<event_id>` in local mode via `POST /events/{id}/organisers` (President/VP) so the Organiser role is exercisable standalone (X-4) | MISSING | W2 | qa-pass-with-findings | organiser scans own event; refused at another |
+| B-00c | – | Grant `event_organiser:<event_id>` in local mode via `POST /events/{id}/organisers` (President/VP) so the Organiser role is exercisable standalone (X-4) | MISSING | W2 | qa-pass | organiser scans own event; refused at another |
 | B-01 | 5.6 | Waitlist: `Registration.waitlisted`, join waitlist when full, FIFO promotion on cancellation, pass minted on promotion, notification | MISSING | W1 | qa-pass | full event → waitlisted; cancel → promoted + pass; wrong-role cannot promote |
 | B-02 | 5.8 | Feedback: model (rating 1–5 CHECK, one per student per event UNIQUE), submit only if attended, aggregates for organiser/Dean, individual rows hidden from organisers | MISSING | W1 | verified | non-attendee 403; second submission 409; organiser aggregate has no student ids |
-| B-03 | 5.2 | Club join: `Club.join_mode` (open/approval), `JoinRequest`, accept/decline by President/VP, roster shows pending | MISSING | W2 | qa-pass-with-findings | open club → member immediately; approval club → pending; Treasurer cannot accept |
-| B-04 | 5.3, 5.18 | `OfficeBearerTerm` start/end; handover endpoint; token/role lookup ignores expired terms; history endpoint | MISSING | W2 | qa-rework | expired President refused on role assignment; history lists who held what when |
-| B-05 | 5.1 | Dormancy: `Club.last_activity_at`, job flags dormant after `DORMANCY_DAYS` | PARTIAL (status only) | W2 | qa-pass-with-findings | job flips an inactive club; active club untouched |
+| B-03 | 5.2 | Club join: `Club.join_mode` (open/approval), `JoinRequest`, accept/decline by President/VP, roster shows pending | MISSING | W2 | qa-pass | open club → member immediately; approval club → pending; Treasurer cannot accept |
+| B-04 | 5.3, 5.18 | `OfficeBearerTerm` start/end; handover endpoint; token/role lookup ignores expired terms; history endpoint | MISSING | W2 | qa-pass | expired President refused on role assignment; history lists who held what when |
+| B-05 | 5.1 | Dormancy: `Club.last_activity_at`, job flags dormant after `DORMANCY_DAYS` | PARTIAL (status only) | W2 | qa-pass | job flips an inactive club; active club untouched |
 | B-06 | 5.13, §11.3 | Delegation: `Delegation(from_role, to_user, starts_at, ends_at, reason)`; `assert_can_decide` honours it; step records delegate + principal | MISSING | W3 | qa-rework | delegate approves inside window; refused outside; self-approval still refused |
 | B-07 | 5.11, 6.3 | SLA: `age_hours` on queue items, `APPROVAL_SLA_HOURS`, `escalated` flag on Dean overview | MISSING | W3 | qa-pass-with-findings | item older than SLA shows escalated |
 | B-08 | 5.7.3, 5.19.5 | Annual envelope: `Club.annual_envelope`, utilisation = Σ sanctioned this year, on budget list and club profile | MISSING | W3 | qa-pass-with-findings | utilisation sums only sanctioned/settled; member cannot see it |
@@ -40,6 +40,8 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | B-14 | 8 auditability | Audit entry on every roster read (`EventRosterView`, `GET /clubs/{id}/members`) as the docstring promises | MISSING | W1 | verified | reading a roster writes an AuditEntry naming the reader |
 | B-15 | §8 Postgres | `select_for_update` + `select_related` over a nullable FK fails on Postgres (10 tests): lock the row only (`of=("self",)`) and fetch related rows after | BUG | W1 | verified-sqlite-only | suite green on Postgres in CI; remove `continue-on-error` |
 | B-16 | 5.5 | `GET /events?category=` server-side filter (W5 narrows client-side today) | MISSING | W2 | todo | filter returns only that category across pages |
+| B-17 | 5.3 | Daily `apply_due_terms` job (wrap the management command in the jobs app) so Membership rows follow future-dated handovers | MISSING | W4 | todo | job flips rows on the effective date |
+| B-18 | 5.18 | Dean/admin recovery handover when a club has no President or VP | MISSING | W2 | todo | Dean can run a handover for a leaderless club |
 
 ## C. Wave 2 — React frontend and hosting
 
