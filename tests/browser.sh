@@ -47,6 +47,17 @@ check() {
 }
 
 printf '\n  Culturals — headless render\n\n'
+
+# The sign-in page is checked directly, not through the fixture: it IS the entry.
+login_dom=$("$CHROME" --headless --disable-gpu --no-sandbox --virtual-time-budget=6000 \
+            --dump-dom "$BASE/index.html" 2>/dev/null)
+login_accounts=$(printf '%s' "$login_dom" | grep -o 'class="account" ' | wc -l | tr -d ' ')
+if [ "$login_accounts" -ge 9 ]; then
+  printf '    \033[32m✓\033[0m %-11s %-24s (%s accounts listed)\n' "-" "index.html" "$login_accounts"
+else
+  printf '    \033[31m✗\033[0m %-11s %-24s (only %s accounts listed)\n' "-" "index.html" "$login_accounts"
+  failures=$((failures + 1))
+fi
 check student   student-events.html    "What"
 check student   student-passes.html    "My passes"
 check student   student-profile.html   "rofile QR"

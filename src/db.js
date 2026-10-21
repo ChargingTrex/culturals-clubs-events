@@ -26,6 +26,15 @@ const storage = (() => {
   };
 })();
 
+/**
+ * The one storage handle.
+ *
+ * Exported so every module that persists something uses the same shim: reaching
+ * for `localStorage` directly works in a browser and silently does nothing
+ * anywhere else, which made session persistence impossible to test.
+ */
+export const store = storage;
+
 let state = null;
 
 export function load() {

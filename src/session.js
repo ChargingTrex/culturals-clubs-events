@@ -4,7 +4,7 @@
  * Mirrors the backend's AuthContext: every question is answered from the claims,
  * never from a database scan, so a permission check costs nothing.
  */
-import { db, find } from "./db.js";
+import { db, find, store } from "./db.js";
 import * as R from "./roles.js";
 
 const KEY = "culturals.persona";
@@ -167,11 +167,11 @@ export function sessionFor(personaKey) {
 }
 
 export function savePersona(key) {
-  try { localStorage.setItem(KEY, key); } catch {}
+  try { store.setItem(KEY, key); } catch {}
 }
 export function currentPersonaKey() {
-  try { return localStorage.getItem(KEY); } catch { return null; }
+  try { return store.getItem(KEY); } catch { return null; }
 }
 export function clearPersona() {
-  try { localStorage.removeItem(KEY); } catch {}
+  try { store.removeItem(KEY); } catch {}
 }

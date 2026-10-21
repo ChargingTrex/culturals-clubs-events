@@ -135,6 +135,11 @@ export async function seedAll() {
   db().notifications = [];
   db().events.forEach(e => { delete e.targetStatus; delete e.templateName; });
 
+  // Last, because the personas are defined by club role: "whoever is Swara's
+  // Treasurer" is only answerable once the memberships above exist.
+  const { installCredentials } = await import("./credentials.js");
+  await installCredentials();
+
   save();
   return db();
 }

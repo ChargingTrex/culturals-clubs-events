@@ -118,9 +118,9 @@ export function toast(text) {
 function header(session, caps) {
   const persona = PERSONAS.find(p => p.key === session.personaKey);
   return `
-    <div class="demo-banner">Walkthrough build — data lives in this browser only.
-      <a href="index.html">Switch role</a> · <button class="linkish" id="reseed">Reset
-      data</button></div>
+    <div class="demo-banner">Pilot build — data lives in this browser only.
+      <button class="linkish" id="switch">Switch account</button> ·
+      <button class="linkish" id="reseed">Reset data</button></div>
     <header class="top"><div class="top-inner">
       <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Culturals</div>
       <span class="whoami">
@@ -146,7 +146,7 @@ function sidebar(session, caps, activeFile) {
       ${g.pages.map(p => `<a href="${p.file}"
         ${p.file === activeFile ? 'aria-current="page"' : ""}>${esc(p.title)}</a>`)
         .join("")}</div>`).join("")}
-    <a class="nav-signout" href="index.html">Sign out</a>`;
+    <button class="nav-signout linkish" id="signout">Sign out</button>`;
 }
 
 async function notifications(session) {
@@ -182,11 +182,13 @@ async function notifications(session) {
  */
 export async function page(activeFile, render) {
   await ensureSeeded();
-  const key = currentPersonaKey();
-  const session = key ? sessionFor(key) : null;
+  const { currentSession } = await import("./credentials.js");
+  const session = currentSession();
   if (!session) {
-    // Not signed in. The login page is the only route in.
-    location.replace("index.html");
+    // Not signed in. The sign-in page is the only route in, and it returns here
+    // afterwards rather than dumping the tester on somebody else's first screen.
+    const back = encodeURIComponent(activeFile);
+    location.replace(`index.html?next=${back}`);
     return;
   }
   const caps = session.capabilities();
@@ -195,10 +197,16 @@ export async function page(activeFile, render) {
   const nav = document.getElementById("nav");
   if (nav) nav.innerHTML = sidebar(session, caps, activeFile);
 
+  const { signOut } = await import("./credentials.js");
+  const leave = () => { signOut(); location.href = "index.html"; };
+  document.getElementById("signout")?.addEventListener("click", leave);
+  document.getElementById("switch").addEventListener("click", leave);
   document.getElementById("reseed").addEventListener("click", async () => {
-    if (!confirm("Reset the walkthrough data in this browser?")) return;
+    if (!confirm("Reset the pilot data in this browser? Sign-in details stay the same."))
+      return;
     await reseed();
-    location.reload();
+    signOut();
+    location.href = "index.html";
   });
   document.addEventListener("click", e => {
     if (e.target.closest("[data-close-dlg]")) document.getElementById("dlg").close();

@@ -10,7 +10,7 @@ to help.
 
 Open an issue. The most useful ones say:
 
-1. **Which role you were signed in as** — the app behaves differently for each, and
+1. **Which account you were signed in as** — the app behaves differently for each, and
    that is usually the crux.
 2. **What you were trying to do**, in the words you would use to a colleague.
 3. **What happened**, including the exact message if the app refused you.
@@ -85,6 +85,7 @@ index.html              the login page: one button per role
 <role>-<thing>.html      one page per view, no router, no framework
 src/
   db.js                 the single state document, localStorage or memory
+  credentials.js        the demo accounts, sign-in, and the session
   seed.js               the demo dataset
   bootstrap.js          drives the seed through the REAL engines
   roles.js              the role vocabulary and every capability set
@@ -117,6 +118,10 @@ sidebar in `ui.js` only decides what to *offer* — it reads the same capability
 the enforcement reads, so a menu and a rule cannot drift apart. That drift is a real
 bug we already shipped once: the sidebar offered the scan station to Treasurers,
 derived from "holds any club role", while the API correctly refused them.
+
+**Rotating a demo password** means editing `DEMO_ACCOUNTS` in `src/credentials.js`
+*and* `DEMO_CREDENTIALS.md`. The smoke test fails if the two disagree, so they cannot
+drift apart — which is the only reason it is safe to publish them.
 
 **Hiding a page is not a permission.** Every refusal is enforced in `api.js`
 regardless of what the sidebar shows. If you add a page, add its capability check to

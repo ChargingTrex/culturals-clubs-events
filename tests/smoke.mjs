@@ -94,8 +94,11 @@ for (const file of pageFiles) {
   if (file !== "index.html") {
     if (!html.includes('<main id="main"')) fail(`${file} has no <main id="main">`);
     if (!html.includes('id="nav"')) fail(`${file} has no sidebar container`);
-  } else if (!html.includes('id="roles"')) {
-    fail("index.html has no role picker");
+  } else {
+    for (const required of ['id="form"', 'id="email"', 'id="password"',
+                            'id="mfaRow"', 'id="accounts"']) {
+      if (!html.includes(required)) fail(`index.html is missing ${required}`);
+    }
   }
 }
 for (const file of readdirSync(join(root, "src"))) {
@@ -180,7 +183,79 @@ for (const key of Object.keys(EXPECTED)) {
 }
 note("no role is offered a page whose own call would refuse it");
 
-// --- 5. the dataset is substantial enough to demonstrate anything --------
+// --- 5. every demo credential actually signs in --------------------------
+const { DEMO_ACCOUNTS, DEMO_MFA_CODE, signIn, demoAccountList, signOut }
+  = await import("../src/credentials.js");
+
+const listed = demoAccountList();
+if (listed.some(a => !a.available)) {
+  fail(`demo accounts not installed on any user: `
+    + listed.filter(a => !a.available).map(a => a.email).join(", "));
+}
+
+for (const account of DEMO_ACCOUNTS) {
+  // The documented password works.
+  try {
+    const session = await signIn({
+      email: account.email, password: account.password, mfaCode: DEMO_MFA_CODE,
+    });
+    if (session.personaKey !== account.persona) {
+      fail(`${account.email} signed in as ${session.personaKey}, `
+        + `expected ${account.persona}`);
+    }
+  } catch (err) {
+    fail(`${account.email} cannot sign in with its documented password: `
+      + `${err.code || err.message}`);
+  }
+  // A wrong password does not.
+  try {
+    await signIn({ email: account.email, password: "wrong", mfaCode: DEMO_MFA_CODE });
+    fail(`${account.email} signed in with the WRONG password`);
+  } catch (err) {
+    if (err.code !== "AUTH_INVALID_CREDENTIALS") {
+      fail(`${account.email} wrong password gave ${err.code}, `
+        + "expected AUTH_INVALID_CREDENTIALS");
+    }
+  }
+  // A staff role cannot sign in without the second factor.
+  const staff = listed.find(a => a.email === account.email).mfaRequired;
+  if (staff) {
+    try {
+      await signIn({ email: account.email, password: account.password });
+      fail(`${account.email} is a staff role but signed in with no second factor`);
+    } catch (err) {
+      if (err.code !== "AUTH_MFA_REQUIRED") {
+        fail(`${account.email} with no code gave ${err.code}, `
+          + "expected AUTH_MFA_REQUIRED");
+      }
+    }
+  }
+}
+signOut();
+note(`all ${DEMO_ACCOUNTS.length} demo credentials sign in; wrong passwords and `
+  + "missing second factors are refused");
+
+// --- 6. the documented credentials match the file ------------------------
+const credsFile = join(root, "DEMO_CREDENTIALS.md");
+if (!existsSync(credsFile)) {
+  fail("DEMO_CREDENTIALS.md is missing from the project root");
+} else {
+  const doc = readFileSync(credsFile, "utf8");
+  for (const account of DEMO_ACCOUNTS) {
+    if (!doc.includes(account.email)) {
+      fail(`DEMO_CREDENTIALS.md does not list ${account.email}`);
+    }
+    if (!doc.includes(account.password)) {
+      fail(`DEMO_CREDENTIALS.md does not list the password for ${account.email}`);
+    }
+  }
+  if (!doc.includes(DEMO_MFA_CODE)) {
+    fail("DEMO_CREDENTIALS.md does not give the authenticator code");
+  }
+  note("DEMO_CREDENTIALS.md lists every account, password and the 2FA code");
+}
+
+// --- 7. the dataset is substantial enough to demonstrate anything --------
 const state = db();
 const checks = [
   [state.events.length >= 10, "at least 10 events"],

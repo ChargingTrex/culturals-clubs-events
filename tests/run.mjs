@@ -5,6 +5,7 @@
  */
 import { run } from "./harness.mjs";
 
+await import("./e2e.signin.mjs");
 await import("./e2e.budget-approvals.mjs");
 await import("./e2e.attendance.mjs");
 await import("./e2e.roles-reporting.mjs");

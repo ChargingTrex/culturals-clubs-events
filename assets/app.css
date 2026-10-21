@@ -196,21 +196,25 @@ dialog::backdrop{background:rgba(20,18,40,.5)}
 .whoami strong{display:block;font-size:.92rem}
 .whoami span{opacity:.6;font-size:.78rem}
 
-/* ---- login ---- */
-.login-wrap{max-width:860px;margin:0 auto;padding:48px 20px 80px}
-.login-head{text-align:center;margin-bottom:34px}
+/* ---- sign in ---- */
+.login-wrap{max-width:1000px;margin:0 auto;padding:44px 20px 80px}
+.login-head{text-align:center;margin-bottom:30px}
 .login-head h1{font-size:2rem;margin:0 0 10px}
-.login-head p{max-width:56ch;margin:0 auto;color:var(--muted,#6b6b6b)}
-.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:12px}
-.role-btn{display:block;width:100%;text-align:left;padding:16px 18px;
-  border:1px solid var(--line,#e5e0d8);border-radius:14px;background:var(--surface,#fff);
-  cursor:pointer;font:inherit;transition:border-color .15s,transform .08s}
-.role-btn:hover{border-color:var(--ink,#1a1a1a)}
-.role-btn:active{transform:translateY(1px)}
-.role-btn b{display:block;font-size:1.02rem;margin-bottom:3px}
-.role-btn .blurb{display:block;font-size:.84rem;color:var(--ink-2,#555)}
-.role-btn .hint{display:block;font-size:.78rem;color:var(--muted,#6b6b6b);margin-top:7px}
-.login-note{margin-top:30px}
+.login-head p{max-width:58ch;margin:0 auto;color:var(--muted,#6b6b6b)}
+.login-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+  gap:20px;align-items:start}
+.login-form label{margin-top:0}
+.account-list{display:flex;flex-direction:column;gap:6px}
+.account{display:block;width:100%;text-align:left;padding:11px 13px;font:inherit;
+  border:1px solid var(--line,#e5e0d8);border-radius:10px;background:var(--surface,#fff);
+  cursor:pointer;transition:border-color .15s}
+.account:hover:not(:disabled){border-color:var(--ink,#1a1a1a)}
+.account:disabled{opacity:.45;cursor:not-allowed}
+.account-role{display:block;font-weight:600;font-size:.94rem}
+.account-email{display:block;font-size:.8rem;color:var(--ink-2,#555);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:2px}
+.account-note{display:block;font-size:.78rem;color:var(--muted,#6b6b6b);margin-top:3px}
+@media (max-width:760px){.login-cols{grid-template-columns:1fr}}
 
 /* ---- role-scoped sidebar ---- */
 .nav-group{display:flex;flex-direction:column;gap:2px}
@@ -222,8 +226,11 @@ dialog::backdrop{background:rgba(20,18,40,.5)}
 .nav a:hover{color:var(--ink,#1a1a1a)}
 .nav a[aria-current="page"]{background:var(--marigold-soft,#f6ecd6);color:var(--ink,#1a1a1a);
   box-shadow:inset 3px 0 0 var(--marigold,#c8a04a)}
-.nav-signout{margin-top:16px;padding-top:12px;
-  border-top:1px solid var(--line,#e5e0d8);font-size:.84rem;opacity:.7}
+.nav-signout{margin-top:16px;padding-top:12px;display:block;width:100%;
+  border:0;border-top:1px solid var(--line,#e5e0d8);background:none;font:inherit;
+  text-align:left;padding-left:12px;cursor:pointer;color:var(--ink-2,#555);
+  font-size:.84rem;opacity:.7}
+.nav-signout:hover{opacity:1}
 
 /* ---- misc ---- */
 .err{padding:14px 16px;border:1px solid var(--bad,#a33);border-radius:10px;

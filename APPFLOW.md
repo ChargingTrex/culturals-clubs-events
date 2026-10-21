@@ -7,6 +7,21 @@ with the button.
 
 ---
 
+## 0. Signing in
+
+Nine accounts, one per role — [DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md) lists them.
+Email and password for everyone; **the Dean, Management and the Cultural Society also
+need an authenticator code**, because `Identity_Login_Shared_Data` §5.5 makes a second
+factor mandatory for staff roles. The pilot accepts any non-empty code and documents
+`123456`.
+
+The sign-in screen, the error codes and the claims a session carries are built to
+survive the switch to the portal's single sign-on: §5.2 says that switch must change
+only where the token comes from, so nothing downstream of reading a claim changes.
+
+Each account lands on its own first page, and the sidebar lists only what that role
+can open.
+
 ## 1. The shape of it
 
 ```
@@ -274,10 +289,10 @@ they are not participation.
 - **The signing key ships to the browser**, so a determined tester can mint a valid
   code. The signature is here to keep the data *structure* honest — purposes, event
   binding, single use — not to protect anything.
-- **Staff sessions skip the second factor**, because a walkthrough cannot read an
-  authenticator app. In production, MFA is mandatory for the Dean, Management, the
-  Cultural Society and admins, and separately required to sanction above the
-  threshold.
+- **Shared, published passwords**, with a salted digest so no plaintext sits in the
+  state document — and nothing more than that. Any non-empty authenticator code is
+  accepted. In production MFA is mandatory for the Dean, Management, the Cultural
+  Society and admins, and separately required to sanction above the threshold.
 - **Not yet built:** waitlists, feedback surveys, the annual handover of office
   bearers, fest sub-events, and external (non-college) participants.
 
@@ -285,6 +300,8 @@ they are not participation.
 
 ## 9. Things worth trying
 
+0. Read [DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md) for the logins. Try a staff
+   account with no authenticator code first, to see the second factor refuse you.
 1. Sign in as **Treasurer** → *New event* → "price it later" → *Budget* → add two
    entries → *Club events* → send for approval. Then try adding another entry.
 2. Sign in as **Treasurer**, create another, and declare it needs **no budget** with a

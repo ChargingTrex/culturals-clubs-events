@@ -7,7 +7,11 @@ through three approval gates, and QR attendance at the door.
 account, no data leaving the page. Pick a role, use the app, and tell us where the
 workflow is wrong.
 
-- **Try it:** sign in as any role from the landing page; there is no password.
+- **Try it:** sign in with any of the nine pilot accounts — see
+  **[DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md)**. Staff roles need the
+  authenticator code `123456`, because a second factor is mandatory for them.
+- **[DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md)** — the nine accounts, and a
+  ten-minute run-through that covers the whole workflow.
 - **[APPFLOW.md](APPFLOW.md)** — how work moves through the app, who touches it, and
   what it refuses on purpose. Read this before filing feedback.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to give feedback, run it locally, and
@@ -106,8 +110,12 @@ This build is for feeling out the workflow, not for running a college.
   endpoints so that switching is a change to one module.
 - **The QR signing key ships to the browser.** The signature keeps the data
   *structure* honest — purposes, event binding, single use — and protects nothing.
-- **Staff sessions skip the second factor**, because a walkthrough cannot read an
-  authenticator app.
+- **Passwords are shared and published.** Nine demo accounts with a salted digest
+  each — enough that no plaintext sits in the state document, and nothing more. A
+  real deployment stores no password at all: people sign in through the portal's
+  single sign-on and this module only reads the claims.
+- **Any non-empty authenticator code is accepted**, because a walkthrough cannot read
+  an authenticator app. The gate still works — staff cannot sign in without one.
 - **Not yet built:** waitlists, feedback surveys, the annual handover of office
   bearers, fest sub-events, external participants.
 
