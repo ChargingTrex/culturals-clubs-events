@@ -31,8 +31,8 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Registration
-        fields = ("id", "event", "event_title", "source", "attended", "checked_in_at",
-                  "cancelled_at", "pass_token", "registered_at")
+        fields = ("id", "event", "event_title", "source", "waitlisted", "attended",
+                  "checked_in_at", "cancelled_at", "pass_token", "registered_at")
 
     def get_pass_token(self, registration):
         """
@@ -57,7 +57,7 @@ class AttendeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Registration
         fields = ("id", "prn", "full_name", "department", "programme", "year", "source",
-                  "attended", "checked_in_at", "station_id")
+                  "waitlisted", "attended", "checked_in_at", "station_id")
 
 
 class ScanRequestSerializer(serializers.Serializer):
@@ -164,7 +164,10 @@ class RegistrationViewSet(viewsets.GenericViewSet):
 
 
 class MyPassesView(APIView):
-    """The student's wallet: one pass per live registration, plus the profile QR."""
+    """
+    The student's wallet: one pass per live registration, plus the profile QR.
+    A waitlisted registration is listed with `waitlisted: true` and no pass.
+    """
 
     def get(self, request):
         ctx = request.auth_context
@@ -189,6 +192,7 @@ class MyPassesView(APIView):
                 "starts_at": registration.event.starts_at,
                 "ends_at": registration.event.ends_at,
                 "attended": registration.attended,
+                "waitlisted": registration.waitlisted,
                 "token": live.token if live else None,
                 "image": qrimage.make_qr_data_uri(live.token) if live else None,
             })
@@ -239,7 +243,7 @@ class ScanStationView(APIView):
                       "venue": event.venue.name, "status": event.status,
                       "starts_at": event.starts_at, "ends_at": event.ends_at},
             "counters": {"checked_in": event.attended_count(),
-                         "registered": event.registered_count(),
+                         "registered": services.confirmed_count(event),
                          "capacity": event.capacity},
             "capture": services.capture_stats(event),
             "recent": [
@@ -288,7 +292,7 @@ class OfflineSyncView(APIView):
             "duplicates": sum(1 for o in outcomes if o.result == ScanResult.DUPLICATE),
             "results": [_outcome_body(o) for o in outcomes],
             "counters": {"checked_in": event.attended_count(),
-                         "registered": event.registered_count(),
+                         "registered": services.confirmed_count(event),
                          "capacity": event.capacity},
         })
 
@@ -342,11 +346,19 @@ class EventRosterView(APIView):
                          .select_related("student").order_by("-attended", "student__full_name"))
         if only := request.query_params.get("attended"):
             registrations = registrations.filter(attended=only.lower() in ("1", "true", "yes"))
+        results = AttendeeSerializer(registrations, many=True).data
+        # PRD §8: a list of names and PRNs is read, not browsed. Every read is
+        # recorded with who read it and how much they saw.
+        audit_sink().record(actor=ctx, action="roster.read", target=event,
+                            after={"rows": len(results),
+                                   "attended_only": bool(only)})
         return Response({
             "event": {"id": str(event.id), "title": event.title},
-            "counts": {"registered": event.registered_count(),
+            "counts": {"registered": services.confirmed_count(event),
+                       "waitlisted": event.registrations.filter(
+                           cancelled_at__isnull=True, waitlisted=True).count(),
                        "attended": event.attended_count()},
-            "results": AttendeeSerializer(registrations, many=True).data,
+            "results": results,
         })
 
 

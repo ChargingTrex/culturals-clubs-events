@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "participation",
     "budget",
     "governance",
+    "feedback",
 ]
 
 MIDDLEWARE = [

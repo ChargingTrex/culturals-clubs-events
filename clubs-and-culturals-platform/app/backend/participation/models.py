@@ -48,6 +48,12 @@ class Registration(UUIDModel):
     registered_at = models.DateTimeField(default=timezone.now)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
+    # PRD 5.6: joined when the event was full. A waitlisted row holds no place
+    # and no pass; it is promoted FIFO by `created_at` when a place frees up.
+    # It still counts under the partial unique index above, so a student cannot
+    # be both waitlisted and registered for the same event.
+    waitlisted = models.BooleanField(default=False)
+
     attended = models.BooleanField(default=False)
     checked_in_at = models.DateTimeField(null=True, blank=True)
     checked_in_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
