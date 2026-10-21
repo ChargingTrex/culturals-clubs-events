@@ -79,7 +79,16 @@ def issue_pass(registration):
 
 
 def reissue_pass(registration):
-    """Revoke the live pass and mint another, so a forwarded copy stops working."""
+    """
+    Revoke the live pass and mint another, so a forwarded copy stops working.
+
+    A waitlisted registration holds no place and therefore no pass: a pass is a
+    working credential, and minting one here would let a queue entry walk past
+    capacity at the door.
+    """
+    if registration.waitlisted:
+        raise Conflict(code="PARTICIPATION_WAITLISTED", title="On the waitlist",
+                       detail="You are on the waitlist; a pass is issued when a place opens.")
     EventPass.objects.filter(
         registration=registration, used_at__isnull=True, revoked_at__isnull=True
     ).update(revoked_at=timezone.now())
@@ -111,7 +120,21 @@ def _event_link(event):
 
 
 def _tell_student(student, *, subject, body, kind, link):
-    notifier().send(recipient=student.user, subject=subject, body=body, kind=kind, link=link)
+    """
+    Deferred to commit. A notification sent from inside a transaction that then
+    rolls back tells a student about a place, a publication or a move that never
+    happened — and an SMTP round-trip per registrant while the event row is
+    locked stalls every register and cancel at that event.
+    """
+    transaction.on_commit(lambda: notifier().send(
+        recipient=student.user, subject=subject, body=body, kind=kind, link=link))
+
+
+def _lock_event(event):
+    """Row lock on the event. Always taken before any registration row lock."""
+    from events.models import Event
+
+    return Event.objects.select_for_update().get(pk=event.pk)
 
 
 def notify_registration(registration, event_pass):
@@ -212,7 +235,7 @@ def promote_from_waitlist(event):
     candidate = (Registration.objects.select_for_update()
                  .filter(event=event, waitlisted=True, cancelled_at__isnull=True,
                          student__isnull=False)
-                 .order_by("created_at").first())
+                 .order_by("created_at", "registered_at", "pk").first())
     if candidate is None:
         return None
     candidate.waitlisted = False
@@ -231,19 +254,23 @@ def cancel_registration(registration):
     transaction, under the event lock: between "cancelled" and "promoted" there
     must be no moment at which a concurrent registration can take the place.
     """
-    from events.models import Event
-
+    locked_event = _lock_event(registration.event)
+    # Re-read under the lock. The caller's instance is what the view fetched a
+    # moment ago; a check-in or a cancel can have landed since, and only the row
+    # as it is now decides whether a place is being freed.
+    registration = Registration.objects.select_for_update().get(pk=registration.pk)
+    if registration.cancelled_at is not None:
+        return registration   # already done; never rewrite the time or promote twice
     if registration.attended:
         raise Conflict(code="PARTICIPATION_ALREADY_ATTENDED", title="Already checked in",
                        detail="An attended registration cannot be cancelled.")
-    locked = Event.objects.select_for_update().get(pk=registration.event_id)
     held_a_place = not registration.waitlisted
     registration.cancelled_at = timezone.now()
     registration.save(update_fields=["cancelled_at", "updated_at"])
     EventPass.objects.filter(registration=registration, used_at__isnull=True,
                              revoked_at__isnull=True).update(revoked_at=timezone.now())
     if held_a_place:
-        promote_from_waitlist(locked)
+        promote_from_waitlist(locked_event)
     return registration
 
 
@@ -284,6 +311,49 @@ def _mark_attended(registration, at, operator, station_id):
     registration.station_id = station_id or ""
     registration.save(update_fields=["attended", "checked_in_at", "checked_in_by",
                                      "station_id", "updated_at"])
+
+
+def _admit_or_refuse(event, student, registration, at, operator, station_id, *,
+                     source, walkin_detail="", via="", event_pass=None):
+    """
+    Walk-in or queue entry at the door. The caller holds the event row lock, so
+    the capacity read and the admit are one unit; `registration` is the
+    student's waitlisted row (locked), or None for a walk-in.
+
+    A queue entry presenting at the door takes a free place regardless of queue
+    position: the person is here, the place is empty, and a door that turns
+    them away to keep the order would hold the place for someone who may not
+    come. Promotion on cancellation stays strictly FIFO.
+    """
+    if confirmed_count(event) >= event.capacity:
+        return Outcome(ScanResult.NOT_REGISTERED, verdict="Event at capacity", student=student,
+                       detail=("On the waitlist, but no place has opened."
+                               if registration is not None else
+                               "No places left, so a walk-in cannot be admitted."))
+    if registration is None:
+        registration = Registration(event=event, student=student, source=source)
+        registration.snapshot_from(student)
+        registration.save()
+        detail = walkin_detail
+    else:
+        # The flag is cleared BEFORE attended is set: the database refuses a row
+        # that is both (`waitlisted_never_attended`).
+        registration.waitlisted = False
+        registration.save(update_fields=["waitlisted", "updated_at"])
+        detail = f"Admitted from the waitlist{via}"
+    if event_pass is not None:
+        event_pass.used_at = at
+        event_pass.save(update_fields=["used_at", "updated_at"])
+    _mark_attended(registration, at, operator, station_id)
+    return Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
+                   registration=registration, student=student, detail=detail)
+
+
+def _active_registration(event, student, *, lock=False):
+    qs = Registration.objects.filter(event=event, student=student, cancelled_at__isnull=True)
+    if lock:
+        qs = qs.select_for_update()
+    return qs.first()
 
 
 @transaction.atomic
@@ -338,6 +408,14 @@ def resolve(token, event, *, operator, station_id="", scanned_at=None, offline_r
                 detail=(f"Pass is for “{other.registration.event.title}”"
                         if other else "Pass is for another event"),
             ))
+        # A pass on a waitlisted row should not exist (reissue refuses one), but
+        # if one does, admitting it needs the capacity path, which needs the event
+        # lock — taken BEFORE the pass row lock, the order every other path uses.
+        # An unlocked peek decides that, so the common case locks only the pass.
+        queued = (EventPass.objects.filter(pk=payload.subject, registration__event=event)
+                  .values_list("registration__waitlisted", flat=True).first())
+        if queued:
+            _lock_event(event)
         # `of=("self",)`: lock the pass row only. `registration__student` is a
         # nullable FK, so the select_related is a LEFT JOIN, and PostgreSQL
         # refuses "FOR UPDATE" on the nullable side of an outer join. SQLite
@@ -362,6 +440,15 @@ def resolve(token, event, *, operator, station_id="", scanned_at=None, offline_r
                 student=registration.student,
                 detail="Scan their profile QR to admit them as a walk-in.",
             ))
+        if registration.waitlisted:
+            # The row holds no place. The pass does not change that: admit only
+            # if a place is free now, exactly as for a profile QR.
+            if not queued:
+                _lock_event(event)   # promoted-then-requeued is impossible, but cheap
+            registration = Registration.objects.select_for_update().get(pk=registration.pk)
+            return record(_admit_or_refuse(
+                event, registration.student, registration, at, operator, station_id,
+                source=Registration.Source.SPOT, event_pass=event_pass))
         event_pass.used_at = at
         event_pass.save(update_fields=["used_at", "updated_at"])
         _mark_attended(registration, at, operator, station_id)
@@ -394,9 +481,11 @@ def resolve(token, event, *, operator, station_id="", scanned_at=None, offline_r
         ))
     student = qr_record.student
 
-    registration = (Registration.objects.select_for_update()
-                    .filter(event=event, student=student, cancelled_at__isnull=True).first())
+    # Unlocked peek first: a confirmed registration needs only its own row lock,
+    # and the common case must not serialise every scan on the event row.
+    registration = _active_registration(event, student)
     if registration is not None and not registration.waitlisted:
+        registration = Registration.objects.select_for_update().get(pk=registration.pk)
         if registration.attended:
             return record(_duplicate(registration))
         _mark_attended(registration, at, operator, station_id)
@@ -404,30 +493,21 @@ def resolve(token, event, *, operator, station_id="", scanned_at=None, offline_r
                               registration=registration, student=student))
 
     # Walk-in, or a waitlisted student who holds no place yet. Registering at
-    # the door is the intended path, not an exception.
-    if confirmed_count(event) >= event.capacity:
-        return record(Outcome(ScanResult.NOT_REGISTERED, verdict="Event at capacity",
-                              student=student,
-                              detail=("On the waitlist, but no place has opened."
-                                      if registration is not None else
-                                      "No places left, so a walk-in cannot be admitted.")))
-    if registration is not None:
-        # Waitlisted and a place is free: take it at the door.
-        registration.waitlisted = False
-        registration.save(update_fields=["waitlisted", "updated_at"])
+    # the door is the intended path, not an exception — but it reads capacity,
+    # so it runs under the event lock, taken before the row lock (the order
+    # register, cancel and promote all use).
+    _lock_event(event)
+    registration = _active_registration(event, student, lock=True)
+    if registration is not None and not registration.waitlisted:
+        # Promoted while we waited for the lock.
         _mark_attended(registration, at, operator, station_id)
-        return record(Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
-                              registration=registration, student=student,
-                              detail="Admitted from the waitlist"))
-    registration = Registration(event=event, student=student,
-                                source=Registration.Source.SPOT)
-    registration.snapshot_from(student)
-    registration.save()
-    _mark_attended(registration, at, operator, station_id)
-    return record(Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
-                          registration=registration, student=student))
+        return record(Outcome(ScanResult.ACCEPTED, verdict="Checked in",
+                              registration=registration, student=student))
+    return record(_admit_or_refuse(event, student, registration, at, operator, station_id,
+                                   source=Registration.Source.SPOT))
 
 
+@transaction.atomic
 def check_in_manually(event, student, *, operator, station_id=""):
     """
     Desk fallback: PRN lookup when a phone is flat or a code will not scan.
@@ -437,36 +517,30 @@ def check_in_manually(event, student, *, operator, station_id=""):
     a scan that never happened, and the capture rate would quietly overstate how
     well the door worked.
     """
-    registration = Registration.objects.filter(
-        event=event, student=student, cancelled_at__isnull=True
-    ).first()
     at = timezone.now()
-    if registration and registration.attended:
+    registration = _active_registration(event, student)
+    if registration is not None and not registration.waitlisted:
+        registration = Registration.objects.select_for_update().get(pk=registration.pk)
+    if registration is not None and not registration.waitlisted and registration.attended:
         outcome = _duplicate(registration)
-    elif registration and not registration.waitlisted:
+    elif registration is not None and not registration.waitlisted:
         _mark_attended(registration, at, operator, station_id)
         outcome = Outcome(ScanResult.ACCEPTED, verdict="Checked in", registration=registration,
                           student=student, detail="Manual entry by PRN lookup")
-    elif confirmed_count(event) >= event.capacity:
-        outcome = Outcome(ScanResult.NOT_REGISTERED, verdict="Event at capacity",
-                          student=student)
-    elif registration:
-        # Waitlisted, and a place is free.
-        registration.waitlisted = False
-        registration.save(update_fields=["waitlisted", "updated_at"])
-        _mark_attended(registration, at, operator, station_id)
-        outcome = Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
-                          registration=registration, student=student,
-                          detail="Admitted from the waitlist by PRN lookup")
     else:
-        registration = Registration(event=event, student=student,
-                                    source=Registration.Source.MANUAL)
-        registration.snapshot_from(student)
-        registration.save()
-        _mark_attended(registration, at, operator, station_id)
-        outcome = Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
-                          registration=registration, student=student,
-                          detail="Manual entry by PRN lookup")
+        # Capacity is read, so: event lock first, then the queue row.
+        _lock_event(event)
+        registration = _active_registration(event, student, lock=True)
+        if registration is not None and not registration.waitlisted:
+            _mark_attended(registration, at, operator, station_id)
+            outcome = Outcome(ScanResult.ACCEPTED, verdict="Checked in",
+                              registration=registration, student=student,
+                              detail="Manual entry by PRN lookup")
+        else:
+            outcome = _admit_or_refuse(event, student, registration, at, operator, station_id,
+                                       source=Registration.Source.MANUAL,
+                                       walkin_detail="Manual entry by PRN lookup",
+                                       via=" by PRN lookup")
     ScanRecord.objects.create(
         event=event, registration=outcome.registration, result=outcome.result,
         scanned_token=f"manual:{student.prn}"[:64], station_id=station_id, operator=operator,

@@ -40,7 +40,10 @@ class Registration(UUIDModel):
     # counted separately and never summed (rule 7).
     student = models.ForeignKey("identity.Student", on_delete=models.PROTECT, null=True,
                                blank=True, related_name="registrations")
-    external = models.ForeignKey("participation.ExternalParticipant", on_delete=models.CASCADE,
+    # PROTECT, not CASCADE (decision E-09): an external participant is purged by
+    # blanking their personal fields, never by deleting the registration — the
+    # registration is a counted figure in a semester already reported.
+    external = models.ForeignKey("participation.ExternalParticipant", on_delete=models.PROTECT,
                                  null=True, blank=True, related_name="registrations")
 
     source = models.CharField(max_length=16, choices=Source.choices,
@@ -92,6 +95,13 @@ class Registration(UUIDModel):
                 condition=models.Q(attended=False) | models.Q(checked_in_at__isnull=False),
                 name="attended_requires_check_in_time",
             ),
+            # A queue entry holds no place, so it can never have been admitted.
+            # Every admit path clears the flag first; this makes the database
+            # refuse the row if one ever does not (rule 3).
+            models.CheckConstraint(
+                condition=models.Q(waitlisted=False) | models.Q(attended=False),
+                name="waitlisted_never_attended",
+            ),
         ]
 
     def __str__(self):
@@ -101,7 +111,9 @@ class Registration(UUIDModel):
     def participant_label(self):
         if self.student_id:
             return f"{self.student.prn} {self.student.full_name}"
-        return self.external.full_name if self.external_id else "unknown"
+        if self.external_id:
+            return self.external.full_name or "External participant (purged)"
+        return "unknown"
 
     def snapshot_from(self, student):
         self.department_at_event = student.department
@@ -113,11 +125,15 @@ class ExternalParticipant(UUIDModel):
     """
     Someone from outside the institution, at a fest.
 
-    Genuinely purged rather than soft-deleted (AGENT_PROMPT §4): this is personal
-    data about a non-member with no institutional relationship, and there is no
+    Personal data about a non-member with no institutional relationship, with no
     reason to keep it past the retention period. `purge_after` records when.
     The retention period itself is an open question (§9), so it is a nullable date
     set by policy rather than a constant compiled in here.
+
+    Purging (decision E-09) blanks `full_name`, `institution`, `email` and `phone`
+    and sets `purged_at`; the row and its registrations stay, because they are
+    counted in semester figures that have already been read. Deleting the row is
+    refused by the PROTECT on Registration.external.
     """
 
     full_name = models.CharField(max_length=160)
@@ -125,6 +141,7 @@ class ExternalParticipant(UUIDModel):
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
     purge_after = models.DateField(null=True, blank=True)
+    purged_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("full_name",)
