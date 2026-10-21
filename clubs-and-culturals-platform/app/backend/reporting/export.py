@@ -5,7 +5,8 @@ One file, several blocks, each introduced by its own header row and tagged in
 the first column so a spreadsheet filter on `section` isolates it. The numbers
 are the ones the JSON route returns — the CSV is rendered from the same dict,
 not recomputed — so the two cannot disagree. Aggregates only: no event roster,
-no PRN, no name (AGENT_PROMPT §6; the VC may read this).
+no PRN, no name (AGENT_PROMPT §6; the VC may read this). Cells that would read
+as a spreadsheet formula are neutralised and the file carries a UTF-8 BOM.
 """
 import csv
 import io
@@ -16,9 +17,31 @@ TOTALS = ("events_run", "total_participation", "unique_students",
           "external_participants", "avg_attendance")
 
 
+# A cell starting with one of these is a formula to Excel and LibreOffice (QA
+# F6). A club or tag name is Dean/Admin-controlled, but a report the VC opens
+# must not be the place that trust is tested.
+_FORMULA_LEADERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe(cell):
+    if isinstance(cell, str) and cell.startswith(_FORMULA_LEADERS):
+        return "'" + cell
+    return cell
+
+
+class _SafeWriter:
+    def __init__(self, stream):
+        self._w = csv.writer(stream)
+
+    def writerow(self, row):
+        self._w.writerow([_safe(cell) for cell in row])
+
+
 def semester_report_csv(report):
     out = io.StringIO()
-    w = csv.writer(out)
+    # UTF-8 BOM so Excel on Windows reads non-ASCII club names correctly (QA F7).
+    out.write("\ufeff")
+    w = _SafeWriter(out)
 
     w.writerow(["section", "metric", "value"])
     semester = report["semester"]
@@ -36,9 +59,9 @@ def semester_report_csv(report):
                     row["events_run"], row["attendance"]])
 
     w.writerow([])
-    w.writerow(["section", "category", "clubs", "events_run", "attendance"])
+    w.writerow(["section", "category", "clubs_active", "events_run", "attendance"])
     for row in report["by_category"]:
-        w.writerow(["by_category", row["category"], row["clubs"], row["events_run"], row["attendance"]])
+        w.writerow(["by_category", row["category"], row["clubs_active"], row["events_run"], row["attendance"]])
 
     w.writerow([])
     w.writerow(["section", "department", "students_reached", "attendance"])

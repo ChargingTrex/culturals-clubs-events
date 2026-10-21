@@ -1,12 +1,12 @@
 """
 QA (wave 1, W4 review — docs/qa/wave-1-w4.md): tests that expose defects.
 
-Each is marked `expectedFailure` so the suite stays green until the fix lands;
-when a fix lands the test turns into an "unexpected success", which is the
-signal to remove the decorator. Finding ids refer to the QA report.
+Originally marked `expectedFailure`; the fixes landed in W4's rework (F1 keeps
+the Registration row and blanks the PII; F2 keys the SLA dedup on request and
+stage; F6 neutralises formula-shaped cells), so these are now ordinary tests.
+Finding ids refer to the QA report.
 """
 from datetime import timedelta
-from unittest import expectedFailure
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -19,14 +19,13 @@ from participation.models import ExternalParticipant, Registration
 from reporting.services import semester_report
 from tests import factories as f
 
-TOKEN = "qa-jobs-token"
+TOKEN = "qa-jobs-token-padded-to-the-32-char-minimum"  # QA F8: shorter is 503
 AUTH = {"HTTP_AUTHORIZATION": f"Bearer {TOKEN}"}
 
 
 class PurgeKeepsReportedFiguresTests(TestCase):
     """W4-01: purging an external participant must not rewrite a reported semester."""
 
-    @expectedFailure
     def test_a_reported_semesters_figures_survive_the_purge(self):
         from jobs.services import purge_external
 
@@ -69,7 +68,6 @@ class EscalationReNotifiesTests(TestCase):
         ApprovalRequest.objects.filter(pk=request.pk).update(
             stage_entered_at=timezone.now() - timedelta(hours=hours))
 
-    @expectedFailure
     def test_a_second_breach_at_the_next_stage_is_notified_again(self):
         request = ApprovalRequest.objects.create(
             event=self.event, stages=["cultural_society", "dean"],
@@ -81,7 +79,6 @@ class EscalationReNotifiesTests(TestCase):
         self.age(request, 80)
         self.assertEqual(self.run_job(), 1, "a fresh breach at a new stage deserves a fresh notice")
 
-    @expectedFailure
     def test_a_resubmitted_event_that_breaches_again_is_notified_again(self):
         first = ApprovalRequest.objects.create(event=self.event, stages=["dean"],
                                                current_stage=ApprovalStage.DEAN)
@@ -97,7 +94,6 @@ class EscalationReNotifiesTests(TestCase):
 class CsvCellsAreFormulaSafeTests(TestCase):
     """W4-06: a club name beginning with = + - @ reaches the spreadsheet as a formula."""
 
-    @expectedFailure
     def test_a_formula_shaped_club_name_is_neutralised(self):
         f.semester()
         club = f.club("=HYPERLINK(\"http://evil.example\",\"Swara\")")

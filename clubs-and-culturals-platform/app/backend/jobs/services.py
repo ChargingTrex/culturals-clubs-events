@@ -14,6 +14,7 @@ import logging
 from datetime import timedelta
 from types import SimpleNamespace
 
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
@@ -97,28 +98,32 @@ def rollup_scans(*, now=None):
     }
 
 
+@transaction.atomic
 def purge_external(*, now=None):
     """
     MASTER_SPEC §8.3: external participant details are genuinely deleted once
     `purge_after` has passed. Rows with no `purge_after` are kept: the retention
     period is undecided (§11 #8) and a null means "no decision", not "never".
 
-    NOTE for the orchestrator: `Registration.external` is `on_delete=CASCADE`
-    (participation/models.py), so purging a participant also removes their
-    registration rows, and the `external_participants` figure of an already
-    reported semester drops with them. The number of cascaded registrations is
-    returned so the effect is never silent. Keeping the attendance row and
-    blanking the personal fields instead needs a change in participation
-    (not owned here) — flagged, not done.
+    Decision E-09 (QA wave 1, F1): the ExternalParticipant ROW and its
+    Registration rows stay; only the personal fields are blanked. Deleting the
+    row cascaded into Registration and rewrote an already-reported semester's
+    figures (`external_participants`, `by_club`), which the Registration docstring
+    forbids ("never deleted"). The personal data — name, institution, email,
+    phone — is what §8.3 wants gone, and it goes. `purged_at` marks the row so a
+    re-run never counts it twice; the FK is PROTECT, so an accidental delete
+    fails loudly instead of taking the attendance with it.
+
+    One UPDATE inside one transaction; `purged` is the statement's own row count,
+    so two schedulers firing at once cannot both claim the same rows.
     """
-    today = (now or timezone.now()).date()
-    due = ExternalParticipant.objects.filter(purge_after__lt=today)
-    count = due.count()
-    _, by_model = due.delete()
-    registrations = by_model.get("participation.Registration", 0)
-    log.info("purge-external: purged %d external participants (%d registrations cascaded)",
-             count, registrations)
-    return {"purged": count, "registrations_removed": registrations, "as_of": today.isoformat()}
+    now = now or timezone.now()
+    today = now.date()
+    purged = ExternalParticipant.objects.filter(
+        purge_after__lt=today, purged_at__isnull=True,
+    ).update(full_name="", institution="", email="", phone="", purged_at=now)
+    log.info("purge-external: blanked %d external participants (rows and registrations kept)", purged)
+    return {"purged": purged, "registrations_removed": 0, "as_of": today.isoformat()}
 
 
 def flag_dormant(*, now=None):
@@ -136,38 +141,77 @@ def flag_dormant(*, now=None):
 
 def escalate_sla(*, now=None):
     """
-    B-07 (W3) owns the rule — queue items older than `APPROVAL_SLA_HOURS` — and
-    exposes it as `governance.services.escalated_requests`. This job tells the
-    Dean about each one, once: a cron that re-notifies every hour is noise, so a
-    request the Dean has already been told about is skipped.
+    B-07 (W3) owns the rule — queue items older than `APPROVAL_SLA_HOURS` at
+    their current gate — and exposes it as `governance.services.escalated_requests`.
+    This job tells the people who can clear the gate, once per breach.
 
+    Recipients per item (QA F5): holders of the stage's role, active delegates
+    for that stage (B-06), and the Dean as the escalation target. Dedup key
+    (QA F2) is the request AND the stage, carried in the notification link: a
+    request that breaches again after the clock restarts at the next gate, or a
+    resubmitted event with a fresh request, is a fresh breach and is notified
+    again; the same breach seen by the next hourly run is not.
+
+    One bad row must not sink the run (QA F4): each item is isolated, logged and
+    counted under `failed`; the subject is cut to the column width.
     In-app and email only, through the notifier adapter (AGENT_PROMPT §2).
     """
     try:
         # TODO(orchestrator, B-07): provided by W3's governance/services.py; wire at merge.
-        from governance.services import escalated_requests
+        from governance.services import _stage_role, active_delegations, escalated_requests
     except ImportError as exc:
         raise JobNotWired("escalate-sla", "governance.services.escalated_requests") from exc
     from governance.models import Notification
     from identity.models import User
     from reporting.services import escalation_summary
 
+    subject_width = Notification._meta.get_field("subject").max_length
     deans = list(User.objects.with_global_role(R.DEAN))
-    escalated = [escalation_summary(item) for item in escalated_requests()]
-    sent = 0
-    for item in escalated:
-        link = f"/staff/approvals/{item['event_id'] or item['id']}"
-        waited = f"{item['age_hours']} h" if item["age_hours"] is not None else "longer than the SLA"
-        subject = f"Approval overdue: “{item['event_title']}” ({item['club']})"
-        body = (f"“{item['event_title']}” by {item['club']} has waited {waited} at the "
-                f"{item['stage']} stage, past the approval SLA.")
-        for dean in deans:
-            if Notification.objects.filter(user=dean, kind=ESCALATION_KIND, link=link).exists():
-                continue
-            notifier().send(recipient=dean, subject=subject, body=body,
-                            kind=ESCALATION_KIND, link=link)
-            sent += 1
-    return {"escalated": len(escalated), "dean_recipients": len(deans), "notifications_sent": sent}
+    escalated = sent = failed = 0
+    for raw in escalated_requests():
+        escalated += 1  # what the dependency reported; `failed` is the subset not notified
+        try:
+            item = escalation_summary(raw)
+            recipients = _escalation_recipients(item["stage"], deans, _stage_role, active_delegations)
+            link = (f"/staff/approvals/{item['event_id'] or item['id']}"
+                    f"?request={item['id']}&stage={item['stage']}")
+            waited = f"{item['age_hours']} h" if item["age_hours"] is not None else "longer than the SLA"
+            subject = _fit(f"Approval overdue: “{item['event_title']}” ({item['club']})", subject_width)
+            body = (f"“{item['event_title']}” by {item['club']} has waited {waited} at the "
+                    f"{item['stage']} stage, past the approval SLA.")
+            for user in recipients:
+                if Notification.objects.filter(user=user, kind=ESCALATION_KIND, link=link).exists():
+                    continue
+                notifier().send(recipient=user, subject=subject, body=body,
+                                kind=ESCALATION_KIND, link=link)
+                sent += 1
+        except Exception:  # noqa: BLE001 — isolate the row, keep the run
+            failed += 1
+            log.exception("escalate-sla: could not notify for request %s", getattr(raw, "pk", "?"))
+    return {"escalated": escalated, "dean_recipients": len(deans),
+            "notifications_sent": sent, "failed": failed}
+
+
+def _escalation_recipients(stage, deans, stage_role, active_delegations):
+    """Stage holders ∪ active delegates for the stage ∪ the Dean, each once."""
+    from identity.models import User
+
+    recipients = {user.pk: user for user in deans}
+    try:
+        role = stage_role(stage)
+    except KeyError:
+        role = None
+    if role:
+        for user in User.objects.with_global_role(role):
+            recipients[user.pk] = user
+    for delegation in active_delegations(stage=stage).select_related("delegate_user"):
+        recipients[delegation.delegate_user.pk] = delegation.delegate_user
+    return list(recipients.values())
+
+
+def _fit(text, width):
+    """Cut to a column width, marking the cut; a DataError on one row is a 500 for the run."""
+    return text if len(text) <= width else text[: width - 1] + "…"
 
 
 def _normalise(outcome, *, key):
