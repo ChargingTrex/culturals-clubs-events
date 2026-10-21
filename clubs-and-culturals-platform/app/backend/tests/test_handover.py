@@ -13,9 +13,12 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from django.core.management import call_command
+
 from clubs.models import Membership, OfficeBearerTerm, RoleChange
+from clubs.services import current_office_bearers
 from common import roles as R
-from governance.models import AuditEntry
+from governance.models import AuditEntry, Notification
 from tests import factories as f
 
 
@@ -219,3 +222,149 @@ class HandoverTests(TestCase):
         self.handover("pres@college.edu")
         self.assertEqual(self.history("by@college.edu").status_code, 404)
         self.assertEqual(self.history("out@college.edu").status_code, 404)
+
+
+class BackdatedHandoverTests(TestCase):
+    """QA F2: a handover dated before the current holder took office is refused."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.club = f.club("Swara")
+        self.pres = f.student("pres@college.edu", prn="23CS1001")
+        f.member(self.club, self.pres, R.CLUB_PRESIDENT)
+        self.vp = f.student("vp@college.edu", prn="23CS1002")
+        f.member(self.club, self.vp, R.CLUB_VICE_PRESIDENT)
+        self.member = f.student("m@college.edu", prn="23CS1003")
+        f.member(self.club, self.member, R.CLUB_MEMBER)
+        self.now = timezone.now()
+
+    def handover(self, email, effective_at, student, role=R.CLUB_PRESIDENT):
+        f.as_user(self.client, email)
+        return self.client.post(f"/api/v1/clubs/{self.club.id}/handover", {
+            "effective_at": effective_at.isoformat(),
+            "assignments": [{"student_id": str(student.id), "role": role}],
+        }, format="json")
+
+    def current_presidents(self):
+        return [t for t in OfficeBearerTerm.objects.filter(club=self.club, role=R.CLUB_PRESIDENT)
+                if t.is_current(timezone.now())]
+
+    def test_a_handover_before_the_current_term_started_is_422(self):
+        self.assertEqual(self.handover("pres@college.edu", self.now - timedelta(minutes=1),
+                                       self.vp).status_code, 201)
+        response = self.handover("vp@college.edu", self.now - timedelta(days=2), self.member)
+        self.assertEqual(response.status_code, 422, response.data)
+        self.assertEqual(response.data["code"], "CLUBS_HANDOVER_BACKDATED")
+        self.assertEqual(len(self.current_presidents()), 1)
+        self.assertEqual(self.current_presidents()[0].student_id, self.vp.id)
+        self.assertEqual(Membership.objects.get(student=self.member).role, R.CLUB_MEMBER,
+                         "nothing changed")
+
+    def test_the_same_handover_dated_after_the_term_start_is_fine(self):
+        self.handover("pres@college.edu", self.now - timedelta(minutes=1), self.vp)
+        response = self.handover("vp@college.edu", self.now - timedelta(seconds=10), self.member)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual([t.student_id for t in self.current_presidents()], [self.member.id])
+
+    def test_a_term_opened_by_a_direct_assignment_counts_too(self):
+        f.as_user(self.client, "pres@college.edu")
+        secretary = Membership.objects.get(student=self.member)
+        self.client.post(f"/api/v1/memberships/{secretary.id}/role",
+                         {"role": R.CLUB_SECRETARY}, format="json")
+        response = self.handover("pres@college.edu", self.now - timedelta(days=1), self.vp,
+                                 role=R.CLUB_SECRETARY)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.data["code"], "CLUBS_HANDOVER_BACKDATED")
+
+
+class HandoverNotificationTests(TestCase):
+    """QA F7: incoming and outgoing bearers are told, once the handover commits."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.club = f.club("Swara")
+        self.pres = f.student("pres@college.edu", prn="23CS1001")
+        f.member(self.club, self.pres, R.CLUB_PRESIDENT)
+        self.vp = f.student("vp@college.edu", prn="23CS1002")
+        f.member(self.club, self.vp, R.CLUB_VICE_PRESIDENT)
+        self.member = f.student("m@college.edu", prn="23CS1003")
+        f.member(self.club, self.member, R.CLUB_MEMBER)
+        f.member(self.club, f.student("by@college.edu", prn="23CS1004"), R.CLUB_MEMBER)
+
+    def test_incoming_and_outgoing_are_notified_in_app_and_by_email(self):
+        from django.core import mail
+
+        f.as_user(self.client, "pres@college.edu")
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(f"/api/v1/clubs/{self.club.id}/handover", {
+                "effective_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+                "assignments": [{"student_id": str(self.vp.id), "role": R.CLUB_PRESIDENT},
+                                {"student_id": str(self.member.id), "role": R.CLUB_VICE_PRESIDENT}],
+            }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        told = set(Notification.objects.filter(kind="club.handover")
+                   .values_list("user__email", flat=True))
+        self.assertEqual(told, {"pres@college.edu", "vp@college.edu", "m@college.edu"})
+        self.assertNotIn("by@college.edu", told, "a bystander hears nothing")
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox),
+                         ["m@college.edu", "pres@college.edu", "vp@college.edu"])
+        outgoing = Notification.objects.get(user__email="pres@college.edu", kind="club.handover")
+        self.assertIn("ends", outgoing.subject)
+
+    def test_a_refused_handover_announces_nothing(self):
+        f.as_user(self.client, "pres@college.edu")
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(f"/api/v1/clubs/{self.club.id}/handover", {
+                "effective_at": timezone.now().isoformat(),
+                "assignments": [{"student_id": str(self.vp.id), "role": R.CLUB_CORE}],
+            }, format="json")
+        self.assertEqual(response.status_code, 422)
+        self.assertFalse(Notification.objects.filter(kind="club.handover").exists())
+
+
+class TermsDriveRecipientsAndRowsTests(TestCase):
+    """QA F3: who is "the President" comes from the terms, and rows catch up by job."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.club = f.club("Swara")
+        self.old = f.student("old@college.edu", prn="23CS1001")
+        f.member(self.club, self.old, R.CLUB_PRESIDENT)
+        self.new = f.student("new@college.edu", prn="23CS1002")
+        f.member(self.club, self.new, R.CLUB_MEMBER)
+        now = timezone.now()
+        # The state a dated handover leaves once its date has passed.
+        OfficeBearerTerm.objects.create(club=self.club, student=self.old, role=R.CLUB_PRESIDENT,
+                                        starts_at=now - timedelta(days=400),
+                                        ends_at=now - timedelta(days=1))
+        OfficeBearerTerm.objects.create(club=self.club, student=self.new, role=R.CLUB_PRESIDENT,
+                                        starts_at=now - timedelta(days=1))
+
+    def test_current_office_bearers_follows_the_terms(self):
+        bearers = current_office_bearers(self.club, R.ROLE_ASSIGNERS)
+        self.assertEqual([m.student.prn for m in bearers], ["23CS1002"])
+
+    def test_with_no_terms_the_rows_decide(self):
+        OfficeBearerTerm.objects.all().delete()
+        bearers = current_office_bearers(self.club, R.ROLE_ASSIGNERS)
+        self.assertEqual([m.student.prn for m in bearers], ["23CS1001"])
+
+    def test_the_join_queue_notification_reaches_the_current_president(self):
+        f.student("app@college.edu", prn="23CS1003")
+        f.as_user(self.client, "app@college.edu")
+        self.assertEqual(self.client.post(f"/api/v1/clubs/{self.club.id}/join", {},
+                                          format="json").status_code, 202)
+        told = set(Notification.objects.filter(kind="club.join_requested")
+                   .values_list("user__email", flat=True))
+        self.assertEqual(told, {"new@college.edu"})
+
+    def test_apply_due_terms_command_brings_the_rows_in_line(self):
+        self.assertEqual(Membership.objects.get(student=self.old).role, R.CLUB_PRESIDENT)
+        call_command("apply_due_terms")
+        self.assertEqual(Membership.objects.get(student=self.old).role, R.CLUB_MEMBER)
+        self.assertEqual(Membership.objects.get(student=self.new).role, R.CLUB_PRESIDENT)
+        self.assertEqual(RoleChange.objects.filter(membership__club=self.club).count(), 2)
+        # Idempotent: a second run changes nothing.
+        call_command("apply_due_terms")
+        self.assertEqual(RoleChange.objects.filter(membership__club=self.club).count(), 2)

@@ -227,6 +227,10 @@ RECEIPT_THRESHOLD = _env_int("RECEIPT_THRESHOLD", 5000)
 APPROVAL_SLA_HOURS = _env_int("APPROVAL_SLA_HOURS", 48)
 # PRD §5.1: a club with no activity for this long is flagged dormant.
 DORMANCY_DAYS = _env_int("DORMANCY_DAYS", 180)
+# MASTER_SPEC §3.3: an organiser's attendee-list access is time-bound to the
+# event plus a limited window. A grant with no explicit end expires this many
+# hours after the event ends; no grant may run past event end + 7 days.
+ORGANISER_GRACE_HOURS = _env_int("ORGANISER_GRACE_HOURS", 4)
 VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 30)
 CONTINGENCY_PERCENT = _env_int("CONTINGENCY_PERCENT", 8)
 

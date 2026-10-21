@@ -13,7 +13,7 @@ import unittest
 from datetime import timedelta
 
 from django.db import IntegrityError, connection, transaction
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -377,3 +377,51 @@ class OrganiserScopeTests(TestCase):
         me = self.client.get("/api/v1/module/auth/me").data
         self.assertNotIn(R.scoped(R.EVENT_ORGANISER, str(self.event.id)), me["roles"])
         self.assertEqual(self.roster(self.event).status_code, 404)
+
+
+class OrganiserGrantWindowTests(TestCase):
+    """QA F6: a grant is time-bound to the event plus a limited window."""
+
+    def setUp(self):
+        self.client = APIClient()
+        f.semester()
+        self.club = f.club("Swara")
+        self.pres = f.student("pres@college.edu", prn="23CS1001")
+        f.member(self.club, self.pres, R.CLUB_PRESIDENT)
+        self.organiser = f.student("org@college.edu", prn="23CS1002")
+        self.event = f.event(self.club, f.venue(), days=7, status=EventStatus.PUBLISHED)
+        f.as_user(self.client, "pres@college.edu")
+
+    def grant(self, **extra):
+        return self.client.post(f"/api/v1/events/{self.event.id}/organisers",
+                                {"student_id": str(self.organiser.id), **extra}, format="json")
+
+    @override_settings(ORGANISER_GRACE_HOURS=4)
+    def test_no_end_means_event_end_plus_the_grace_window(self):
+        response = self.grant()
+        self.assertEqual(response.status_code, 201, response.data)
+        grant = EventOrganiser.objects.get(event=self.event, student=self.organiser)
+        self.assertEqual(grant.ends_at, self.event.ends_at + timedelta(hours=4))
+
+    @override_settings(ORGANISER_GRACE_HOURS=12)
+    def test_the_grace_window_is_configuration(self):
+        self.grant()
+        grant = EventOrganiser.objects.get(event=self.event, student=self.organiser)
+        self.assertEqual(grant.ends_at, self.event.ends_at + timedelta(hours=12))
+
+    def test_an_explicit_end_within_the_cap_is_kept(self):
+        wanted = self.event.ends_at + timedelta(days=2)
+        response = self.grant(ends_at=wanted.isoformat())
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(EventOrganiser.objects.get().ends_at, wanted)
+
+    def test_an_end_past_the_cap_is_refused(self):
+        response = self.grant(ends_at=(self.event.ends_at + timedelta(days=8)).isoformat())
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.data["code"], "EVENTS_ORGANISER_GRANT_TOO_LONG")
+        self.assertFalse(EventOrganiser.objects.exists())
+
+    def test_a_malformed_organiser_id_is_404(self):
+        self.client.raise_request_exception = False
+        response = self.client.delete(f"/api/v1/events/{self.event.id}/organisers/not-a-uuid")
+        self.assertEqual(response.status_code, 404)

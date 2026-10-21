@@ -17,6 +17,11 @@ from common.errors import Conflict, ProblemDetail
 from integrations.registry import audit_sink, notifier
 
 
+# Nested-path ids are matched as UUIDs at the router, so a typo is a plain 404
+# like any other unknown resource (API_Standards §3.3), not a validation error.
+UUID_RE = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+
 def _not_found(detail):
     return ProblemDetail(code="NOT_FOUND", title="Not found",
                          status_code=status.HTTP_404_NOT_FOUND, detail=detail)
@@ -61,7 +66,12 @@ class ClubViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         self._require_admin()
-        serializer.save()
+        was_approval = serializer.instance.join_mode != Club.JoinMode.OPEN
+        club = serializer.save()
+        if was_approval and club.join_mode == Club.JoinMode.OPEN:
+            # No queue in an open club: whoever was waiting is in.
+            services.settle_pending_on_open(club, actor=self.request.auth_context,
+                                            actor_user=self.request.user.record)
 
     def perform_destroy(self, instance):
         # Soft delete via status (AGENT_PROMPT §4). A hard delete would take the
@@ -115,6 +125,14 @@ class ClubViewSet(viewsets.ModelViewSet):
             raise ProblemDetail(code="CLUBS_STUDENTS_ONLY", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Only a student may join a club.")
+        from identity.models import Student
+
+        if not Student.objects.filter(pk=ctx.student_id).exists():
+            # Platform mode: the token names a student this module has not
+            # imported yet. Not a permission problem and not a duplicate.
+            raise ProblemDetail(code="CLUBS_NOT_A_STUDENT", title="Student record missing",
+                                status_code=422,
+                                detail="Your student record is not available to this module yet.")
         if club.status == Club.Status.ARCHIVED:
             raise Conflict(code="CLUBS_ARCHIVED", title="Club archived",
                            detail="This club is no longer taking members.")
@@ -166,12 +184,12 @@ class ClubViewSet(viewsets.ModelViewSet):
         })
 
     @extend_schema(request=JoinDecisionSerializer, summary="Accept a join request")
-    @action(detail=True, methods=["post"], url_path=r"join-requests/(?P<request_id>[^/]+)/accept")
+    @action(detail=True, methods=["post"], url_path=rf"join-requests/(?P<request_id>{UUID_RE})/accept")
     def accept_join_request(self, request, pk=None, request_id=None):
         return self._decide_join(request, request_id, JoinRequest.State.ACCEPTED)
 
     @extend_schema(request=JoinDecisionSerializer, summary="Decline a join request")
-    @action(detail=True, methods=["post"], url_path=r"join-requests/(?P<request_id>[^/]+)/decline")
+    @action(detail=True, methods=["post"], url_path=rf"join-requests/(?P<request_id>{UUID_RE})/decline")
     def decline_join_request(self, request, pk=None, request_id=None):
         return self._decide_join(request, request_id, JoinRequest.State.DECLINED)
 
@@ -184,30 +202,19 @@ class ClubViewSet(viewsets.ModelViewSet):
         note = data.validated_data.get("note", "")
 
         with transaction.atomic():
-            join_request = (JoinRequest.objects.select_for_update().select_related("student__user")
+            # `of=("self",)`: lock the request row only, not the joined student
+            # and user rows — a concurrent login writing last_login must not
+            # queue behind an accept.
+            join_request = (JoinRequest.objects.select_for_update(of=("self",))
+                            .select_related("student__user", "club")
                             .filter(pk=request_id, club=club).first())
             if join_request is None:
                 raise _not_found("No such join request.")
             if join_request.state != JoinRequest.State.PENDING:
                 raise Conflict(code="CLUBS_JOIN_ALREADY_DECIDED", title="Already decided",
                                detail=f"This request was {join_request.get_state_display().lower()}.")
-            membership = None
-            if outcome == JoinRequest.State.ACCEPTED:
-                try:
-                    with transaction.atomic():
-                        membership = Membership.objects.create(
-                            club=club, student=join_request.student, role=R.CLUB_MEMBER)
-                except IntegrityError:
-                    # Already an active member (the one-active-membership
-                    # constraint): nothing to create, the request is moot.
-                    raise Conflict(code="CLUBS_ALREADY_MEMBER", title="Already a member",
-                                   detail="This student is already a member of the club.")
-            join_request.state = outcome
-            join_request.decided_by = request.user.record
-            join_request.decided_at = timezone.now()
-            join_request.note = note
-            join_request.save(update_fields=["state", "decided_by", "decided_at", "note",
-                                             "updated_at"])
+            membership = services.settle_join_request(
+                join_request, outcome=outcome, actor_user=request.user.record, note=note)
             if membership is not None:
                 services.touch_activity(club, actor=ctx)
 
@@ -215,23 +222,14 @@ class ClubViewSet(viewsets.ModelViewSet):
                             before={"state": JoinRequest.State.PENDING},
                             after={"state": outcome, "membership": str(membership.id)
                                    if membership else None},
-                            reason=note)
-        user = getattr(join_request.student, "user", None)
-        if user is not None:
-            if outcome == JoinRequest.State.ACCEPTED:
-                subject = f"Welcome to {club.name}"
-                body = f"Your request to join {club.name} was accepted."
-            else:
-                subject = f"Your request to join {club.name} was declined"
-                body = f"{club.name} declined your request." + (f" Note: {note}" if note else "")
-            notifier().send(recipient=user, subject=subject, body=body,
-                            kind=f"club.join_{outcome}", link=f"/clubs/{club.id}")
+                            reason=join_request.note)
+        services.notify_join_decision(join_request)
         return Response(JoinRequestSerializer(join_request).data)
 
     def _notify_assigners(self, club, subject, body, kind):
-        memberships = club.memberships.filter(
-            ended_at__isnull=True, role__in=R.ROLE_ASSIGNERS).select_related("student__user")
-        for membership in memberships:
+        # Recipients come from the terms, not Membership.role: after a dated
+        # handover takes effect the new President must hear this, not the old.
+        for membership in services.current_office_bearers(club, R.ROLE_ASSIGNERS):
             user = getattr(membership.student, "user", None)
             if user is not None:
                 notifier().send(recipient=user, subject=subject, body=body, kind=kind,

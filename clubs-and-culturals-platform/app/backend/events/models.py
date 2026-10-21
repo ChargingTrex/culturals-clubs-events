@@ -116,13 +116,8 @@ class Event(UUIDModel):
         return self.registrations.filter(attended=True, cancelled_at__isnull=True).count()
 
     def registered_count(self):
-        qs = self.registrations.filter(cancelled_at__isnull=True)
-        # Waitlisted rows are queue entries, not places (B-01). The field arrives
-        # with the participation branch; until it is merged the filter is skipped
-        # rather than raising on every event payload.
-        if any(f.name == "waitlisted" for f in self.registrations.model._meta.get_fields()):
-            qs = qs.filter(waitlisted=False)
-        return qs.count()
+        # Waitlisted rows are queue entries, not places (PRD §5.6, B-01).
+        return self.registrations.filter(cancelled_at__isnull=True, waitlisted=False).count()
 
 
 class Fest(UUIDModel):
