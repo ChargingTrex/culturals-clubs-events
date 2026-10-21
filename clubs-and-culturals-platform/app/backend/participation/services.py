@@ -14,10 +14,14 @@ from django.utils import timezone
 
 from common.errors import Conflict
 from events.models import EventStatus
+from integrations.registry import notifier
 from participation.models import (
     ACCEPTING, EventPass, Registration, ScanRecord, ScanResult, StudentQRToken,
 )
 from qrkit import tokens as qr
+
+# Statuses in which a place can be taken or a waitlisted student promoted.
+OPEN_FOR_REGISTRATION = (EventStatus.PUBLISHED, EventStatus.LIVE)
 
 
 # --------------------------------------------------------------------------
@@ -86,10 +90,85 @@ def live_pass(registration):
     return registration.passes.filter(used_at__isnull=True, revoked_at__isnull=True).first()
 
 
+def confirmed_count(event):
+    """
+    Places taken: active registrations that are not waitlisted.
+
+    This, not `Event.registered_count()`, is what capacity is checked against —
+    a waitlisted row is a queue entry, not a place. Reporting is untouched: it
+    counts `attended` only (rule 6).
+    """
+    return event.registrations.filter(cancelled_at__isnull=True, waitlisted=False).count()
+
+
+# --------------------------------------------------------------------------
+# Student notifications (PRD 5.5, 5.16.3)
+# --------------------------------------------------------------------------
+# All through the NotificationSender seam: one call writes the in-app row and
+# sends the email. No other channel exists or may be added (AGENT_PROMPT §2).
+def _event_link(event):
+    return f"/club/{event.club_id}/events/{event.id}"
+
+
+def _tell_student(student, *, subject, body, kind, link):
+    notifier().send(recipient=student.user, subject=subject, body=body, kind=kind, link=link)
+
+
+def notify_registration(registration, event_pass):
+    event = registration.event
+    _tell_student(
+        registration.student,
+        subject=f"You are registered for “{event.title}”",
+        body=(f"Your place at “{event.title}” on {event.starts_at:%d %b %Y} at "
+              f"{event.venue.name} is confirmed. Your pass (ref {event_pass.id}) is in "
+              f"My Passes — show it, or your profile QR, at the door."),
+        kind="registration.confirmed", link="/me/passes",
+    )
+
+
+def notify_waitlisted(registration):
+    event = registration.event
+    _tell_student(
+        registration.student,
+        subject=f"You are on the waitlist for “{event.title}”",
+        body=(f"“{event.title}” on {event.starts_at:%d %b %Y} is full. You are on the "
+              f"waitlist and will receive a pass if a place frees up."),
+        kind="registration.waitlisted", link=_event_link(event),
+    )
+
+
+def notify_promotion(registration, event_pass):
+    event = registration.event
+    _tell_student(
+        registration.student,
+        subject=f"A place opened up: you are in for “{event.title}”",
+        body=(f"You have moved off the waitlist for “{event.title}” on "
+              f"{event.starts_at:%d %b %Y} at {event.venue.name}. Your pass "
+              f"(ref {event_pass.id}) is in My Passes."),
+        kind="registration.promoted", link="/me/passes",
+    )
+
+
+def notify_registered_students(event, *, subject, body, kind):
+    """
+    Tell everyone holding an active registration (waitlist included) about a
+    change to the event itself: publication, a venue move. Called from the
+    Event save signal in participation/signals.py, so governance and events
+    need no knowledge of this app.
+    """
+    registrations = (Registration.objects
+                     .filter(event=event, cancelled_at__isnull=True, student__isnull=False)
+                     .select_related("student__user"))
+    for registration in registrations:
+        _tell_student(registration.student, subject=subject, body=body, kind=kind,
+                      link=_event_link(event))
+
+
 @transaction.atomic
 def register_student(event, student, *, source=Registration.Source.PRE_REGISTERED):
     """
-    Create a registration and its one-time pass.
+    Create a registration and its one-time pass — or, when the event is full,
+    a waitlisted registration with no pass (PRD 5.6).
 
     Capacity is checked under a row lock on the event. Checking it without one
     lets two simultaneous registrations both read "one place left" and both take it.
@@ -97,13 +176,12 @@ def register_student(event, student, *, source=Registration.Source.PRE_REGISTERE
     from events.models import Event
 
     locked = Event.objects.select_for_update().get(pk=event.pk)
-    if locked.status not in (EventStatus.PUBLISHED, EventStatus.LIVE):
+    if locked.status not in OPEN_FOR_REGISTRATION:
         raise Conflict(code="PARTICIPATION_NOT_OPEN", title="Registration is not open",
                        detail=f"“{locked.title}” is {locked.get_status_display().lower()}.")
-    if locked.registered_count() >= locked.capacity:
-        raise Conflict(code="PARTICIPATION_EVENT_FULL", title="Event is full",
-                       detail=f"All {locked.capacity} places are taken.")
-    registration = Registration(event=locked, student=student, source=source)
+    waitlisted = confirmed_count(locked) >= locked.capacity
+    registration = Registration(event=locked, student=student, source=source,
+                                waitlisted=waitlisted)
     registration.snapshot_from(student)
     try:
         registration.save()
@@ -112,22 +190,60 @@ def register_student(event, student, *, source=Registration.Source.PRE_REGISTERE
         # bug to work around.
         raise Conflict(code="PARTICIPATION_ALREADY_REGISTERED", title="Already registered",
                        detail="You already hold a registration for this event.") from exc
-    issue_pass(registration)
+    if waitlisted:
+        notify_waitlisted(registration)
+    else:
+        notify_registration(registration, issue_pass(registration))
     return registration
 
 
+def promote_from_waitlist(event):
+    """
+    Move the earliest waitlisted student into the place that just freed up.
+
+    Caller holds the event row lock. FIFO by `created_at`: the order people
+    joined the queue is the only fair order, and it is the one the database
+    already records.
+    """
+    if event.status not in OPEN_FOR_REGISTRATION:
+        return None
+    if confirmed_count(event) >= event.capacity:
+        return None
+    candidate = (Registration.objects.select_for_update()
+                 .filter(event=event, waitlisted=True, cancelled_at__isnull=True,
+                         student__isnull=False)
+                 .order_by("created_at").first())
+    if candidate is None:
+        return None
+    candidate.waitlisted = False
+    candidate.save(update_fields=["waitlisted", "updated_at"])
+    notify_promotion(candidate, issue_pass(candidate))
+    return candidate
+
+
+@transaction.atomic
 def cancel_registration(registration):
     """
     Cancel, never delete. An attended registration cannot be cancelled: it is a
     record of something that happened.
+
+    Freeing a place promotes the head of the waitlist inside the same
+    transaction, under the event lock: between "cancelled" and "promoted" there
+    must be no moment at which a concurrent registration can take the place.
     """
+    from events.models import Event
+
     if registration.attended:
         raise Conflict(code="PARTICIPATION_ALREADY_ATTENDED", title="Already checked in",
                        detail="An attended registration cannot be cancelled.")
+    locked = Event.objects.select_for_update().get(pk=registration.event_id)
+    held_a_place = not registration.waitlisted
     registration.cancelled_at = timezone.now()
     registration.save(update_fields=["cancelled_at", "updated_at"])
     EventPass.objects.filter(registration=registration, used_at__isnull=True,
                              revoked_at__isnull=True).update(revoked_at=timezone.now())
+    if held_a_place:
+        promote_from_waitlist(locked)
     return registration
 
 
@@ -222,7 +338,11 @@ def resolve(token, event, *, operator, station_id="", scanned_at=None, offline_r
                 detail=(f"Pass is for “{other.registration.event.title}”"
                         if other else "Pass is for another event"),
             ))
-        event_pass = (EventPass.objects.select_for_update()
+        # `of=("self",)`: lock the pass row only. `registration__student` is a
+        # nullable FK, so the select_related is a LEFT JOIN, and PostgreSQL
+        # refuses "FOR UPDATE" on the nullable side of an outer join. SQLite
+        # ignores the whole clause, so only Postgres proves this.
+        event_pass = (EventPass.objects.select_for_update(of=("self",))
                       .filter(pk=payload.subject, registration__event=event)
                       .select_related("registration__student").first())
         if event_pass is None:
@@ -276,18 +396,29 @@ def resolve(token, event, *, operator, station_id="", scanned_at=None, offline_r
 
     registration = (Registration.objects.select_for_update()
                     .filter(event=event, student=student, cancelled_at__isnull=True).first())
-    if registration is not None:
+    if registration is not None and not registration.waitlisted:
         if registration.attended:
             return record(_duplicate(registration))
         _mark_attended(registration, at, operator, station_id)
         return record(Outcome(ScanResult.ACCEPTED, verdict="Checked in",
                               registration=registration, student=student))
 
-    # Walk-in. Registering at the door is the intended path, not an exception.
-    if event.registered_count() >= event.capacity:
+    # Walk-in, or a waitlisted student who holds no place yet. Registering at
+    # the door is the intended path, not an exception.
+    if confirmed_count(event) >= event.capacity:
         return record(Outcome(ScanResult.NOT_REGISTERED, verdict="Event at capacity",
                               student=student,
-                              detail="No places left, so a walk-in cannot be admitted."))
+                              detail=("On the waitlist, but no place has opened."
+                                      if registration is not None else
+                                      "No places left, so a walk-in cannot be admitted.")))
+    if registration is not None:
+        # Waitlisted and a place is free: take it at the door.
+        registration.waitlisted = False
+        registration.save(update_fields=["waitlisted", "updated_at"])
+        _mark_attended(registration, at, operator, station_id)
+        return record(Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
+                              registration=registration, student=student,
+                              detail="Admitted from the waitlist"))
     registration = Registration(event=event, student=student,
                                 source=Registration.Source.SPOT)
     registration.snapshot_from(student)
@@ -312,13 +443,21 @@ def check_in_manually(event, student, *, operator, station_id=""):
     at = timezone.now()
     if registration and registration.attended:
         outcome = _duplicate(registration)
-    elif registration:
+    elif registration and not registration.waitlisted:
         _mark_attended(registration, at, operator, station_id)
         outcome = Outcome(ScanResult.ACCEPTED, verdict="Checked in", registration=registration,
                           student=student, detail="Manual entry by PRN lookup")
-    elif event.registered_count() >= event.capacity:
+    elif confirmed_count(event) >= event.capacity:
         outcome = Outcome(ScanResult.NOT_REGISTERED, verdict="Event at capacity",
                           student=student)
+    elif registration:
+        # Waitlisted, and a place is free.
+        registration.waitlisted = False
+        registration.save(update_fields=["waitlisted", "updated_at"])
+        _mark_attended(registration, at, operator, station_id)
+        outcome = Outcome(ScanResult.SPOT_REGISTERED, verdict="Registered and checked in",
+                          registration=registration, student=student,
+                          detail="Admitted from the waitlist by PRN lookup")
     else:
         registration = Registration(event=event, student=student,
                                     source=Registration.Source.MANUAL)
