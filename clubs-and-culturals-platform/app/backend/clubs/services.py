@@ -15,10 +15,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from clubs.models import Club, Membership, OfficeBearerTerm, RoleChange
+from clubs.models import Club, JoinRequest, Membership, OfficeBearerTerm, RoleChange
 from common import roles as R
 from common.errors import ProblemDetail
-from integrations.registry import audit_sink
+from integrations.registry import audit_sink, notifier
 
 # The offices a handover can confer. Core team and plain membership are not
 # offices: they have no term and are set with the ordinary role endpoint.
@@ -76,6 +76,107 @@ def active_club_roles(student, now=None):
         terms_by_club.setdefault(term.club_id, []).append(term)
     return [(effective_role(m, now, terms_by_club.get(m.club_id, [])), m.club_id)
             for m in memberships]
+
+
+def current_office_bearers(club, roles, now=None):
+    """
+    The active memberships whose *effective* role (terms first, Membership row
+    as fallback — the same precedence as the token) is one of `roles`.
+
+    Use this, not `Membership.role`, to pick who is told something: after a
+    future-dated handover's date passes the terms say the new President while
+    the rows still say the old one until `apply_due_terms` runs.
+    """
+    now = now or timezone.now()
+    wanted = set(roles)
+    memberships = list(club.memberships.filter(ended_at__isnull=True)
+                       .select_related("student__user"))
+    terms = {}
+    for term in OfficeBearerTerm.objects.filter(club=club):
+        terms.setdefault(term.student_id, []).append(term)
+    return [m for m in memberships
+            if effective_role(m, now, terms.get(m.student_id, [])) in wanted]
+
+
+def _notify_members(memberships, *, subject, body, kind, link):
+    for membership in memberships:
+        user = getattr(membership.student, "user", None)
+        if user is not None:
+            notifier().send(recipient=user, subject=subject, body=body, kind=kind, link=link)
+
+
+# --------------------------------------------------------------------------
+# Join requests (PRD §5.2)
+# --------------------------------------------------------------------------
+def settle_join_request(join_request, *, outcome, actor_user, note=""):
+    """
+    Decide a pending request. On accept, the membership is created unless one
+    already exists (joined by another route), in which case the request is
+    settled as accepted anyway — its intent is satisfied and a request that can
+    never be accepted must not sit in the queue forever.
+
+    Returns the membership (new or existing) for an accept, None for a decline.
+    The caller holds the row lock and the transaction.
+    """
+    from django.db import IntegrityError
+
+    membership = None
+    if outcome == JoinRequest.State.ACCEPTED:
+        try:
+            with transaction.atomic():
+                membership = Membership.objects.create(
+                    club=join_request.club, student=join_request.student, role=R.CLUB_MEMBER)
+        except IntegrityError:
+            membership = Membership.objects.get(
+                club=join_request.club, student=join_request.student, ended_at__isnull=True)
+            note = note or "Already a member"
+    join_request.state = outcome
+    join_request.decided_by = actor_user
+    join_request.decided_at = timezone.now()
+    join_request.note = note
+    join_request.save(update_fields=["state", "decided_by", "decided_at", "note", "updated_at"])
+    return membership
+
+
+def notify_join_decision(join_request):
+    club = join_request.club
+    user = getattr(join_request.student, "user", None)
+    if user is None:
+        return
+    if join_request.state == JoinRequest.State.ACCEPTED:
+        subject = f"Welcome to {club.name}"
+        body = f"Your request to join {club.name} was accepted."
+    else:
+        subject = f"Your request to join {club.name} was declined"
+        body = f"{club.name} declined your request." + (
+            f" Note: {join_request.note}" if join_request.note else "")
+    notifier().send(recipient=user, subject=subject, body=body,
+                    kind=f"club.join_{join_request.state}", link=f"/clubs/{club.id}")
+
+
+def settle_pending_on_open(club, *, actor, actor_user):
+    """
+    A club that switches to open admission has no queue any more: every pending
+    request is accepted on the spot, each one audited and the student told.
+    """
+    settled = []
+    with transaction.atomic():
+        pending = (JoinRequest.objects.select_for_update(of=("self",))
+                   .select_related("student__user", "club")
+                   .filter(club=club, state=JoinRequest.State.PENDING))
+        for join_request in pending:
+            settle_join_request(join_request, outcome=JoinRequest.State.ACCEPTED,
+                                actor_user=actor_user, note="Club opened to all members")
+            audit_sink().record(actor=actor, action="club.join_accepted", target=join_request,
+                                before={"state": JoinRequest.State.PENDING},
+                                after={"state": JoinRequest.State.ACCEPTED},
+                                reason="join_mode set to open")
+            settled.append(join_request)
+        if settled:
+            touch_activity(club, actor=actor)
+    for join_request in settled:
+        notify_join_decision(join_request)
+    return settled
 
 
 # --------------------------------------------------------------------------
@@ -212,11 +313,26 @@ def handover(club, *, actor, actor_user, effective_at, assignments):
                     for s in missing],
         )
 
-    outgoing = [
-        t for t in OfficeBearerTerm.objects.select_for_update().filter(club=club)
-        if (t.ends_at is None or t.ends_at > effective_at) and t.starts_at < effective_at
+    affected = [
+        t for t in OfficeBearerTerm.objects.select_for_update(of=("self",)).filter(club=club)
+        if (t.ends_at is None or t.ends_at > effective_at)
         and (t.role in roles or str(t.student_id) in student_ids)
     ]
+    # A term that opened at or after the chosen date cannot be "handed over
+    # from" at that date: leaving it open would mean two current holders of
+    # one office. PRD §5.3 handovers carry an effective date; pick a later one.
+    later = [t for t in affected if t.starts_at >= effective_at]
+    if later:
+        latest = max(t.starts_at for t in later)
+        raise ProblemDetail(
+            code="CLUBS_HANDOVER_BACKDATED", title="Effective date is too early",
+            status_code=422,
+            detail=(f"An office named here was taken up on {latest:%d %b %Y %H:%M}; "
+                    "the handover must take effect after that."),
+            errors=[{"field": "effective_at", "code": "BEFORE_CURRENT_TERM",
+                     "message": latest.isoformat()}],
+        )
+    outgoing = [t for t in affected if t.starts_at < effective_at]
     # Members who hold an office by Membership row alone (no term yet) also hand
     # it over: give them a term that starts at their join and ends now, so the
     # history shows them and the derivation drops their scope.
@@ -255,7 +371,37 @@ def handover(club, *, actor, actor_user, effective_at, assignments):
         after={"effective_at": effective_at.isoformat(),
                "incoming": [{"student": str(t.student_id), "role": t.role} for t in created]},
     )
+    # Tell the people concerned once the handover is durable (on_commit: a
+    # rolled-back handover must not announce itself). PRD §5.3 / FLOWS §11.
+    incoming_ids = {t.student_id for t in created}
+    outgoing_ids = {t.student_id for t in outgoing} - incoming_ids
+    transaction.on_commit(lambda: _notify_handover(club, created, outgoing, incoming_ids,
+                                                   outgoing_ids, effective_at))
     return created
+
+
+def _notify_handover(club, created, outgoing, incoming_ids, outgoing_ids, effective_at):
+    when = f"{effective_at:%d %b %Y %H:%M}"
+    link = f"/club/{club.id}/members"
+    memberships = {m.student_id: m for m in club.memberships.filter(
+        ended_at__isnull=True).select_related("student__user")}
+    for term in created:
+        membership = memberships.get(term.student_id)
+        if membership:
+            _notify_members([membership], kind="club.handover", link=link,
+                            subject=f"You are {Membership(role=term.role).get_role_display()} of {club.name}",
+                            body=f"Your term as {Membership(role=term.role).get_role_display()} "
+                                 f"of {club.name} takes effect {when}.")
+    for term in outgoing:
+        if term.student_id not in outgoing_ids:
+            continue
+        outgoing_ids.discard(term.student_id)
+        membership = memberships.get(term.student_id)
+        if membership:
+            _notify_members([membership], kind="club.handover", link=link,
+                            subject=f"Your term as {Membership(role=term.role).get_role_display()} of {club.name} ends",
+                            body=f"Your term as {Membership(role=term.role).get_role_display()} "
+                                 f"of {club.name} ends {when}.")
 
 
 def office_bearer_history(club):

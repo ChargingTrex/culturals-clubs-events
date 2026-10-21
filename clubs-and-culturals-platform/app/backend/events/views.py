@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, ProtectedError
 from django.utils import timezone
@@ -32,6 +35,12 @@ PUBLIC_STATUSES = (EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETE
 # deleted outright. Anything else is cancelled (with a reason), never deleted:
 # a published event has registrations and a history that must survive it.
 DELETABLE_STATUSES = (EventStatus.DRAFT, EventStatus.RETURNED, EventStatus.REJECTED)
+
+# Nested-path ids are matched as UUIDs at the router, so a typo is a plain 404
+# like any other unknown resource (API_Standards §3.3), not a validation error.
+UUID_RE = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+# The longest an organiser grant may outlive its event, whatever the caller asks.
+ORGANISER_GRANT_CAP = timedelta(days=7)
 
 
 def _not_found(detail):
@@ -369,10 +378,28 @@ class EventViewSet(viewsets.ModelViewSet):
                                 status_code=422, detail="No such student.",
                                 errors=[{"field": "student_id", "code": "UNKNOWN",
                                          "message": "No such student."}])
+        # Time-bound by default (MASTER_SPEC §3.3): the event's end plus the
+        # grace window, and never more than the cap past the event.
+        cap = event.ends_at + ORGANISER_GRANT_CAP
         ends_at = data.validated_data.get("ends_at")
-        if ends_at is not None and ends_at <= timezone.now():
+        if ends_at is None:
+            ends_at = event.ends_at + timedelta(hours=settings.ORGANISER_GRACE_HOURS)
+        if ends_at > cap:
+            raise ProblemDetail(
+                code="EVENTS_ORGANISER_GRANT_TOO_LONG", title="Grant runs too long",
+                status_code=422,
+                detail=f"An organiser grant may not run past {cap:%d %b %Y %H:%M} "
+                       f"(the event's end plus {ORGANISER_GRANT_CAP.days} days).",
+                errors=[{"field": "ends_at", "code": "TOO_LATE", "message": cap.isoformat()}])
+        if ends_at <= timezone.now():
             raise ProblemDetail(code="EVENTS_ORGANISER_ALREADY_ENDED", title="Grant already over",
                                 status_code=422, detail="ends_at must be in the future.")
+        # A live grant already covers this student: a second one would be the
+        # same scope twice. (Grants always carry an end now, so the partial
+        # unique on open-ended rows is the backstop only for legacy rows.)
+        if EventOrganiser.active().filter(event=event, student=student).exists():
+            raise Conflict(code="EVENTS_ORGANISER_EXISTS", title="Already an organiser",
+                           detail=f"{student.full_name} already organises “{event.title}”.")
         try:
             with transaction.atomic():
                 grant = EventOrganiser.objects.create(
@@ -382,11 +409,11 @@ class EventViewSet(viewsets.ModelViewSet):
                            detail=f"{student.full_name} already organises “{event.title}”.")
         audit_sink().record(actor=ctx, action="event.organiser_added", target=event,
                             after={"student": str(student.id), "prn": student.prn,
-                                   "ends_at": ends_at.isoformat() if ends_at else None})
+                                   "ends_at": ends_at.isoformat()})
         return Response(EventOrganiserSerializer(grant).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(summary="Withdraw an organiser grant (President/VP only)")
-    @action(detail=True, methods=["delete"], url_path=r"organisers/(?P<student_id>[^/]+)")
+    @action(detail=True, methods=["delete"], url_path=rf"organisers/(?P<student_id>{UUID_RE})")
     def remove_organiser(self, request, pk=None, student_id=None):
         event = self.get_object()
         self._require_organiser_assigner(event)

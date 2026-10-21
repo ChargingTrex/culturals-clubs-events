@@ -15,6 +15,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from clubs.models import Club, JoinRequest, Membership
+from identity.models import Student
 from clubs.services import flag_dormant, touch_activity
 from common import roles as R
 from events.models import EventStatus
@@ -205,6 +206,71 @@ class JoinTests(TestCase):
         f.as_user(self.client, "new@college.edu")
         response = self.client.get(f"/api/v1/clubs/{self.natya.id}")
         self.assertEqual(response.data["join_mode"], "open")
+
+
+class JoinEdgeCaseTests(TestCase):
+    """QA F4, F5, F13."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.club = f.club("Swara")
+        self.pres = f.student("pres@college.edu", prn="23CS1001")
+        f.member(self.club, self.pres, R.CLUB_PRESIDENT)
+        self.applicant = f.student("app@college.edu", prn="23CS1002")
+        self.second = f.student("two@college.edu", prn="23CS1003")
+        f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
+
+    def request_from(self, email):
+        f.as_user(self.client, email)
+        response = self.client.post(f"/api/v1/clubs/{self.club.id}/join", {}, format="json")
+        self.assertEqual(response.status_code, 202, response.data)
+        return JoinRequest.objects.get(pk=response.data["id"])
+
+    def test_accepting_an_existing_member_settles_the_request(self):
+        request = self.request_from("app@college.edu")
+        f.member(self.club, self.applicant)                      # joined by another route
+        f.as_user(self.client, "pres@college.edu")
+        response = self.client.post(
+            f"/api/v1/clubs/{self.club.id}/join-requests/{request.id}/accept", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        request.refresh_from_db()
+        self.assertEqual(request.state, JoinRequest.State.ACCEPTED)
+        self.assertEqual(request.note, "Already a member")
+        self.assertEqual(Membership.objects.filter(club=self.club, student=self.applicant,
+                                                   ended_at__isnull=True).count(), 1)
+        self.assertEqual(self.client.get(f"/api/v1/clubs/{self.club.id}/members")
+                         .data["pending_join_requests"], 0)
+
+    def test_opening_the_club_admits_everyone_waiting(self):
+        self.request_from("app@college.edu")
+        self.request_from("two@college.edu")
+        f.as_user(self.client, "dean@college.edu", mfa_code="1")
+        response = self.client.patch(f"/api/v1/clubs/{self.club.id}", {"join_mode": "open"},
+                                     format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertFalse(JoinRequest.objects.filter(state=JoinRequest.State.PENDING).exists())
+        self.assertEqual(JoinRequest.objects.filter(state=JoinRequest.State.ACCEPTED).count(), 2)
+        for student in (self.applicant, self.second):
+            self.assertTrue(Membership.objects.filter(club=self.club, student=student,
+                                                      ended_at__isnull=True).exists())
+            self.assertTrue(Notification.objects.filter(user=student.user,
+                                                        kind="club.join_accepted").exists())
+        self.assertEqual(AuditEntry.objects.filter(action="club.join_accepted").count(), 2)
+
+    def test_a_malformed_request_id_is_404(self):
+        f.as_user(self.client, "pres@college.edu")
+        self.client.raise_request_exception = False
+        response = self.client.post(
+            f"/api/v1/clubs/{self.club.id}/join-requests/not-a-uuid/accept", {}, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_a_token_naming_an_unknown_student_gets_422_not_409(self):
+        """Platform mode: the claim carries a student_id this module has not imported."""
+        f.as_user(self.client, "two@college.edu")      # token minted while the row existed
+        Student.objects.filter(pk=self.second.pk).delete()
+        response = self.client.post(f"/api/v1/clubs/{self.club.id}/join", {}, format="json")
+        self.assertEqual(response.status_code, 422, response.data)
+        self.assertEqual(response.data["code"], "CLUBS_NOT_A_STUDENT")
 
 
 class RosterAuditTests(TestCase):
