@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from common.models import UUIDModel
 
@@ -115,7 +116,13 @@ class Event(UUIDModel):
         return self.registrations.filter(attended=True, cancelled_at__isnull=True).count()
 
     def registered_count(self):
-        return self.registrations.filter(cancelled_at__isnull=True).count()
+        qs = self.registrations.filter(cancelled_at__isnull=True)
+        # Waitlisted rows are queue entries, not places (B-01). The field arrives
+        # with the participation branch; until it is merged the filter is skipped
+        # rather than raising on every event payload.
+        if any(f.name == "waitlisted" for f in self.registrations.model._meta.get_fields()):
+            qs = qs.filter(waitlisted=False)
+        return qs.count()
 
 
 class Fest(UUIDModel):
@@ -157,3 +164,47 @@ class VenueReassignment(UUIDModel):
 
     class Meta:
         ordering = ("-created_at",)
+
+
+class EventOrganiser(UUIDModel):
+    """
+    Who holds the `event_organiser:<event_id>` scope for one event.
+
+    AGENT_PROMPT §6 describes the organiser as a time-bound role: it is granted
+    for the run-up to one event and expires with it. The row is the grant;
+    identity/tokens.roles_for reads the active rows so the scope reaches the
+    token in local mode (the platform issues it directly in platform mode).
+    `ends_at` null means "until the row is removed"; the event's own end plus
+    the scan-station grace is the natural value for a time-boxed grant.
+    """
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="organisers")
+    student = models.ForeignKey("identity.Student", on_delete=models.PROTECT,
+                                related_name="organiser_roles")
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name="organisers_assigned")
+    ends_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event", "student"],
+                condition=models.Q(ends_at__isnull=True),
+                name="one_open_organiser_grant_per_student_per_event",
+            ),
+        ]
+        indexes = [models.Index(fields=["student", "ends_at"])]
+
+    def __str__(self):
+        return f"{self.student_id} organises {self.event_id}"
+
+    @classmethod
+    def active(cls, now=None):
+        now = now or timezone.now()
+        return cls.objects.filter(models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=now))
+
+    @classmethod
+    def active_event_ids(cls, student, now=None):
+        """Event ids this student currently organises — the token's scopes."""
+        return list(cls.active(now).filter(student=student).values_list("event_id", flat=True))

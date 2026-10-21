@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from common import roles as R
 from participation.services import live_pass
-from events.models import Event, EventStatus, Fest, Venue, VenueReassignment
+from events.models import Event, EventOrganiser, EventStatus, Fest, Venue, VenueReassignment
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -136,3 +136,21 @@ class FestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fest
         fields = ("id", "name", "club", "starts_on", "ends_on", "status")
+
+
+class EventOrganiserSerializer(serializers.ModelSerializer):
+    prn = serializers.CharField(source="student.prn", read_only=True)
+    full_name = serializers.CharField(source="student.full_name", read_only=True)
+    assigned_by_label = serializers.CharField(source="assigned_by.display_name", read_only=True,
+                                              default=None)
+
+    class Meta:
+        model = EventOrganiser
+        fields = ("id", "event", "student", "prn", "full_name", "assigned_by_label",
+                  "ends_at", "created_at")
+        read_only_fields = fields
+
+
+class OrganiserAssignSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    ends_at = serializers.DateTimeField(required=False, allow_null=True)

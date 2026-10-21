@@ -216,7 +216,8 @@ class WiredTests(TestCase):
         request = ApprovalRequest.objects.create(event=event, stages=["dean"],
                                                  current_stage=ApprovalStage.DEAN)
         ApprovalRequest.objects.filter(pk=request.pk).update(
-            created_at=timezone.now() - timedelta(hours=80))
+            created_at=timezone.now() - timedelta(hours=80),
+            stage_entered_at=timezone.now() - timedelta(hours=80))
         request.refresh_from_db()
 
         with wired("governance.services", "escalated_requests", lambda: [request]):

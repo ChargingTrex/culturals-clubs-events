@@ -97,7 +97,14 @@ def reassign_venue(event, *, to_venue, reason, actor):
     without the lock, two Deans resolving the same clash concurrently can both
     read the target venue as free and both move an event into it.
     """
+    from events.models import Venue
+
     locked = Event.objects.select_for_update().get(pk=event.pk)
+    # Lock the target venue too (event first, then venue — the same order every
+    # booking path uses): two Deans moving two events into one free hall must
+    # queue on the venue row, or both read it as free. The event row lock alone
+    # does not serialise them, since each locks a different event.
+    Venue.objects.select_for_update().get(pk=to_venue.pk)
     if to_venue.pk == locked.venue_id:
         raise Conflict(code="EVENTS_SAME_VENUE", title="Already in that venue",
                        detail="Choose a different venue.")

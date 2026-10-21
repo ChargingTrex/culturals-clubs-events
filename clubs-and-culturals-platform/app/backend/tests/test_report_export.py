@@ -274,7 +274,8 @@ class DeanOverviewAdditionsTests(TestCase):
         request = ApprovalRequest.objects.create(
             event=self.complete, stages=["dean"], current_stage=ApprovalStage.DEAN)
         ApprovalRequest.objects.filter(pk=request.pk).update(
-            created_at=timezone.now() - timedelta(hours=72))
+            created_at=timezone.now() - timedelta(hours=72),
+            stage_entered_at=timezone.now() - timedelta(hours=72))
         request.refresh_from_db()
         with wired("governance.services", "escalated_requests", lambda: [request]):
             data = self.overview()

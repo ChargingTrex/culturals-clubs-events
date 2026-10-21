@@ -225,6 +225,8 @@ RECEIPT_THRESHOLD = _env_int("RECEIPT_THRESHOLD", 5000)
 # Hours a request may sit at one gate before it is flagged as escalated on the
 # queue and the Dean overview (PRD §5.11, §6.3).
 APPROVAL_SLA_HOURS = _env_int("APPROVAL_SLA_HOURS", 48)
+# PRD §5.1: a club with no activity for this long is flagged dormant.
+DORMANCY_DAYS = _env_int("DORMANCY_DAYS", 180)
 VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 30)
 CONTINGENCY_PERCENT = _env_int("CONTINGENCY_PERCENT", 8)
 
