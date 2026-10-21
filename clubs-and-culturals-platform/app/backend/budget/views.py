@@ -2,7 +2,6 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.http import FileResponse, HttpResponseRedirect
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -99,7 +98,8 @@ class BudgetSerializer(serializers.ModelSerializer):
         the shared context, so a list page costs one summary per club.
         """
         if budget.event_id:
-            club_id, year = budget.event.club_id, budget.event.starts_at.year
+            club_id = budget.event.club_id
+            year = services.envelope_year_of(budget.event.starts_at)
         elif budget.fest_id:
             club_id, year = budget.fest.club_id, budget.fest.starts_on.year
         else:
@@ -342,10 +342,14 @@ class BudgetViewSet(viewsets.GenericViewSet):
                                 status_code=422, detail="Attach a photo or a PDF.",
                                 errors=[{"field": "file", "code": "REQUIRED",
                                          "message": "A file is required."}])
-        if not (upload.content_type or "").startswith("image/") and upload.content_type != "application/pdf":
-            raise ProblemDetail(code="BUDGET_RECEIPT_TYPE", title="Unsupported file type",
-                                status_code=422,
-                                detail="Receipts must be an image or a PDF.")
+        if not services.is_allowed_receipt_type(upload.content_type):
+            raise ProblemDetail(
+                code="BUDGET_RECEIPT_TYPE", title="Unsupported file type", status_code=422,
+                detail=("Receipts must be a PDF or a photograph: "
+                        + ", ".join(services.RECEIPT_CONTENT_TYPES) + "."),
+                errors=[{"field": "file", "code": "CONTENT_TYPE",
+                         "message": upload.content_type or ""}],
+            )
         amount = None
         if raw := request.data.get("amount"):
             try:
@@ -394,16 +398,28 @@ class BudgetViewSet(viewsets.GenericViewSet):
                                 detail="No such receipt on this line.")
         location = services.receipt_location(receipt)
         if location["kind"] == "redirect":
-            return HttpResponseRedirect(location["url"])
+            response = HttpResponseRedirect(location["url"])
+            response["Cache-Control"] = "private, no-store"
+            return response
         path = location["path"]
         if not path.is_file():
             raise ProblemDetail(code="BUDGET_RECEIPT_FILE_MISSING", title="File not found",
                                 status_code=404,
                                 detail="The receipt's file is no longer in the store.")
-        response = FileResponse(open(path, "rb"), content_type=receipt.content_type,
-                                filename=receipt.file_name)
+        # Only the upload allowlist is rendered inline. Anything else — rows
+        # stored before the allowlist was exact, or a type the store relabelled
+        # — goes out as an opaque download, so it can never execute on this
+        # origin. The sandbox CSP is the backstop for the inline types.
+        inline = services.is_allowed_receipt_type(receipt.content_type)
+        response = FileResponse(
+            open(path, "rb"),
+            content_type=receipt.content_type if inline else "application/octet-stream",
+            filename=receipt.file_name, as_attachment=not inline,
+        )
         response["Content-Length"] = path.stat().st_size
         response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "sandbox"
+        response["Cache-Control"] = "private, no-store"
         return response
 
     @extend_schema(summary="Settle the budget once spend and evidence are complete")
@@ -416,7 +432,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
 
 
 class EnvelopeSetSerializer(serializers.Serializer):
-    year = serializers.IntegerField(min_value=2000, max_value=2100)
+    year = serializers.IntegerField(min_value=services.ENVELOPE_YEAR_MIN,
+                                    max_value=services.ENVELOPE_YEAR_MAX)
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
 
 
@@ -449,14 +466,9 @@ class EnvelopeView(APIView):
 
     def _year(self, request):
         raw = request.query_params.get("year")
-        if not raw:
-            return timezone.localdate().year
-        try:
-            return int(raw)
-        except ValueError:
-            raise ProblemDetail(code="VALIDATION_FAILED", title="Validation failed",
-                                status_code=422, detail="year must be a number.",
-                                errors=[{"field": "year", "code": "INVALID", "message": raw}])
+        if raw is None or raw == "":
+            return services.current_envelope_year()
+        return services.validate_envelope_year(raw)
 
     @extend_schema(responses=EnvelopeOutSerializer,
                    summary="Annual envelope and utilisation for one club")

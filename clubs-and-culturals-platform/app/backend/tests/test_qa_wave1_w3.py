@@ -82,7 +82,9 @@ class DelegationQaTests(TestCase):
                          .status_code, 201)
         self.dean.global_roles = []
         self.dean.save(update_fields=["global_roles"])
-        response = self.decide("deputy@college.edu", approval)
+        # Rework F1(b): an is_staff account is challenged for MFA at login, so the
+        # deputy logs in with a code; the refusal under test is the decision's.
+        response = self.decide("deputy@college.edu", approval, mfa_code="1")
         self.assertNotEqual(response.status_code, 200,
                             "deputy still approves for a principal who lost the Dean role")
 
@@ -102,7 +104,9 @@ class EnvelopeQaTests(TestCase):
             response = self.client.get(f"/api/v1/budget/envelopes/{self.club.id}",
                                        {"year": year})
             self.assertEqual(response.status_code, 422, (year, response.status_code))
-            self.assertEqual(response.data["code"], "VALIDATION_FAILED")
+            # Rework F4: the bound has its own code so a client can tell "bad
+            # year" from a generic validation failure.
+            self.assertEqual(response.data["code"], "BUDGET_ENVELOPE_YEAR")
 
 
 SVG = b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
@@ -128,14 +132,21 @@ class ReceiptFileQaTests(TestCase):
         """
         from django.core.files.uploadedfile import SimpleUploadedFile
 
+        from budget import services as budget_services
+
         f.as_user(self.client, "treas@college.edu")
         created = self.client.post(
             f"/api/v1/budget/budgets/{self.budget.id}/lines/{self.line.id}/receipts",
             {"file": SimpleUploadedFile("bill.svg", SVG, content_type="image/svg+xml")},
             format="multipart")
-        self.assertEqual(created.status_code, 201, created.data)
+        # Rework F3: the exact allowlist refuses the SVG at upload. The serving
+        # rule is proved on a row stored before the allowlist was exact.
+        self.assertEqual(created.status_code, 422, created.data)
+        self.assertEqual(created.data["code"], "BUDGET_RECEIPT_TYPE")
+        old = budget_services.attach_receipt(self.line, file_name="bill.svg", content=SVG,
+                                             content_type="image/svg+xml")
         response = self.client.get(f"/api/v1/budget/budgets/{self.budget.id}/lines/"
-                                   f"{self.line.id}/receipts/{created.data['id']}/file")
+                                   f"{self.line.id}/receipts/{old.id}/file")
         self.assertEqual(response.status_code, 200)
         disposition = response["Content-Disposition"]
         self.assertTrue(disposition.startswith("attachment")

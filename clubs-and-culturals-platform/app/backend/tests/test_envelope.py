@@ -168,6 +168,53 @@ class EnvelopeTests(TestCase):
     def test_a_plain_member_setting_it_is_404_not_403(self):
         self.assertEqual(self.put("member@college.edu", 100000).status_code, 404)
 
+    # ---- the year ---------------------------------------------------------
+    def test_an_out_of_range_or_unreadable_year_is_422_not_500(self):
+        """QA F4. `?year=10000` must never reach a datetime the database cannot build."""
+        f.as_user(self.client, "treas@college.edu")
+        for raw in ("10000", "0", "1999", "2101", "abc", "20.5"):
+            response = self.client.get(f"/api/v1/budget/envelopes/{self.club.id}", {"year": raw})
+            self.assertEqual(response.status_code, 422, raw)
+            self.assertEqual(response.data["code"], "BUDGET_ENVELOPE_YEAR", raw)
+        for raw in ("2000", "2100", str(self.year)):
+            response = self.client.get(f"/api/v1/budget/envelopes/{self.club.id}", {"year": raw})
+            self.assertEqual(response.status_code, 200, raw)
+            self.assertEqual(response.data["year"], int(raw))
+
+    def test_the_year_is_read_in_the_display_time_zone(self):
+        """
+        QA F6 / decision E-11: calendar year in DISPLAY_TIME_ZONE. An event at
+        00:30 IST on 1 January is 19:00 UTC on 31 December; it belongs to the
+        new year's envelope, both in the summary and on the budget's block.
+        """
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        ist = ZoneInfo("Asia/Kolkata")
+        target = self.year + 1
+        starts = datetime(target, 1, 1, 0, 30, tzinfo=ist)
+        self.assertEqual(starts.astimezone(ZoneInfo("UTC")).year, target - 1)
+        event = f.event(self.club, self.venue, title="New Year Gig", days=1,
+                        status=EventStatus.PUBLISHED)
+        event.starts_at, event.ends_at = starts, starts + timedelta(hours=2)
+        event.save(update_fields=["starts_at", "ends_at"])
+        budget = f.budget(event, amounts=(2500,))
+        for line in budget.lines.all():
+            line.amount_sanctioned = line.amount_requested
+            line.save()
+        budget.stage = BudgetStage.SANCTIONED
+        budget.save()
+
+        self.assertEqual(budget_services.envelope_summary(self.club.id, target)
+                         ["sanctioned_to_date"], Decimal("2500.00"))
+        self.assertEqual(budget_services.envelope_summary(self.club.id, target - 1)
+                         ["sanctioned_to_date"], Decimal("13000.00"),
+                         "this year's figure is unchanged by the 1 January event")
+        f.as_user(self.client, "treas@college.edu")
+        detail = self.client.get(f"/api/v1/budget/budgets/{budget.id}").data
+        self.assertEqual(detail["envelope"]["year"], target)
+        self.assertEqual(detail["envelope"]["sanctioned_to_date"], "2500.00")
+
     # ---- on the budget list ---------------------------------------------
     def test_the_budget_list_carries_the_envelope_for_officers(self):
         self.put("dean@college.edu", 100000, mfa_code="1")

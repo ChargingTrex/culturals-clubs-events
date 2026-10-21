@@ -2,6 +2,7 @@
 Budget seeding from a template, and settlement.
 """
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import models, transaction
@@ -214,6 +215,18 @@ def withdraw_nil(budget, *, actor):
     return _clear_nil(budget)
 
 
+# PRD §5.19.4: phone photographs and PDF invoices. Exact types, not `image/*`:
+# an SVG is an image by media type and a script by content, and a receipt
+# served inline on the API origin must never be able to run one.
+RECEIPT_CONTENT_TYPES = (
+    "application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic",
+)
+
+
+def is_allowed_receipt_type(content_type):
+    return (content_type or "").split(";")[0].strip().lower() in RECEIPT_CONTENT_TYPES
+
+
 def attach_receipt(line, *, file_name, content, content_type, amount=None,
                    uploaded_by_sub=None, supersedes=None, vendor="", document_date=None):
     """
@@ -361,6 +374,50 @@ def receipt_location(receipt):
 # --------------------------------------------------------------------------
 COUNTS_AGAINST_ENVELOPE = (BudgetStage.SANCTIONED, BudgetStage.SETTLED)
 
+# Envelope years are calendar years; the bounds match EnvelopeSetSerializer and
+# keep a `?year=` from reaching a datetime the database cannot build.
+ENVELOPE_YEAR_MIN, ENVELOPE_YEAR_MAX = 2000, 2100
+
+
+def display_tz():
+    return ZoneInfo(settings.DISPLAY_TIME_ZONE)
+
+
+def envelope_year_of(starts_at):
+    """
+    The envelope year an event draws on: the calendar year of its start, read
+    in DISPLAY_TIME_ZONE. Storage is UTC (AGENT_PROMPT §4), and an event at
+    00:30 IST on 1 January is 19:00 UTC on 31 December — the institution's
+    calendar, not the server's, decides which year that is.
+
+    Decision E-11 (docs/CHECKLIST.md): calendar year, in DISPLAY_TIME_ZONE. An
+    academic-year envelope (Jul–Jun, derivable from `Semester`) would be the
+    more natural fit for PRD §5.7.3 and needs a product decision; when it is
+    taken, this function and `current_envelope_year` are the only two places
+    that define the year.
+    """
+    return timezone.localtime(starts_at, display_tz()).year
+
+
+def current_envelope_year():
+    return timezone.localtime(timezone.now(), display_tz()).year
+
+
+def validate_envelope_year(raw):
+    """A year from the query string: an int within the supported range, or 422."""
+    try:
+        year = int(str(raw).strip())
+    except (TypeError, ValueError):
+        year = None
+    if year is None or not ENVELOPE_YEAR_MIN <= year <= ENVELOPE_YEAR_MAX:
+        raise Unprocessable(
+            code="BUDGET_ENVELOPE_YEAR", title="Year out of range",
+            detail=f"year must be a whole number between {ENVELOPE_YEAR_MIN} and "
+                   f"{ENVELOPE_YEAR_MAX}.",
+            errors=[{"field": "year", "code": "OUT_OF_RANGE", "message": str(raw)}],
+        )
+    return year
+
 
 def envelope_summary(club_id, year):
     """
@@ -368,20 +425,33 @@ def envelope_summary(club_id, year):
 
     `sanctioned_to_date` is the sum of `amount_sanctioned` over the club's
     budgets in stage sanctioned or settled, for events (or fests) starting in
-    that calendar year. Budgets still under review, returned or rejected do not
-    count: nothing has been committed. `settled_to_date` is the actual spend
-    recorded on the settled ones. `remaining` = amount − sanctioned_to_date,
-    or None when no envelope has been set for the year.
+    that calendar year, read in DISPLAY_TIME_ZONE (see `envelope_year_of`).
+    Budgets still under review, returned or rejected do not count: nothing has
+    been committed. `settled_to_date` is the actual spend recorded on the
+    settled ones. `remaining` = amount − sanctioned_to_date, or None when no
+    envelope has been set for the year.
+
+    Fest-level budgets count today. Once fest sub-events exist (PRD §5.15.4:
+    "a single envelope, with sub-event heads drawing against it"), a sub-event
+    budget whose fest has its own sanctioned budget must be excluded here or it
+    is counted twice (QA F7).
     """
     envelope = ClubBudgetEnvelope.objects.filter(club_id=club_id, year=year).first()
-    lines = BudgetLine.objects.filter(
-        models.Q(budget__event__club_id=club_id, budget__event__starts_at__year=year)
-        | models.Q(budget__fest__club_id=club_id, budget__fest__starts_on__year=year),
-        budget__stage__in=COUNTS_AGAINST_ENVELOPE,
-    )
-    sanctioned = lines.aggregate(s=models.Sum("amount_sanctioned"))["s"] or Decimal("0")
-    settled = (lines.filter(budget__stage=BudgetStage.SETTLED)
-               .aggregate(s=models.Sum("amount_spent"))["s"] or Decimal("0"))
+    # `__year` on an aware DateTimeField is evaluated in the *current* time
+    # zone, so the lookup is run under DISPLAY_TIME_ZONE to agree with
+    # `envelope_year_of`.
+    with timezone.override(display_tz()):
+        totals = BudgetLine.objects.filter(
+            models.Q(budget__event__club_id=club_id, budget__event__starts_at__year=year)
+            | models.Q(budget__fest__club_id=club_id, budget__fest__starts_on__year=year),
+            budget__stage__in=COUNTS_AGAINST_ENVELOPE,
+        ).aggregate(
+            sanctioned=models.Sum("amount_sanctioned"),
+            settled=models.Sum("amount_spent",
+                               filter=models.Q(budget__stage=BudgetStage.SETTLED)),
+        )
+    sanctioned = totals["sanctioned"] or Decimal("0")
+    settled = totals["settled"] or Decimal("0")
     amount = envelope.amount if envelope else None
     return {
         "club_id": str(club_id),

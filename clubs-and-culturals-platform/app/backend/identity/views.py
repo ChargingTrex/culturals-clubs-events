@@ -95,8 +95,17 @@ class LoginView(APIView):
 
         # §5.5: MFA is mandatory for staff roles. It is enforced at login, and
         # separately at the point of a sensitive action via the `mfa` claim.
-        needs_mfa = any(
-            R.split_role(r)[0] in R.MFA_REQUIRED_ROLES for r in (user.global_roles or [])
+        # The same demand applies to any `is_staff` account and to anyone
+        # currently covering an approval gate under a Delegation (MASTER_SPEC
+        # §11.3): a delegated decision always needs the claim, so the login that
+        # issues it has to run the challenge for them too.
+        from governance.models import Delegation
+
+        needs_mfa = (
+            bool(user.is_staff)
+            or any(R.split_role(r)[0] in R.MFA_REQUIRED_ROLES
+                   for r in (user.global_roles or []))
+            or Delegation.objects.in_force().filter(delegate_user=user).exists()
         )
         supplied = (data.validated_data.get("mfa_code") or "").strip()
         if needs_mfa and not supplied:

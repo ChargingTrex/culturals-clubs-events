@@ -174,15 +174,20 @@ class ApprovalViewSet(viewsets.GenericViewSet):
     def queue(self, request):
         ctx = request.auth_context
         escalated_only = request.query_params.get("escalated") in ("1", "true")
-        pending = services.pending_for(ctx, escalated=escalated_only)
+        # One delegation lookup per request; the serializer's `my_stage` reads
+        # the same set through the shared context.
+        delegated = services.delegated_stages_for(ctx)
+        held = services.held_stages(ctx, delegated=delegated)
+        pending = services.pending_for(ctx, escalated=escalated_only, held=held)
         return Response({
-            "stages_you_hold": services.held_stages(ctx),
-            "stages_delegated_to_you": services.delegated_stages_for(ctx),
+            "stages_you_hold": held,
+            "stages_delegated_to_you": delegated,
             "sla_hours": settings.APPROVAL_SLA_HOURS,
             "escalated_only": escalated_only,
             "count": pending.count(),
-            "results": ApprovalRequestSerializer(pending, many=True,
-                                                 context={"request": request}).data,
+            "results": ApprovalRequestSerializer(
+                pending, many=True,
+                context={"request": request, "_held_stages": set(held)}).data,
         })
 
     @extend_schema(request=DecideSerializer, summary="Approve, return or reject")

@@ -61,7 +61,7 @@ class DelegationTests(TestCase):
             body["principal_user"] = str(principal.id)
         return self.client.post("/api/v1/governance/delegations", body, format="json")
 
-    def decide(self, email, decision="approve", approval=None, mfa_code=""):
+    def decide(self, email, decision="approve", approval=None, mfa_code="123456"):
         f.as_user(self.client, email, mfa_code=mfa_code)
         approval = approval or self.approval
         return self.client.post(f"/api/v1/governance/approvals/{approval.id}/decide",
@@ -98,7 +98,7 @@ class DelegationTests(TestCase):
 
     def test_the_delegate_sees_the_request_in_their_queue(self):
         self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
-        f.as_user(self.client, "deputy@college.edu")
+        f.as_user(self.client, "deputy@college.edu", mfa_code="123456")
         queue = self.client.get("/api/v1/governance/approvals/queue").data
         self.assertEqual(queue["count"], 1)
         self.assertEqual(queue["stages_you_hold"], ["cultural_society"])
@@ -160,7 +160,7 @@ class DelegationTests(TestCase):
 
     def test_the_delegate_cannot_revoke_what_was_given_to_them(self):
         created = self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
-        f.as_user(self.client, "deputy@college.edu")
+        f.as_user(self.client, "deputy@college.edu", mfa_code="123456")
         response = self.client.post(
             f"/api/v1/governance/delegations/{created.data['id']}/revoke", {}, format="json")
         self.assertEqual(response.status_code, 403)
@@ -180,20 +180,114 @@ class DelegationTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["code"], "GOVERNANCE_SELF_APPROVAL")
 
-    def test_the_mfa_rule_is_unchanged_for_a_delegate(self):
-        """Above the threshold the delegate's own session needs the mfa claim."""
+    def test_every_delegated_decision_needs_mfa_whatever_the_stage_or_amount(self):
+        """
+        QA F1. The principal's role is MFA-mandatory at login (§5.5); cover must
+        not be a weaker path to the gate. Below threshold, and even for a return,
+        a delegate without the claim is refused.
+        """
+        self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
+        for decision, comment in (("approve", ""), ("return", "Trim the sound budget.")):
+            with self.assertRaises(Exception) as caught:
+                governance.decide(self.approval, ctx=f.ctx_for(self.deputy, mfa=False),
+                                  decision=decision, comment=comment)
+            self.assertEqual(getattr(caught.exception, "code", ""),
+                             "GOVERNANCE_MFA_REQUIRED", decision)
+        step = governance.decide(self.approval, ctx=f.ctx_for(self.deputy, mfa=True),
+                                 decision="approve")
+        self.assertEqual(step.on_behalf_of, self.society)
+        self.assertTrue(step.mfa_verified)
+
+    def test_login_runs_the_mfa_challenge_for_a_delegate_and_issues_the_claim(self):
+        """
+        QA F1. Login used to issue `mfa=True` only to MFA_REQUIRED_ROLES, so a
+        deputy could never clear a gate through the API. Anyone covering a gate
+        — or any is_staff account — is challenged like a role holder.
+        """
+        login = lambda code: self.client.post(  # noqa: E731
+            "/api/v1/module/auth/login",
+            {"email": "deputy@college.edu", "password": f.PASSWORD, "mfa_code": code},
+            format="json")
+        before = login("")
+        self.assertEqual(before.status_code, 200, "no delegation yet: an ordinary account")
+        self.assertFalse(before.data["claims"]["mfa"])
+
+        self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
+        refused = login("")
+        self.assertEqual(refused.status_code, 401)
+        self.assertEqual(refused.data["code"], "AUTH_MFA_REQUIRED")
+        issued = login("123456")
+        self.assertEqual(issued.status_code, 200)
+        self.assertTrue(issued.data["claims"]["mfa"])
+
+        staff = f.user("staff@college.edu", name="Staff")
+        staff.is_staff = True
+        staff.save(update_fields=["is_staff"])
+        response = self.client.post("/api/v1/module/auth/login",
+                                    {"email": "staff@college.edu", "password": f.PASSWORD},
+                                    format="json")
+        self.assertEqual(response.status_code, 401, "is_staff is challenged too")
+
+    def test_a_vc_delegate_clears_the_gate_through_the_api(self):
+        """QA F1, end to end: staff deputy, VC delegation, real login, real decide."""
         big = f.event(self.club, f.venue("Open Air Theatre", 1000), title="Culturals Night",
                       days=30, expected=700)
         f.budget(big, amounts=(80000,))
         approval = governance.submit(big, actor=f.ctx_for(self.president.user))
-        self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
+        self.assertEqual(self.decide("society@college.edu", approval=approval).status_code, 200)
+        self.assertEqual(self.decide("dean@college.edu", approval=approval).status_code, 200)
+        self.deputy.is_staff = True
+        self.deputy.save(update_fields=["is_staff"])
+        self.assertEqual(self.delegate("vc@college.edu", stage="vc", to=self.deputy)
+                         .status_code, 201)
+        response = self.decide("deputy@college.edu", approval=approval)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["step"]["on_behalf_of_label"], "VC")
+        self.assertTrue(response.data["step"]["mfa_verified"])
+
+    def test_a_window_longer_than_the_maximum_is_refused(self):
+        """QA F1(c). Cover is for an absence; a longer grant is a role change."""
+        with self.settings(DELEGATION_MAX_DAYS=30):
+            response = self.delegate("dean@college.edu", stage="dean", to=self.deputy,
+                                     start_hours=0, end_hours=31 * 24)
+            self.assertEqual(response.status_code, 422)
+            self.assertEqual(response.data["code"], "GOVERNANCE_DELEGATION_TOO_LONG")
+            ok = self.delegate("dean@college.edu", stage="dean", to=self.deputy,
+                               start_hours=0, end_hours=30 * 24)
+            self.assertEqual(ok.status_code, 201, ok.data)
+
+    def test_a_delegation_is_inert_once_the_principal_loses_the_role(self):
+        """
+        QA F2. Cover is for a gate the principal holds now. The Society bearer is
+        replaced on day 3: the deputy can no longer decide, sees no queue, is not
+        notified, and the delegation drops out of the active list — no revoke
+        needed.
+        """
+        created = self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
+        self.society.global_roles = []
+        self.society.save(update_fields=["global_roles"])
+
+        self.assertEqual(self.decide("deputy@college.edu").status_code, 404)
         with self.assertRaises(Exception) as caught:
-            governance.decide(approval, ctx=f.ctx_for(self.deputy, mfa=False),
+            governance.decide(self.approval, ctx=f.ctx_for(self.deputy, mfa=True),
                               decision="approve")
-        self.assertEqual(getattr(caught.exception, "code", ""), "GOVERNANCE_MFA_REQUIRED")
-        step = governance.decide(approval, ctx=f.ctx_for(self.deputy, mfa=True),
-                                 decision="approve")
-        self.assertEqual(step.on_behalf_of, self.society)
+        self.assertEqual(getattr(caught.exception, "code", ""), "GOVERNANCE_NOT_APPROVER")
+
+        f.as_user(self.client, "deputy@college.edu")   # no MFA demand: nothing is covered
+        queue = self.client.get("/api/v1/governance/approvals/queue").data
+        self.assertEqual(queue["count"], 0)
+        self.assertEqual(queue["stages_delegated_to_you"], [])
+        listed = self.client.get("/api/v1/governance/delegations", {"active": "true"}).data
+        self.assertEqual(listed["count"], 0)
+        self.assertEqual(self.client.get("/api/v1/governance/delegations").data["count"], 1,
+                         "the record itself is kept")
+
+        another = f.event(self.club, self.venue, title="Later", days=12)
+        f.budget(another, amounts=(1000,))
+        governance.submit(another, actor=f.ctx_for(self.president.user))
+        self.assertFalse(Notification.objects.filter(user=self.deputy, kind="approval.pending",
+                                                     subject__contains="Later").exists())
+        self.assertFalse(governance.escalated_requests().filter(pk=created.data["id"]).exists())
 
     def test_a_delegate_at_a_later_stage_is_told_it_is_not_their_turn(self):
         self.delegate("dean@college.edu", stage="dean", to=self.deputy)
@@ -242,6 +336,17 @@ class DelegationTests(TestCase):
         self.assertEqual(refused.status_code, 422)
         self.assertEqual(refused.data["code"], "GOVERNANCE_DELEGATE_NOT_STAFF")
 
+        # QA F5: Cultural Society bearers are students here (PRD §4); that role
+        # does not make an account staff for the Vice-Chancellor's gate.
+        secretary = f.student("sec@college.edu", prn="23CS1077", name="Cultural Sec")
+        secretary.user.global_roles = [R.STUDENT, R.CULTURAL_SOCIETY]
+        secretary.user.save(update_fields=["global_roles"])
+        refused = self.delegate("vc@college.edu", stage="vc", to=secretary.user)
+        self.assertEqual(refused.status_code, 422)
+        self.assertEqual(refused.data["code"], "GOVERNANCE_DELEGATE_NOT_STAFF")
+        allowed = self.delegate("vc@college.edu", stage="vc", to=self.dean)
+        self.assertEqual(allowed.status_code, 201, "the Dean role counts as staff")
+
         self.deputy.is_staff = True
         self.deputy.save(update_fields=["is_staff"])
         allowed = self.delegate("vc@college.edu", stage="vc", to=self.deputy)
@@ -277,7 +382,7 @@ class DelegationTests(TestCase):
         self.delegate("society@college.edu", stage="cultural_society", to=self.deputy)
         self.delegate("dean@college.edu", stage="dean", to=self.vc)
 
-        f.as_user(self.client, "deputy@college.edu")
+        f.as_user(self.client, "deputy@college.edu", mfa_code="123456")
         self.assertEqual(self.client.get("/api/v1/governance/delegations").data["count"], 1)
         f.as_user(self.client, "dean@college.edu", mfa_code="1")
         self.assertEqual(self.client.get("/api/v1/governance/delegations").data["count"], 1)
