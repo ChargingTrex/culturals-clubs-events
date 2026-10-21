@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "budget",
     "governance",
     "feedback",
+    "jobs",
 ]
 
 MIDDLEWARE = [
@@ -263,6 +264,11 @@ CELERY_BROKER_URL = _env("CELERY_BROKER_URL", "redis://localhost:6379/0")
 # Serverless test hosting has no worker, so tasks run inline there
 # (CELERY_TASK_ALWAYS_EAGER=1). Default keeps the old behaviour: eager in DEBUG.
 CELERY_TASK_ALWAYS_EAGER = _env_bool("CELERY_TASK_ALWAYS_EAGER", DEBUG)
+
+# Shared secret for `POST /api/v1/jobs/<name>` (Vercel Cron; COMPLETION_PLAN §2).
+# Empty disables the HTTP triggers outright (503): a host that forgot to set it
+# cannot be made to run jobs by anyone. Set it to Vercel's CRON_SECRET.
+JOBS_TOKEN = _env("JOBS_TOKEN", "")
 
 LOGGING = {
     "version": 1,

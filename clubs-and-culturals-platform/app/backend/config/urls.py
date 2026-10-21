@@ -33,6 +33,7 @@ urlpatterns = [
     path(API + "governance/", include("governance.urls")),
     path(API + "reporting/", include("reporting.urls")),
     path(API + "feedback/", include("feedback.urls")),
+    path(API + "jobs/", include("jobs.urls")),
 
     # The module's own identity routes, deliberately NOT /api/v1/auth.
     path(API + "module/", include("identity.urls")),
