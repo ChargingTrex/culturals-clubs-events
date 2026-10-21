@@ -23,3 +23,6 @@ graphify-out/cache/
 
 # web-app has its own git repository and CI; tracked there, not here
 web-app/
+clubs-and-culturals-platform/app/backend/staticfiles/
+clubs-and-culturals-platform/app/backend/staticfiles_build/
+clubs-and-culturals-platform/app/backend/config/settings_ci.py
