@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>This semester — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, esc } from "./demo.js";
+await page("dean-overview.html", async main => {
+  const o = await api("/reporting/reports/overview");
+  const maxU = Math.max(1, ...o.venue_use.map(v => v.bookings));
+  main.innerHTML = `
+    <div class="head"><div><h1>This semester</h1>
+      <p class="muted">${esc(o.semester)}. Running totals, and what needs chasing.</p></div></div>
+    <div class="grid3">
+      <div class="panel"><h3>${o.pending_approvals} approvals waiting</h3>
+        <p class="small muted">${Object.entries(o.pending_by_stage).map(([s, n]) =>
+          `${n} at ${esc(s.replace("_", " "))}`).join(" · ") || "none"}</p></div>
+      <div class="panel"><h3>${o.venue_clashes} venue clash${o.venue_clashes === 1 ? "" : "es"}</h3>
+        <p class="small muted">Resolve under Venues</p></div>
+      <div class="panel"><h3>${o.clubs_active} of ${o.clubs_total} clubs active</h3>
+        <p class="small muted">${o.clubs_inactive.map(esc).join(", ") || "All active"}</p></div></div>
+    <div class="grid2" style="margin-top:18px;align-items:start">
+      <div class="panel"><h3>Completed events missing evidence</h3>
+        <ul class="list" style="margin-top:8px">${o.missing_evidence.map(e =>
+          `<li class="small">${esc(e.title)} <span class="muted">— ${e.missing.join(", ")}</span></li>`).join("")
+          || `<li class="small muted">Nothing outstanding</li>`}</ul></div>
+      <div class="panel"><h3>Venue use</h3><div style="margin-top:10px">${o.venue_use.map(v =>
+        `<div class="bar"><span class="small">${esc(v.venue__name)}</span>
+          <div class="meter"><i style="width:${v.bookings / maxU * 100}%"></i></div>
+          <em>${v.bookings}</em></div>`).join("")}</div></div></div>
+    <div class="panel" style="margin-top:18px"><h3>Door reliability</h3>
+      <p class="small muted" style="margin-top:6px">${o.capture.scans_accepted} accepted of
+        ${o.capture.scan_attempts} attempts — capture rate
+        <strong>${o.capture.capture_rate ?? "—"}</strong>. Every figure on this page
+        derives from attendance, so a poor rate is a warning about the figures
+        themselves, not just the doors.</p></div>`;
+});
+</script></body></html>

@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile QR — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, me, esc } from "./demo.js";
+await page("student-profile.html", async main => {
+  const [d, who] = await Promise.all([api("/participation/my-passes"), me()]);
+  const q = d.profile_qr;
+  main.innerHTML = `
+    <div class="head"><div><h1>${esc(who.display_name)}</h1>
+      <p class="muted">${esc(who.prn || "")} · ${esc(who.programme || "")} ·
+        Year ${who.year ?? "—"}</p></div></div>
+    <div class="grid2">
+      <div class="panel" style="text-align:center">
+        <div class="qr-big bright">${q ? `<img src="${q.image}" alt="Profile QR" width="220" height="220">` : ""}</div>
+        <p style="margin-top:14px;font-weight:600">Your profile QR ${q ? `· v${q.version}` : ""}</p>
+        <p class="small muted">Works at any event, including walk-ins.</p>
+        <button class="btn" id="reissue" style="margin-top:12px">Lost your phone? Reissue</button>
+      </div>
+      <div class="stack">
+        <div class="note">${esc(d.note)}</div>
+        <div class="panel"><h3>Passes held</h3>
+          <p class="muted small" style="margin-top:4px">${d.passes.length} active</p>
+          <ul class="list" style="margin-top:10px">${d.passes.map(p =>
+            `<li class="small">${esc(p.title)} ${p.attended ? `<span class="pill ok">in</span>` : ""}</li>`
+          ).join("") || `<li class="small muted">None</li>`}</ul></div>
+        ${q ? `<p class="tok">${esc(q.token)}</p>` : ""}
+      </div></div>`;
+  document.getElementById("reissue").addEventListener("click", async e => {
+    e.target.disabled = true;
+    await api("/participation/my-passes", { method: "POST" });
+    location.reload();
+  });
+});
+</script></body></html>

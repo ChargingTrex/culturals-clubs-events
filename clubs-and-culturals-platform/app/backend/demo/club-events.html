@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Club events — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, me, esc, inr, dateBox, statusPill, fmtTime } from "./demo.js";
+await page("club-events.html", async main => {
+  const caps = (await me()).capabilities;
+  if (!caps.clubs.length) throw Object.assign(new Error("You hold no club role."), { status: 403, title: "No club" });
+  const d = await api(`/events?club=${caps.clubs[0]}&ordering=-starts_at`);
+  const canOperate = caps.clubs_can_operate_events.includes(caps.clubs[0]);
+  main.innerHTML = `
+    <div class="head"><div><h1>Club events</h1>
+      <p class="muted">Every event closes with photos, the post link, and actual spend.</p></div></div>
+    <ul class="list">${d.results.map(e => `
+      <li class="event">${dateBox(e.starts_at)}
+        <div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
+          <p class="small muted">${e.attended} attended · ${e.registered} registered ·
+            ${e.photo_count} photos · ${e.social_links.length ? "post linked" : "no post link yet"}
+            ${e.budget ? ` · ${inr(e.budget.total_requested)} requested (${esc(e.budget.stage_label)})` : ""}</p>
+        </div>
+        <div class="row end">
+          ${["draft","returned"].includes(e.status) ? `<a class="btn primary" href="club-budget.html">Add budget</a>` : ""}
+          ${e.status === "live" ? `<a class="btn primary" href="organiser-scan.html">Scan station</a>` : ""}
+          ${canOperate && e.status === "published" ? `<button class="btn" data-live="${e.id}">Go live</button>` : ""}
+          ${canOperate && ["live","published"].includes(e.status) ? `<button class="btn" data-close="${e.id}">Close</button>` : ""}
+        </div></li>`).join("") || `<li class="empty">No events yet.</li>`}</ul>
+    ${canOperate ? "" : `<p class="note" style="margin-top:16px">You can raise proposals but not
+      run events — marking live and closing sit with the President, Vice-President and
+      Secretary. The same rule is checked server-side.</p>`}`;
+  main.addEventListener("click", async ev => {
+    const t = ev.target.closest("[data-live],[data-close]"); if (!t) return;
+    const { showError } = await import("./demo.js");
+    try {
+      if (t.dataset.live) await api(`/events/${t.dataset.live}/go-live`, { method: "POST" });
+      else {
+        const n = prompt("How many photos were uploaded?", "6");
+        if (n === null) return;
+        await api(`/events/${t.dataset.close}/close`,
+          { method: "POST", body: JSON.stringify({ photo_count: Number(n) || 0, social_links: [] }) });
+      }
+      location.reload();
+    } catch (err) { const b = document.createElement("div"); main.prepend(b); showError(b, err); }
+  });
+});
+</script></body></html>

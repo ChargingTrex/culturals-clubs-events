@@ -1,0 +1,143 @@
+# Backend CI (CHECKLIST A-04) plus the web-app reference suites.
+#
+# Backend job, against a real Postgres 16 (the venue exclusion constraint and
+# the partial unique indexes are Postgres-only, so SQLite would hide drift):
+#   1. makemigrations --check   -> every model change has a migration
+#   2. migrate                  -> a clean migrate succeeds on Postgres
+#   3. manage.py test           -> suite on Postgres (settings_ci shim) and on
+#                                  SQLite (settings_test, the developer default)
+#   4. spectacular              -> schema generates; NOT --fail-on-warn yet
+#                                  (CHECKLIST B-09 removes the 92 errors first)
+name: backend-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BACKEND_DIR: clubs-and-culturals-platform/app/backend
+
+jobs:
+  backend:
+    name: Django (Postgres 16)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clubs-and-culturals-platform/app/backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: culturals
+          POSTGRES_PASSWORD: culturals
+          POSTGRES_DB: culturals
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U culturals"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://culturals:culturals@localhost:5432/culturals
+      DJANGO_SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      CELERY_TASK_ALWAYS_EAGER: "1"
+      DEMO_MODE: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: clubs-and-culturals-platform/app/backend/requirements.txt
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Migrations are complete (makemigrations --check)
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Clean migrate on Postgres
+        run: python manage.py migrate --noinput
+
+      - name: Test suite on Postgres
+        # settings_test pins SQLite :memory: on purpose (developer default), so
+        # the Postgres run goes through a two-line shim that keeps every other
+        # test setting and takes DATABASES from DATABASE_URL.
+        run: |
+          cat > config/settings_ci.py <<'PY'
+          from config.settings_test import *  # noqa: F401,F403
+          from config.settings import DATABASES  # noqa: F401  (DATABASE_URL -> Postgres)
+          PY
+          python manage.py test tests --settings=config.settings_ci --noinput
+
+      - name: Test suite on SQLite (settings_test)
+        run: python manage.py test tests --settings=config.settings_test --noinput
+
+      - name: OpenAPI schema generates
+        # Warnings/errors are printed but do not fail the job until B-09 lands;
+        # then add --fail-on-warn here.
+        run: |
+          python manage.py spectacular --file /tmp/schema.yaml
+          wc -l /tmp/schema.yaml
+
+      - name: Deployment checks (DEBUG=0 settings load)
+        env:
+          DJANGO_DEBUG: "0"
+          DJANGO_ALLOWED_HOSTS: example.vercel.app
+          QR_SIGNING_KEYS: v1:ci-only-qr-signing-key-at-least-32-bytes-long
+          QR_ACTIVE_KEY_ID: v1
+          CSRF_TRUSTED_ORIGINS: https://example.vercel.app
+        run: python manage.py check --deploy --fail-level ERROR
+
+      - name: Vercel entry point imports
+        env:
+          DJANGO_DEBUG: "0"
+          DJANGO_ALLOWED_HOSTS: example.vercel.app
+          QR_SIGNING_KEYS: v1:ci-only-qr-signing-key-at-least-32-bytes-long
+        run: python -c "import api.index as m; assert callable(m.app), 'api.index.app is not a WSGI callable'; print('api.index.app ok')"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: openapi-schema
+          path: /tmp/schema.yaml
+          if-no-files-found: ignore
+
+  web-app:
+    name: web-app reference suites
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: web-app is present in this checkout
+        # web-app/ has its own .git; if it was committed as a bare gitlink
+        # the checkout is empty here. Fail loudly instead of "0 tests".
+        run: |
+          if [ ! -f tests/smoke.mjs ]; then
+            echo "::error::web-app/tests/smoke.mjs missing - web-app was committed as an embedded repo (gitlink). Remove web-app/.git or add it as a submodule."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Smoke test (wiring, pages, per-role page offers)
+        run: node tests/smoke.mjs
+
+      - name: End-to-end (workflow and role boundaries)
+        run: node tests/run.mjs

@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What's on — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, esc, inr, dateBox, statusPill, fmtTime } from "./demo.js";
+await page("student-events.html", async main => {
+  const d = await api("/events?status=published,live&ordering=starts_at");
+  const render = evs => `
+    <div class="head"><div><h1>What\x27s on</h1>
+      <p class="muted">Register once and your pass appears under My passes.</p></div></div>
+    ${evs.length ? `<ul class="list">${evs.map(e => `
+      <li class="event">${dateBox(e.starts_at)}
+        <div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
+          <p class="muted small">${esc(e.club_name)} · ${esc(e.venue_name)} ·
+            ${fmtTime(e.starts_at)}–${fmtTime(e.ends_at)}</p>
+          <div class="meter" style="margin-top:8px;max-width:260px">
+            <i style="width:${Math.min(100, e.registered / e.capacity * 100)}%"></i></div>
+          <p class="small muted" style="margin-top:4px">${e.registered} of ${e.capacity} places taken</p>
+        </div>
+        <div class="row end">${e.my_registration
+          ? `<a class="btn" href="student-passes.html">View pass</a>
+             <button class="btn quiet" data-cancel="${e.my_registration.id}">Cancel</button>`
+          : `<button class="btn primary" data-reg="${e.id}"
+               ${e.registered >= e.capacity ? "disabled" : ""}>
+               ${e.registered >= e.capacity ? "Full" : "Register"}</button>`}</div></li>`).join("")}</ul>`
+      : `<div class="empty">Nothing published yet.</div>`}`;
+  main.innerHTML = render(d.results);
+  main.addEventListener("click", async ev => {
+    const t = ev.target.closest("[data-reg],[data-cancel]"); if (!t) return;
+    t.disabled = true;
+    try {
+      if (t.dataset.reg) await api("/participation/registrations",
+        { method: "POST", body: JSON.stringify({ event: t.dataset.reg }) });
+      else await api(`/participation/registrations/${t.dataset.cancel}/cancel`, { method: "POST" });
+      location.reload();
+    } catch (err) {
+      t.disabled = false;
+      const { showError } = await import("./demo.js");
+      const box = document.createElement("div"); main.prepend(box); showError(box, err);
+    }
+  });
+});
+</script></body></html>

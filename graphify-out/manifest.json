@@ -1,0 +1,1190 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1792570804.110793,
+    "seen": 1792571832.694103,
+    "ast_hash": "4ea7bde659feaac95270e43ea0b301c7",
+    "semantic_hash": "4ea7bde659feaac95270e43ea0b301c7"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/__init__.py": {
+    "mtime": 1790144673.7892025,
+    "seen": 1792571832.69411,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/migrations/0001_initial.py": {
+    "mtime": 1790145804.4665258,
+    "seen": 1792571832.694114,
+    "ast_hash": "5fa02a9e758c735029084b0345239488",
+    "semantic_hash": "5fa02a9e758c735029084b0345239488"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/migrations/0002_initial.py": {
+    "mtime": 1790145804.2881172,
+    "seen": 1792571832.694117,
+    "ast_hash": "050d0eb233360933daffa3f739c0183d",
+    "semantic_hash": "050d0eb233360933daffa3f739c0183d"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/migrations/0003_budget_is_nil_budget_nil_declared_at_and_more.py": {
+    "mtime": 1790751937.8351374,
+    "seen": 1792571832.694119,
+    "ast_hash": "7734b2234fdc551cb3ece59a8937b9d4",
+    "semantic_hash": "7734b2234fdc551cb3ece59a8937b9d4"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/migrations/__init__.py": {
+    "mtime": 1790144673.7841687,
+    "seen": 1792571832.694121,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/models.py": {
+    "mtime": 1790879976.6325731,
+    "seen": 1792571832.694123,
+    "ast_hash": "14b7a893b59d7e2a82e1c0057f357b6b",
+    "semantic_hash": "14b7a893b59d7e2a82e1c0057f357b6b"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/services.py": {
+    "mtime": 1790879976.6339502,
+    "seen": 1792571832.694125,
+    "ast_hash": "f9e85ed8013c59ffd2638f9187312266",
+    "semantic_hash": "f9e85ed8013c59ffd2638f9187312266"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/urls.py": {
+    "mtime": 1790188502.5487235,
+    "seen": 1792571832.6941261,
+    "ast_hash": "900ff144f50c6df3bd55bb131abadbca",
+    "semantic_hash": "900ff144f50c6df3bd55bb131abadbca"
+  },
+  "clubs-and-culturals-platform/app/backend/budget/views.py": {
+    "mtime": 1790879976.635288,
+    "seen": 1792571832.694128,
+    "ast_hash": "5cdb84dcab6411a854e840873fca047a",
+    "semantic_hash": "5cdb84dcab6411a854e840873fca047a"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/__init__.py": {
+    "mtime": 1790144673.749457,
+    "seen": 1792571832.69413,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/migrations/0001_initial.py": {
+    "mtime": 1790145804.3637383,
+    "seen": 1792571832.6941319,
+    "ast_hash": "c5ceff65d2dda1abc73b148b0c392dbf",
+    "semantic_hash": "c5ceff65d2dda1abc73b148b0c392dbf"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/migrations/0002_initial.py": {
+    "mtime": 1790145804.1805112,
+    "seen": 1792571832.694133,
+    "ast_hash": "8e521833a2d43ac56d4680c8dc066d93",
+    "semantic_hash": "8e521833a2d43ac56d4680c8dc066d93"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/migrations/__init__.py": {
+    "mtime": 1790144673.7450027,
+    "seen": 1792571832.694135,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/models.py": {
+    "mtime": 1790145006.2573674,
+    "seen": 1792571832.694137,
+    "ast_hash": "32292c4e08735415b8264092d8539146",
+    "semantic_hash": "32292c4e08735415b8264092d8539146"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/serializers.py": {
+    "mtime": 1790145387.4460053,
+    "seen": 1792571832.694138,
+    "ast_hash": "fbfe12f7b93a410ae75b9e905a1a310f",
+    "semantic_hash": "fbfe12f7b93a410ae75b9e905a1a310f"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/urls.py": {
+    "mtime": 1790188502.5461237,
+    "seen": 1792571832.69414,
+    "ast_hash": "dd54605c9e1169f22a2635444932202d",
+    "semantic_hash": "dd54605c9e1169f22a2635444932202d"
+  },
+  "clubs-and-culturals-platform/app/backend/clubs/views.py": {
+    "mtime": 1790225314.5952199,
+    "seen": 1792571832.6941419,
+    "ast_hash": "0b8d1ff8c58eb1333477554b3771cdb7",
+    "semantic_hash": "0b8d1ff8c58eb1333477554b3771cdb7"
+  },
+  "clubs-and-culturals-platform/app/backend/common/__init__.py": {
+    "mtime": 1790144673.7098289,
+    "seen": 1792571832.694143,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/common/errors.py": {
+    "mtime": 1790144754.069158,
+    "seen": 1792571832.694145,
+    "ast_hash": "7eabc8db8adda51f447319c931770fd9",
+    "semantic_hash": "7eabc8db8adda51f447319c931770fd9"
+  },
+  "clubs-and-culturals-platform/app/backend/common/middleware.py": {
+    "mtime": 1790144754.0626132,
+    "seen": 1792571832.694147,
+    "ast_hash": "d4d5bdb9bf78b823de0fff5336a8e3e9",
+    "semantic_hash": "d4d5bdb9bf78b823de0fff5336a8e3e9"
+  },
+  "clubs-and-culturals-platform/app/backend/common/models.py": {
+    "mtime": 1790144754.0527954,
+    "seen": 1792571832.694149,
+    "ast_hash": "7f835192c2f2f15d873a25cc145e2088",
+    "semantic_hash": "7f835192c2f2f15d873a25cc145e2088"
+  },
+  "clubs-and-culturals-platform/app/backend/common/pagination.py": {
+    "mtime": 1790144754.0754588,
+    "seen": 1792571832.694151,
+    "ast_hash": "f1c2b52b7071813e6aced6a8346f7d21",
+    "semantic_hash": "f1c2b52b7071813e6aced6a8346f7d21"
+  },
+  "clubs-and-culturals-platform/app/backend/common/permissions.py": {
+    "mtime": 1790144784.8792202,
+    "seen": 1792571832.6941519,
+    "ast_hash": "b65a0430d4fb9611dd1f2dd4a0257ea1",
+    "semantic_hash": "b65a0430d4fb9611dd1f2dd4a0257ea1"
+  },
+  "clubs-and-culturals-platform/app/backend/common/roles.py": {
+    "mtime": 1790750813.8683062,
+    "seen": 1792571832.694154,
+    "ast_hash": "acf7ac8e273edc7df60664a0b581dc04",
+    "semantic_hash": "acf7ac8e273edc7df60664a0b581dc04"
+  },
+  "clubs-and-culturals-platform/app/backend/config/__init__.py": {
+    "mtime": 1790144673.8300955,
+    "seen": 1792571832.694156,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/config/asgi.py": {
+    "mtime": 1790145642.1176803,
+    "seen": 1792571832.6941571,
+    "ast_hash": "fc97e2e3b702b696696a087c0fe69d7a",
+    "semantic_hash": "fc97e2e3b702b696696a087c0fe69d7a"
+  },
+  "clubs-and-culturals-platform/app/backend/config/celery.py": {
+    "mtime": 1790145642.1227849,
+    "seen": 1792571832.694159,
+    "ast_hash": "9712b415e2ec2cb175e11bb2656f9a19",
+    "semantic_hash": "9712b415e2ec2cb175e11bb2656f9a19"
+  },
+  "clubs-and-culturals-platform/app/backend/config/settings.py": {
+    "mtime": 1792572936.6690166,
+    "seen": 1792572940.177112,
+    "ast_hash": "fef39456917fdc93592597fa3774f172",
+    "semantic_hash": "fef39456917fdc93592597fa3774f172"
+  },
+  "clubs-and-culturals-platform/app/backend/config/settings_test.py": {
+    "mtime": 1790188451.490685,
+    "seen": 1792571832.694162,
+    "ast_hash": "dc1183b53632ab989da9ef00f83c21e2",
+    "semantic_hash": "dc1183b53632ab989da9ef00f83c21e2"
+  },
+  "clubs-and-culturals-platform/app/backend/config/urls.py": {
+    "mtime": 1790750363.8524044,
+    "seen": 1792571832.694164,
+    "ast_hash": "1ee3c05ba9a8cbf85945880fc2742785",
+    "semantic_hash": "1ee3c05ba9a8cbf85945880fc2742785"
+  },
+  "clubs-and-culturals-platform/app/backend/config/wsgi.py": {
+    "mtime": 1790145707.5588355,
+    "seen": 1792571832.694166,
+    "ast_hash": "9680b2dae081306faf4ea0aa8776fd67",
+    "semantic_hash": "9680b2dae081306faf4ea0aa8776fd67"
+  },
+  "clubs-and-culturals-platform/app/backend/demo/demo.js": {
+    "mtime": 1790754523.1221526,
+    "seen": 1792571832.694168,
+    "ast_hash": "66646d85c30dfe4897a10ef4bd1da81f",
+    "semantic_hash": "66646d85c30dfe4897a10ef4bd1da81f"
+  },
+  "clubs-and-culturals-platform/app/backend/events/__init__.py": {
+    "mtime": 1790144673.762343,
+    "seen": 1792571832.694169,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/events/migrations/0001_initial.py": {
+    "mtime": 1790145804.5019882,
+    "seen": 1792571832.694171,
+    "ast_hash": "06f5f7565754004307e06c6904312c96",
+    "semantic_hash": "06f5f7565754004307e06c6904312c96"
+  },
+  "clubs-and-culturals-platform/app/backend/events/migrations/0002_initial.py": {
+    "mtime": 1790145804.3389933,
+    "seen": 1792571832.6941729,
+    "ast_hash": "ca4db75fcfcc7ce11767a501ef42e245",
+    "semantic_hash": "ca4db75fcfcc7ce11767a501ef42e245"
+  },
+  "clubs-and-culturals-platform/app/backend/events/migrations/__init__.py": {
+    "mtime": 1790144673.7580085,
+    "seen": 1792571832.694174,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/events/models.py": {
+    "mtime": 1790145032.9164865,
+    "seen": 1792571832.694176,
+    "ast_hash": "d8eeca6d4b6af3f1146615fef444be9b",
+    "semantic_hash": "d8eeca6d4b6af3f1146615fef444be9b"
+  },
+  "clubs-and-culturals-platform/app/backend/events/serializers.py": {
+    "mtime": 1790187334.328751,
+    "seen": 1792571832.694178,
+    "ast_hash": "3afa573dc35653a3edd549b45b1198d0",
+    "semantic_hash": "3afa573dc35653a3edd549b45b1198d0"
+  },
+  "clubs-and-culturals-platform/app/backend/events/services.py": {
+    "mtime": 1790145064.6105924,
+    "seen": 1792571832.69418,
+    "ast_hash": "39664f9d9ab938190f97b5007657ed97",
+    "semantic_hash": "39664f9d9ab938190f97b5007657ed97"
+  },
+  "clubs-and-culturals-platform/app/backend/events/urls.py": {
+    "mtime": 1790188502.547448,
+    "seen": 1792571832.694182,
+    "ast_hash": "b399ba448a3a30dfeffd099ea3892113",
+    "semantic_hash": "b399ba448a3a30dfeffd099ea3892113"
+  },
+  "clubs-and-culturals-platform/app/backend/events/views.py": {
+    "mtime": 1790750887.0509367,
+    "seen": 1792571832.6941829,
+    "ast_hash": "0cd865a83a90367d45e3115d5fa082c0",
+    "semantic_hash": "0cd865a83a90367d45e3115d5fa082c0"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/__init__.py": {
+    "mtime": 1790144673.8034747,
+    "seen": 1792571832.694185,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/migrations/0001_initial.py": {
+    "mtime": 1790145804.5113635,
+    "seen": 1792571832.694188,
+    "ast_hash": "8941baa5a5708e3a1c1aeda4b5e8c0e5",
+    "semantic_hash": "8941baa5a5708e3a1c1aeda4b5e8c0e5"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/migrations/0002_initial.py": {
+    "mtime": 1790145804.3155744,
+    "seen": 1792571832.694189,
+    "ast_hash": "72ecab3331dd2e8894f3d96b91ac5064",
+    "semantic_hash": "72ecab3331dd2e8894f3d96b91ac5064"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/migrations/__init__.py": {
+    "mtime": 1790144673.799231,
+    "seen": 1792571832.6941912,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/models.py": {
+    "mtime": 1790145222.9906225,
+    "seen": 1792571832.694193,
+    "ast_hash": "7e740668cc713c890f13a6ab123dd162",
+    "semantic_hash": "7e740668cc713c890f13a6ab123dd162"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/services.py": {
+    "mtime": 1790750887.0460415,
+    "seen": 1792571832.6941938,
+    "ast_hash": "3ce806ecd39beec97dda46039b9c5844",
+    "semantic_hash": "3ce806ecd39beec97dda46039b9c5844"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/urls.py": {
+    "mtime": 1790188502.5498786,
+    "seen": 1792571832.694196,
+    "ast_hash": "17befc661e0534eb7c99df2e75e4ca7e",
+    "semantic_hash": "17befc661e0534eb7c99df2e75e4ca7e"
+  },
+  "clubs-and-culturals-platform/app/backend/governance/views.py": {
+    "mtime": 1790753612.4173517,
+    "seen": 1792571832.6941981,
+    "ast_hash": "01008dd41836178724b9c3c71923041f",
+    "semantic_hash": "01008dd41836178724b9c3c71923041f"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/__init__.py": {
+    "mtime": 1790144673.735868,
+    "seen": 1792571832.6942,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/admin.py": {
+    "mtime": 1790144974.8834505,
+    "seen": 1792571832.694201,
+    "ast_hash": "08ba85b5feb24e11f4e5e669c006eee5",
+    "semantic_hash": "08ba85b5feb24e11f4e5e669c006eee5"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/authentication.py": {
+    "mtime": 1790225291.3103344,
+    "seen": 1792571832.694203,
+    "ast_hash": "3a90552ef1367df45d0efb1fedff0f0d",
+    "semantic_hash": "3a90552ef1367df45d0efb1fedff0f0d"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/management/__init__.py": {
+    "mtime": 1790144673.8259468,
+    "seen": 1792571832.694205,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/management/commands/__init__.py": {
+    "mtime": 1790144673.8260932,
+    "seen": 1792571832.694206,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/management/commands/seed_demo.py": {
+    "mtime": 1790187631.1610823,
+    "seen": 1792571832.694208,
+    "ast_hash": "c5365c6eba66d5dab0634f05eb792883",
+    "semantic_hash": "c5365c6eba66d5dab0634f05eb792883"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/migrations/0001_initial.py": {
+    "mtime": 1790145804.6711714,
+    "seen": 1792571832.69421,
+    "ast_hash": "c780514469b022e505fab4864f1803df",
+    "semantic_hash": "c780514469b022e505fab4864f1803df"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/migrations/__init__.py": {
+    "mtime": 1790144673.7316947,
+    "seen": 1792571832.694211,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/models.py": {
+    "mtime": 1790187469.5244575,
+    "seen": 1792571832.6942132,
+    "ast_hash": "6d503d44a84761962af15d88b3a315a9",
+    "semantic_hash": "6d503d44a84761962af15d88b3a315a9"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/tokens.py": {
+    "mtime": 1790144930.7175424,
+    "seen": 1792571832.6942148,
+    "ast_hash": "a7de537c431a1b8568e18487847eec98",
+    "semantic_hash": "a7de537c431a1b8568e18487847eec98"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/urls.py": {
+    "mtime": 1790235209.4869235,
+    "seen": 1792571832.694216,
+    "ast_hash": "166aa54c6b8b5204a21c95822844517d",
+    "semantic_hash": "166aa54c6b8b5204a21c95822844517d"
+  },
+  "clubs-and-culturals-platform/app/backend/identity/views.py": {
+    "mtime": 1790754523.0523605,
+    "seen": 1792571832.694218,
+    "ast_hash": "aaea45db8f4661fce640e9146e26c915",
+    "semantic_hash": "aaea45db8f4661fce640e9146e26c915"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/__init__.py": {
+    "mtime": 1790144673.7230027,
+    "seen": 1792571832.69422,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/audit.py": {
+    "mtime": 1790144854.4455047,
+    "seen": 1792571832.694222,
+    "ast_hash": "99a8bf58794bc1c83cb7a27078e3ed3b",
+    "semantic_hash": "99a8bf58794bc1c83cb7a27078e3ed3b"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/base.py": {
+    "mtime": 1790144820.0755167,
+    "seen": 1792571832.6942232,
+    "ast_hash": "d69374ee2864ee765f637e3671f34bd1",
+    "semantic_hash": "d69374ee2864ee765f637e3671f34bd1"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/directory.py": {
+    "mtime": 1790144854.430378,
+    "seen": 1792571832.6942248,
+    "ast_hash": "b1d15d632f4bd7c46d84cc474e948053",
+    "semantic_hash": "b1d15d632f4bd7c46d84cc474e948053"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/files.py": {
+    "mtime": 1790144854.4406004,
+    "seen": 1792571832.694227,
+    "ast_hash": "82b5c6a4bf923e687770d6222e501464",
+    "semantic_hash": "82b5c6a4bf923e687770d6222e501464"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/identity.py": {
+    "mtime": 1790144820.081889,
+    "seen": 1792571832.694228,
+    "ast_hash": "63e2b68f5ae6f756b1137fe46a7e0908",
+    "semantic_hash": "63e2b68f5ae6f756b1137fe46a7e0908"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/notifications.py": {
+    "mtime": 1790144854.435059,
+    "seen": 1792571832.69423,
+    "ast_hash": "283d12f2fbecb8f05d8187a19ec18648",
+    "semantic_hash": "283d12f2fbecb8f05d8187a19ec18648"
+  },
+  "clubs-and-culturals-platform/app/backend/integrations/registry.py": {
+    "mtime": 1790144854.450197,
+    "seen": 1792571832.694232,
+    "ast_hash": "4837721ba6456276d34699e10eb2afc9",
+    "semantic_hash": "4837721ba6456276d34699e10eb2afc9"
+  },
+  "clubs-and-culturals-platform/app/backend/manage.py": {
+    "mtime": 1790144690.0148566,
+    "seen": 1792571832.6942332,
+    "ast_hash": "727537ceb1286c8f2e8cfa3b79f28c03",
+    "semantic_hash": "727537ceb1286c8f2e8cfa3b79f28c03"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/__init__.py": {
+    "mtime": 1790144673.7750835,
+    "seen": 1792571832.6942348,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/migrations/0001_initial.py": {
+    "mtime": 1790187373.8001802,
+    "seen": 1792571832.694237,
+    "ast_hash": "13496131b439ce31b8d79b6ae77b4178",
+    "semantic_hash": "13496131b439ce31b8d79b6ae77b4178"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/migrations/__init__.py": {
+    "mtime": 1790145707.565581,
+    "seen": 1792571832.694238,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/models.py": {
+    "mtime": 1790187187.225676,
+    "seen": 1792571832.69424,
+    "ast_hash": "f7ee3b0dfa12c358e33facaab8584e7e",
+    "semantic_hash": "f7ee3b0dfa12c358e33facaab8584e7e"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/permissions.py": {
+    "mtime": 1790225314.6019642,
+    "seen": 1792571832.694242,
+    "ast_hash": "ad80217ef9cfbc5d902d88e0efc88684",
+    "semantic_hash": "ad80217ef9cfbc5d902d88e0efc88684"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/services.py": {
+    "mtime": 1790956918.8189561,
+    "seen": 1792571832.694243,
+    "ast_hash": "88e1233825d9113d95878b702f421953",
+    "semantic_hash": "88e1233825d9113d95878b702f421953"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/urls.py": {
+    "mtime": 1790188502.551034,
+    "seen": 1792571832.694245,
+    "ast_hash": "1315a567eee22543ac44263280e6bebe",
+    "semantic_hash": "1315a567eee22543ac44263280e6bebe"
+  },
+  "clubs-and-culturals-platform/app/backend/participation/views.py": {
+    "mtime": 1790225314.597426,
+    "seen": 1792571832.694247,
+    "ast_hash": "c7b3b32dc72181bcce4bd4f43ea41920",
+    "semantic_hash": "c7b3b32dc72181bcce4bd4f43ea41920"
+  },
+  "clubs-and-culturals-platform/app/backend/qrkit/__init__.py": {
+    "mtime": 1790145525.928806,
+    "seen": 1792571832.694249,
+    "ast_hash": "de2e724b09e9579e043aba36a570d912",
+    "semantic_hash": "de2e724b09e9579e043aba36a570d912"
+  },
+  "clubs-and-culturals-platform/app/backend/qrkit/qr.py": {
+    "mtime": 1790145525.9176366,
+    "seen": 1792571832.694251,
+    "ast_hash": "5a15eee8f4c5fcaa78b200c9b406f08f",
+    "semantic_hash": "5a15eee8f4c5fcaa78b200c9b406f08f"
+  },
+  "clubs-and-culturals-platform/app/backend/qrkit/tokens.py": {
+    "mtime": 1790956951.7194972,
+    "seen": 1792571832.694252,
+    "ast_hash": "d299eaf3dd12bffc0b635c3d434406e0",
+    "semantic_hash": "d299eaf3dd12bffc0b635c3d434406e0"
+  },
+  "clubs-and-culturals-platform/app/backend/reporting/__init__.py": {
+    "mtime": 1790144673.817259,
+    "seen": 1792571832.6942542,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/reporting/services.py": {
+    "mtime": 1790187334.327833,
+    "seen": 1792571832.694256,
+    "ast_hash": "ba43ed304f54a7bdd372646d583b3dc8",
+    "semantic_hash": "ba43ed304f54a7bdd372646d583b3dc8"
+  },
+  "clubs-and-culturals-platform/app/backend/reporting/urls.py": {
+    "mtime": 1790145642.1028974,
+    "seen": 1792571832.6942568,
+    "ast_hash": "2984d502e0058341086a4badf7a0587f",
+    "semantic_hash": "2984d502e0058341086a4badf7a0587f"
+  },
+  "clubs-and-culturals-platform/app/backend/reporting/views.py": {
+    "mtime": 1790145642.0979497,
+    "seen": 1792571832.694259,
+    "ast_hash": "85f6fd97cd2a4b92388c09ab3989cd29",
+    "semantic_hash": "85f6fd97cd2a4b92388c09ab3989cd29"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/__init__.py": {
+    "mtime": 1790144673.8302546,
+    "seen": 1792571832.694262,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/factories.py": {
+    "mtime": 1790753273.1671581,
+    "seen": 1792571832.694263,
+    "ast_hash": "f5723566b07c7a70d4ee61376b6ec5cb",
+    "semantic_hash": "f5723566b07c7a70d4ee61376b6ec5cb"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/test_approvals.py": {
+    "mtime": 1790188616.4053345,
+    "seen": 1792571832.6942651,
+    "ast_hash": "8b9ba9b1fcb65add85aa79a71284dcf4",
+    "semantic_hash": "8b9ba9b1fcb65add85aa79a71284dcf4"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/test_auth_claims.py": {
+    "mtime": 1790187783.7679267,
+    "seen": 1792571832.6942668,
+    "ast_hash": "d20fc0ad3fd9153cc80fc41b96b19cb0",
+    "semantic_hash": "d20fc0ad3fd9153cc80fc41b96b19cb0"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/test_budget_and_roles.py": {
+    "mtime": 1790880023.254559,
+    "seen": 1792571832.694269,
+    "ast_hash": "b60bda87cdbcb4c0914cd97ae8b52616",
+    "semantic_hash": "b60bda87cdbcb4c0914cd97ae8b52616"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/test_reporting.py": {
+    "mtime": 1790228185.671158,
+    "seen": 1792571832.69427,
+    "ast_hash": "041690aaee80265a00891eca81949eb8",
+    "semantic_hash": "041690aaee80265a00891eca81949eb8"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/test_scan.py": {
+    "mtime": 1790956918.8291686,
+    "seen": 1792571832.694272,
+    "ast_hash": "a2ba034c625599b19cd4b21a48993f4f",
+    "semantic_hash": "a2ba034c625599b19cd4b21a48993f4f"
+  },
+  "clubs-and-culturals-platform/app/backend/tests/test_venues.py": {
+    "mtime": 1790188289.2487452,
+    "seen": 1792571832.694274,
+    "ast_hash": "fbccb39c58418a971d18d96a9a510ac1",
+    "semantic_hash": "fbccb39c58418a971d18d96a9a510ac1"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/core/qr.py": {
+    "mtime": 1789610422.0,
+    "seen": 1792571832.6942751,
+    "ast_hash": "5a15eee8f4c5fcaa78b200c9b406f08f",
+    "semantic_hash": "5a15eee8f4c5fcaa78b200c9b406f08f"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/core/tokens.py": {
+    "mtime": 1789610335.0,
+    "seen": 1792571832.694277,
+    "ast_hash": "e6a89fe45ac0fcb00ed10c8e871296a6",
+    "semantic_hash": "e6a89fe45ac0fcb00ed10c8e871296a6"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/qr.py": {
+    "mtime": 1789888942.3926034,
+    "seen": 1792571832.694279,
+    "ast_hash": "5a15eee8f4c5fcaa78b200c9b406f08f",
+    "semantic_hash": "5a15eee8f4c5fcaa78b200c9b406f08f"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/scanner/services.py": {
+    "mtime": 1789610376.0,
+    "seen": 1792571832.69428,
+    "ast_hash": "1e8ed1029e376d2ea79e0f75babb5eda",
+    "semantic_hash": "1e8ed1029e376d2ea79e0f75babb5eda"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/scanner/views.py": {
+    "mtime": 1789610405.0,
+    "seen": 1792571832.694282,
+    "ast_hash": "d4dd65e5808818d4812a05a1f735ce15",
+    "semantic_hash": "d4dd65e5808818d4812a05a1f735ce15"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/services.py": {
+    "mtime": 1789888927.1854587,
+    "seen": 1792571832.694284,
+    "ast_hash": "1e8ed1029e376d2ea79e0f75babb5eda",
+    "semantic_hash": "1e8ed1029e376d2ea79e0f75babb5eda"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/tests/test_tokens.py": {
+    "mtime": 1789610501.0,
+    "seen": 1792571832.6942852,
+    "ast_hash": "207bce27f779d27865b360a235b2218f",
+    "semantic_hash": "207bce27f779d27865b360a235b2218f"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/tokens.py": {
+    "mtime": 1789888914.538204,
+    "seen": 1792571832.694287,
+    "ast_hash": "e6a89fe45ac0fcb00ed10c8e871296a6",
+    "semantic_hash": "e6a89fe45ac0fcb00ed10c8e871296a6"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/views.py": {
+    "mtime": 1789888936.0515552,
+    "seen": 1792571832.694289,
+    "ast_hash": "d4dd65e5808818d4812a05a1f735ce15",
+    "semantic_hash": "d4dd65e5808818d4812a05a1f735ce15"
+  },
+  "web-app/package.json": {
+    "mtime": 1790957900.7737694,
+    "seen": 1792571832.69429,
+    "ast_hash": "5e797659d0b5b3f9b88aa4344207bc71",
+    "semantic_hash": "5e797659d0b5b3f9b88aa4344207bc71"
+  },
+  "web-app/src/api.js": {
+    "mtime": 1790949533.3490634,
+    "seen": 1792571832.694292,
+    "ast_hash": "7eed1bbd7e2bcf0081ebf4509572c068",
+    "semantic_hash": "7eed1bbd7e2bcf0081ebf4509572c068"
+  },
+  "web-app/src/approvals.js": {
+    "mtime": 1790880869.7246077,
+    "seen": 1792571832.694294,
+    "ast_hash": "a65c8aad07a8fe5da6098279a28b8bf9",
+    "semantic_hash": "a65c8aad07a8fe5da6098279a28b8bf9"
+  },
+  "web-app/src/attendance.js": {
+    "mtime": 1790949893.0899415,
+    "seen": 1792571832.694295,
+    "ast_hash": "7563ab7b523370074c4e63c031b55a3f",
+    "semantic_hash": "7563ab7b523370074c4e63c031b55a3f"
+  },
+  "web-app/src/bootstrap.js": {
+    "mtime": 1792569589.1774743,
+    "seen": 1792571832.694297,
+    "ast_hash": "c0f3653ed67fdb19375858d515c5e01d",
+    "semantic_hash": "c0f3653ed67fdb19375858d515c5e01d"
+  },
+  "web-app/src/budget.js": {
+    "mtime": 1790880913.7177033,
+    "seen": 1792571832.694299,
+    "ast_hash": "4123f8fecbe0da503e9f4a63fbec8bdd",
+    "semantic_hash": "4123f8fecbe0da503e9f4a63fbec8bdd"
+  },
+  "web-app/src/credentials.js": {
+    "mtime": 1792569912.4879177,
+    "seen": 1792571832.6943,
+    "ast_hash": "0f52419f7070e5b9af960f41efbc1c5a",
+    "semantic_hash": "0f52419f7070e5b9af960f41efbc1c5a"
+  },
+  "web-app/src/db.js": {
+    "mtime": 1792569760.3704987,
+    "seen": 1792571832.6943018,
+    "ast_hash": "3ebec74f2e071e7af6b56a8fdfb8ffed",
+    "semantic_hash": "3ebec74f2e071e7af6b56a8fdfb8ffed"
+  },
+  "web-app/src/errors.js": {
+    "mtime": 1790880820.9046328,
+    "seen": 1792571832.694304,
+    "ast_hash": "e460c9de4cb8f9ba97a0dd90f6be45f8",
+    "semantic_hash": "e460c9de4cb8f9ba97a0dd90f6be45f8"
+  },
+  "web-app/src/qrcode.js": {
+    "mtime": 1790957025.437913,
+    "seen": 1792571832.6943061,
+    "ast_hash": "fba98da2dd6641ae00ea92737f6d8623",
+    "semantic_hash": "fba98da2dd6641ae00ea92737f6d8623"
+  },
+  "web-app/src/reporting.js": {
+    "mtime": 1790882875.0749161,
+    "seen": 1792571832.694307,
+    "ast_hash": "fbadc44aef37324e2e27e54a191c8a87",
+    "semantic_hash": "fbadc44aef37324e2e27e54a191c8a87"
+  },
+  "web-app/src/roles.js": {
+    "mtime": 1790880794.2316637,
+    "seen": 1792571832.6943092,
+    "ast_hash": "63a1206bb24fd3d8b18f33c246b172e6",
+    "semantic_hash": "63a1206bb24fd3d8b18f33c246b172e6"
+  },
+  "web-app/src/seed.js": {
+    "mtime": 1790881001.190097,
+    "seen": 1792571832.694311,
+    "ast_hash": "8ba08356752ecd216f7f58cfb8b18233",
+    "semantic_hash": "8ba08356752ecd216f7f58cfb8b18233"
+  },
+  "web-app/src/session.js": {
+    "mtime": 1792569760.3726397,
+    "seen": 1792571832.6943119,
+    "ast_hash": "9e1f1a6024a41d06df9b78ccbe5ed52c",
+    "semantic_hash": "9e1f1a6024a41d06df9b78ccbe5ed52c"
+  },
+  "web-app/src/tokens.js": {
+    "mtime": 1790949868.0764465,
+    "seen": 1792571832.694314,
+    "ast_hash": "9199145107a4e7ace9a1ba1d57b9fe49",
+    "semantic_hash": "9199145107a4e7ace9a1ba1d57b9fe49"
+  },
+  "web-app/src/ui.js": {
+    "mtime": 1792569589.1785712,
+    "seen": 1792571832.6943161,
+    "ast_hash": "a2de7413b1ba2e7061ed6e2ea2e0eee9",
+    "semantic_hash": "a2de7413b1ba2e7061ed6e2ea2e0eee9"
+  },
+  "web-app/tests/browser.sh": {
+    "mtime": 1792569921.415677,
+    "seen": 1792571832.694318,
+    "ast_hash": "81129019b12d45b34a737f60a5d3934f",
+    "semantic_hash": "81129019b12d45b34a737f60a5d3934f"
+  },
+  "web-app/tests/e2e.attendance.mjs": {
+    "mtime": 1790949868.0772374,
+    "seen": 1792571832.694319,
+    "ast_hash": "16a2fe98b2cd46887304244ee42087d1",
+    "semantic_hash": "16a2fe98b2cd46887304244ee42087d1"
+  },
+  "web-app/tests/e2e.budget-approvals.mjs": {
+    "mtime": 1790949683.3784773,
+    "seen": 1792571832.694321,
+    "ast_hash": "27af613f693e87b37a0347206cacbe39",
+    "semantic_hash": "27af613f693e87b37a0347206cacbe39"
+  },
+  "web-app/tests/e2e.roles-reporting.mjs": {
+    "mtime": 1790949791.521218,
+    "seen": 1792571832.694323,
+    "ast_hash": "761248e8efd6ce74ceed2c4d2579b15a",
+    "semantic_hash": "761248e8efd6ce74ceed2c4d2579b15a"
+  },
+  "web-app/tests/e2e.signin.mjs": {
+    "mtime": 1792569714.2416334,
+    "seen": 1792571832.694324,
+    "ast_hash": "cbe3b0b1b89df80683b481009f2aa095",
+    "semantic_hash": "cbe3b0b1b89df80683b481009f2aa095"
+  },
+  "web-app/tests/harness.mjs": {
+    "mtime": 1790949618.5182147,
+    "seen": 1792571832.694326,
+    "ast_hash": "994b6857dc2d3cfc64ca2b3caaf9f688",
+    "semantic_hash": "994b6857dc2d3cfc64ca2b3caaf9f688"
+  },
+  "web-app/tests/run.mjs": {
+    "mtime": 1792569714.2911334,
+    "seen": 1792571832.694328,
+    "ast_hash": "45c12c432c408c75b219ea5b3c1576bc",
+    "semantic_hash": "45c12c432c408c75b219ea5b3c1576bc"
+  },
+  "web-app/tests/smoke.mjs": {
+    "mtime": 1792569653.726579,
+    "seen": 1792571832.694329,
+    "ast_hash": "a6721685b7072a46a9ca4256d91c265d",
+    "semantic_hash": "a6721685b7072a46a9ca4256d91c265d"
+  },
+  "MASTER_SPEC.md": {
+    "mtime": 1790880084.3578587,
+    "seen": 1792571832.694331,
+    "ast_hash": "8ef883042f6d60404268fa478121c1c0",
+    "semantic_hash": "8ef883042f6d60404268fa478121c1c0"
+  },
+  "README.md": {
+    "mtime": 1790224916.9941304,
+    "seen": 1792571832.6943328,
+    "ast_hash": "818db68489abe8e96678e2b146605a22",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/AGENT_PROMPT.md": {
+    "mtime": 1788933917.9162824,
+    "seen": 1792571832.694335,
+    "ast_hash": "382d5a211c225d9d188476a9eb76e45d",
+    "semantic_hash": "382d5a211c225d9d188476a9eb76e45d"
+  },
+  "clubs-and-culturals-platform/app/README.md": {
+    "mtime": 1790750511.8528686,
+    "seen": 1792571832.694336,
+    "ast_hash": "0039f344dbdd6597dc94e61ba90c207d",
+    "semantic_hash": "0039f344dbdd6597dc94e61ba90c207d"
+  },
+  "clubs-and-culturals-platform/app/RECONCILIATION.md": {
+    "mtime": 1790188789.1761985,
+    "seen": 1792571832.694338,
+    "ast_hash": "ff051ec9001ab29168a1822d2117b34d",
+    "semantic_hash": "ff051ec9001ab29168a1822d2117b34d"
+  },
+  "clubs-and-culturals-platform/app/backend/demo/README.md": {
+    "mtime": 1790880084.5535693,
+    "seen": 1792571832.69434,
+    "ast_hash": "05a433fad31a9eb3ead5ce15dc2bea68",
+    "semantic_hash": "05a433fad31a9eb3ead5ce15dc2bea68"
+  },
+  "clubs-and-culturals-platform/app/backend/demo/club-budget.html": {
+    "mtime": 1790879997.59319,
+    "seen": 1792571832.694342,
+    "ast_hash": "ba9b84606b9ad001315ee51c37856bdb",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/club-events.html": {
+    "mtime": 1790754463.558459,
+    "seen": 1792571832.6943429,
+    "ast_hash": "b620864bf07f5ea1678d5c48780127ab",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/club-new-event.html": {
+    "mtime": 1790754463.560318,
+    "seen": 1792571832.694345,
+    "ast_hash": "66db19648f8767ef0d820e47da521240",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/club-roster.html": {
+    "mtime": 1790754463.5611193,
+    "seen": 1792571832.694347,
+    "ast_hash": "7428cbc903739899b724b6711c9ba998",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/dean-approvals.html": {
+    "mtime": 1790754463.573895,
+    "seen": 1792571832.694348,
+    "ast_hash": "eb617d0cf602e22b20647fe02b3618fa",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/dean-overview.html": {
+    "mtime": 1790754463.5638974,
+    "seen": 1792571832.69435,
+    "ast_hash": "b8f40c53e21678c9106266ffa198add6",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/dean-venues.html": {
+    "mtime": 1790754463.5651462,
+    "seen": 1792571832.694352,
+    "ast_hash": "671c86f85445cd054feb1eb6a2b17271",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/index.html": {
+    "mtime": 1790754463.64248,
+    "seen": 1792571832.6943529,
+    "ast_hash": "f7c36a3cc0e4917db7ec1ed9cc1d3580",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/organiser-scan.html": {
+    "mtime": 1790754803.38718,
+    "seen": 1792571832.694355,
+    "ast_hash": "f6838543863a754c7272e0bc16c5fc2f",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/society-approvals.html": {
+    "mtime": 1790754463.5745432,
+    "seen": 1792571832.694357,
+    "ast_hash": "2ff1285c924789025af4bd4871cbcd9d",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/student-events.html": {
+    "mtime": 1790754463.5696375,
+    "seen": 1792571832.694359,
+    "ast_hash": "ad359fa55256fc6f88163a34a647a217",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/student-passes.html": {
+    "mtime": 1790754463.5702224,
+    "seen": 1792571832.69436,
+    "ast_hash": "a64426f49f4da6e3129e54f4aa303a68",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/student-profile.html": {
+    "mtime": 1790754463.5712552,
+    "seen": 1792571832.6943622,
+    "ast_hash": "10faa104b048f423152c9d41dd56d8cb",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/vc-queue.html": {
+    "mtime": 1790754463.5751014,
+    "seen": 1792571832.6943638,
+    "ast_hash": "48ad824c549319930cb05dc8ba7bc50d",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/demo/vc-report.html": {
+    "mtime": 1790754463.572933,
+    "seen": 1792571832.694365,
+    "ast_hash": "19c990867faba1708bba26dfe1dc78a5",
+    "semantic_hash": ""
+  },
+  "clubs-and-culturals-platform/app/backend/requirements.txt": {
+    "mtime": 1790145792.3042355,
+    "seen": 1792571832.694367,
+    "ast_hash": "23175b1e72e5e6f74d800039ff25acc5",
+    "semantic_hash": "23175b1e72e5e6f74d800039ff25acc5"
+  },
+  "clubs-and-culturals-platform/culturals-platform.html": {
+    "mtime": 1790144240.2435362,
+    "seen": 1792571832.694369,
+    "ast_hash": "4ca803e353833014430ba8116d7f9552",
+    "semantic_hash": "4ca803e353833014430ba8116d7f9552"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/LICENSING.md": {
+    "mtime": 1789888836.2486289,
+    "seen": 1792571832.69437,
+    "ast_hash": "06c4ce98873b2e4fbb70cd85215cf13b",
+    "semantic_hash": "06c4ce98873b2e4fbb70cd85215cf13b"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/NOTICE.md": {
+    "mtime": 1789610501.0,
+    "seen": 1792571832.6943722,
+    "ast_hash": "71d0c2c9ccd01bccf858a001d62fe81f",
+    "semantic_hash": "71d0c2c9ccd01bccf858a001d62fe81f"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/README copy.md": {
+    "mtime": 1789888839.5904307,
+    "seen": 1792571832.6943738,
+    "ast_hash": "3e275e177d5a05acbccd6c891a2cf449",
+    "semantic_hash": "3e275e177d5a05acbccd6c891a2cf449"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/README.md": {
+    "mtime": 1789610494.0,
+    "seen": 1792571832.6943748,
+    "ast_hash": "3e275e177d5a05acbccd6c891a2cf449",
+    "semantic_hash": "3e275e177d5a05acbccd6c891a2cf449"
+  },
+  "clubs-and-culturals-platform/qr-attendance-kit/docs/LICENSING.md": {
+    "mtime": 1789610462.0,
+    "seen": 1792571832.694377,
+    "ast_hash": "06c4ce98873b2e4fbb70cd85215cf13b",
+    "semantic_hash": "06c4ce98873b2e4fbb70cd85215cf13b"
+  },
+  "graphify-out/converted/API_Standards_Integration_Contract_1_0102f62c.md": {
+    "mtime": 1792569687.4860342,
+    "seen": 1792571832.694379,
+    "ast_hash": "0a2130e57b470c713208bbb916c7a519",
+    "semantic_hash": "0a2130e57b470c713208bbb916c7a519"
+  },
+  "graphify-out/converted/API_Standards_Integration_Contract_dd06627f.md": {
+    "mtime": 1792569687.4262083,
+    "seen": 1792571832.69438,
+    "ast_hash": "a975487282b311e61be98d5dd2706fc4",
+    "semantic_hash": "a975487282b311e61be98d5dd2706fc4"
+  },
+  "graphify-out/converted/Database_And_Data_Flow_8c1c75d8.md": {
+    "mtime": 1792569686.693322,
+    "seen": 1792571832.694387,
+    "ast_hash": "13579090d84ceeb9e8b402cc60baed2f",
+    "semantic_hash": "13579090d84ceeb9e8b402cc60baed2f"
+  },
+  "graphify-out/converted/Decision_Log_3373b55c.md": {
+    "mtime": 1792569686.7269633,
+    "seen": 1792571832.694389,
+    "ast_hash": "6067a754e9ea0166b003d91b087ef9c2",
+    "semantic_hash": "6067a754e9ea0166b003d91b087ef9c2"
+  },
+  "graphify-out/converted/Development_Plan_Agent_Roles_53cabeb4.md": {
+    "mtime": 1792569686.770384,
+    "seen": 1792571832.694391,
+    "ast_hash": "97045f2f013dfee0f29a5a487e41794d",
+    "semantic_hash": "97045f2f013dfee0f29a5a487e41794d"
+  },
+  "graphify-out/converted/Event_Flows_Clubs_Events_6c41eea8.md": {
+    "mtime": 1792569686.8240893,
+    "seen": 1792571832.6943932,
+    "ast_hash": "2c9a555d9c3384bf92ba9def3f923a81",
+    "semantic_hash": "2c9a555d9c3384bf92ba9def3f923a81"
+  },
+  "graphify-out/converted/Event_Flows_Clubs_Events_V2_556cdb7c.md": {
+    "mtime": 1792569686.8736386,
+    "seen": 1792571832.694394,
+    "ast_hash": "bfd0b2a12856f53055e19fbdefe0a468",
+    "semantic_hash": "bfd0b2a12856f53055e19fbdefe0a468"
+  },
+  "graphify-out/converted/Identity_Login_Shared_Data_d2ea92ad.md": {
+    "mtime": 1792569687.528033,
+    "seen": 1792571832.694396,
+    "ast_hash": "30832aa5c451bce0d695ad01dcfdf297",
+    "semantic_hash": "30832aa5c451bce0d695ad01dcfdf297"
+  },
+  "graphify-out/converted/Platform_Decision_Log_d192f2c1.md": {
+    "mtime": 1792569687.5539846,
+    "seen": 1792571832.694398,
+    "ast_hash": "1b01e089bf21390bb8ab040b01a52363",
+    "semantic_hash": "1b01e089bf21390bb8ab040b01a52363"
+  },
+  "graphify-out/converted/Platform_Development_Plan_7e7c31dd.md": {
+    "mtime": 1792569687.589505,
+    "seen": 1792571832.6944,
+    "ast_hash": "566b764785a882872e8f57f4a773eac2",
+    "semantic_hash": "566b764785a882872e8f57f4a773eac2"
+  },
+  "graphify-out/converted/Student_Life_Clubs_Events_PRD_1_30c1bac7.md": {
+    "mtime": 1792569686.9441702,
+    "seen": 1792571832.694402,
+    "ast_hash": "030dd9c9671d93222264185bb1ccf31a",
+    "semantic_hash": "030dd9c9671d93222264185bb1ccf31a"
+  },
+  "graphify-out/converted/Student_Life_Clubs_Events_PRD_V2_2101f585.md": {
+    "mtime": 1792569687.0304694,
+    "seen": 1792571832.6944041,
+    "ast_hash": "c15eb7d7f15e97d6457118428ba6a8fe",
+    "semantic_hash": "c15eb7d7f15e97d6457118428ba6a8fe"
+  },
+  "graphify-out/converted/Student_Life_Clubs_Events_PRD_V3_2870e747.md": {
+    "mtime": 1792569687.1445034,
+    "seen": 1792571832.694405,
+    "ast_hash": "a46eef1a0c7e5202c589e2ccb63389b5",
+    "semantic_hash": "a46eef1a0c7e5202c589e2ccb63389b5"
+  },
+  "graphify-out/converted/Student_Life_Clubs_Events_PRD_V4_6d70ab4d.md": {
+    "mtime": 1792569687.2324371,
+    "seen": 1792571832.694407,
+    "ast_hash": "ebc8bf687dbea65c43e36cdaa746c6bb",
+    "semantic_hash": "ebc8bf687dbea65c43e36cdaa746c6bb"
+  },
+  "student-management-platform/PLATFORM_AGENT_PROMPT.md": {
+    "mtime": 1790144481.7191322,
+    "seen": 1792571832.694409,
+    "ast_hash": "6faaf3f866aaa225fac24fd27ebf9e88",
+    "semantic_hash": "6faaf3f866aaa225fac24fd27ebf9e88"
+  },
+  "student-management-platform/Platform_API_Reference.md": {
+    "mtime": 1790189494.0427182,
+    "seen": 1792571832.694411,
+    "ast_hash": "24dedc70dff0a64b092f0d4163eb5cae",
+    "semantic_hash": "24dedc70dff0a64b092f0d4163eb5cae"
+  },
+  "web-app/.github/workflows/ci.yml": {
+    "mtime": 1790957693.1428382,
+    "seen": 1792571832.694415,
+    "ast_hash": "90fe480d479d4c11574ffb8a1879c94d",
+    "semantic_hash": ""
+  },
+  "web-app/.github/workflows/pages.yml": {
+    "mtime": 1790957693.1473393,
+    "seen": 1792571832.694417,
+    "ast_hash": "f91703057d4b9fdf73a22aa296424f1f",
+    "semantic_hash": ""
+  },
+  "web-app/APPFLOW.md": {
+    "mtime": 1792569990.1488771,
+    "seen": 1792571832.694418,
+    "ast_hash": "6d16deb72acd3ec795c53687cb2e3600",
+    "semantic_hash": "6d16deb72acd3ec795c53687cb2e3600"
+  },
+  "web-app/CONTRIBUTING.md": {
+    "mtime": 1792569990.1502748,
+    "seen": 1792571832.6944199,
+    "ast_hash": "1525920d96914e5fe03cb71c43d7c37a",
+    "semantic_hash": "1525920d96914e5fe03cb71c43d7c37a"
+  },
+  "web-app/DEMO_CREDENTIALS.md": {
+    "mtime": 1792569680.417097,
+    "seen": 1792571832.694422,
+    "ast_hash": "277d4c3e8dc10d4e17f7c9e0ca5d6f4d",
+    "semantic_hash": "277d4c3e8dc10d4e17f7c9e0ca5d6f4d"
+  },
+  "web-app/README.md": {
+    "mtime": 1792569990.147392,
+    "seen": 1792571832.6944242,
+    "ast_hash": "16142b2c981454682dad5b8f2717aec4",
+    "semantic_hash": "16142b2c981454682dad5b8f2717aec4"
+  },
+  "web-app/club-budget.html": {
+    "mtime": 1790957210.0261471,
+    "seen": 1792571832.694425,
+    "ast_hash": "97f21057c1c7b6c7091263eff4513bcb",
+    "semantic_hash": ""
+  },
+  "web-app/club-events.html": {
+    "mtime": 1790957210.0255902,
+    "seen": 1792571832.6944268,
+    "ast_hash": "f18c5fe60d34b4fa0af306bba72876a3",
+    "semantic_hash": ""
+  },
+  "web-app/club-new-event.html": {
+    "mtime": 1790957210.025838,
+    "seen": 1792571832.694429,
+    "ast_hash": "77c818d6cf231dc1a129789d46ce8691",
+    "semantic_hash": ""
+  },
+  "web-app/club-roster.html": {
+    "mtime": 1790957143.3940878,
+    "seen": 1792571832.694431,
+    "ast_hash": "02cae22ce2a178c3da4544ab18f66cce",
+    "semantic_hash": ""
+  },
+  "web-app/dean-approvals.html": {
+    "mtime": 1790957267.1791754,
+    "seen": 1792571832.694432,
+    "ast_hash": "eeea210dd4ffff1aeefde09a1ad184aa",
+    "semantic_hash": ""
+  },
+  "web-app/dean-overview.html": {
+    "mtime": 1790957312.034574,
+    "seen": 1792571832.6944342,
+    "ast_hash": "f1a7e89a8fd1f77adc5890efe17d55dd",
+    "semantic_hash": ""
+  },
+  "web-app/dean-venues.html": {
+    "mtime": 1790957312.0343773,
+    "seen": 1792571832.694436,
+    "ast_hash": "e14d4822b15c6f62893d217460659044",
+    "semantic_hash": ""
+  },
+  "web-app/index.html": {
+    "mtime": 1792569615.9046645,
+    "seen": 1792571832.694438,
+    "ast_hash": "127224173b5d6d4fd0253d6ba01696b6",
+    "semantic_hash": ""
+  },
+  "web-app/organiser-scan.html": {
+    "mtime": 1790957267.177838,
+    "seen": 1792571832.69444,
+    "ast_hash": "76dc7deb48b63763ca450b45d70db1ec",
+    "semantic_hash": ""
+  },
+  "web-app/society-approvals.html": {
+    "mtime": 1790957267.1786306,
+    "seen": 1792571832.6944408,
+    "ast_hash": "c2120dfad0ba414e37d7c0a04e5de943",
+    "semantic_hash": ""
+  },
+  "web-app/student-events.html": {
+    "mtime": 1790957143.3933501,
+    "seen": 1792571832.694443,
+    "ast_hash": "6530c0a673c0c914121b3b539f310e9b",
+    "semantic_hash": ""
+  },
+  "web-app/student-passes.html": {
+    "mtime": 1790957143.39364,
+    "seen": 1792571832.6944451,
+    "ast_hash": "65043d49387b943e4846fe07833395f7",
+    "semantic_hash": ""
+  },
+  "web-app/student-profile.html": {
+    "mtime": 1790957143.3938668,
+    "seen": 1792571832.694447,
+    "ast_hash": "20cb659648bbf84a4a34b3c6f6830f5c",
+    "semantic_hash": ""
+  },
+  "web-app/tests/boot.html": {
+    "mtime": 1792569786.963673,
+    "seen": 1792571832.694449,
+    "ast_hash": "0581fe1d1d639ad1d5e1a6016e6e88b6",
+    "semantic_hash": ""
+  },
+  "web-app/vc-queue.html": {
+    "mtime": 1790957267.1797607,
+    "seen": 1792571832.69445,
+    "ast_hash": "bf749c87df79252ccb48687d299e58e5",
+    "semantic_hash": ""
+  },
+  "web-app/vc-report.html": {
+    "mtime": 1790957312.0348217,
+    "seen": 1792571832.694452,
+    "ast_hash": "2056b1339401c74d556b4d75ca43e450",
+    "semantic_hash": ""
+  },
+  "Minor_Approval_Request_Form (3).pdf": {
+    "mtime": 1788932189.032445,
+    "seen": 1792571832.694454,
+    "ast_hash": "eb29e005a03adcb92071c0830f733a62",
+    "semantic_hash": "eb29e005a03adcb92071c0830f733a62"
+  },
+  "clubs-and-culturals-platform/app/backend/media/2d/2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881-r.pdf": {
+    "mtime": 1792572286.7796533,
+    "seen": 1792572940.186795,
+    "ast_hash": "9dd4e461268c8034f5c8564e155c67a6",
+    "semantic_hash": "9dd4e461268c8034f5c8564e155c67a6"
+  },
+  "clubs-and-culturals-platform/app/backend/media/3f/3fa7a0e8cb360b714585045c3f94077d7321188eb4eb8f3e77d95aa0de9fe5c7-refreshments.pdf": {
+    "mtime": 1790228337.9979153,
+    "seen": 1792571832.694458,
+    "ast_hash": "77b6525771fe0170db000d11425c2085",
+    "semantic_hash": "77b6525771fe0170db000d11425c2085"
+  },
+  "clubs-and-culturals-platform/app/backend/media/d8/d8235cd2aad5a336c3864d6c6df0cd1de152e56fcb5075365ecc3320be9873f7-stage-and-decoration.pdf": {
+    "mtime": 1790228337.9966679,
+    "seen": 1792571832.694459,
+    "ast_hash": "a644f4b789fbffc90722a2c0ff3608be",
+    "semantic_hash": "a644f4b789fbffc90722a2c0ff3608be"
+  },
+  "clubs-and-culturals-platform/app/backend/media/ef/ef1e829a1c9ec1ecbd6274d3e4d2f0b0fe216a0bfbe74c14d23551a5371087c5-sound-and-lighting.pdf": {
+    "mtime": 1790228337.994492,
+    "seen": 1792571832.6944609,
+    "ast_hash": "e3ea31494e153db5b17df8da64d70859",
+    "semantic_hash": "e3ea31494e153db5b17df8da64d70859"
+  }
+}

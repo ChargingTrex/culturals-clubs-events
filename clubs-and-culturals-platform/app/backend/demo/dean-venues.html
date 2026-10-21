@@ -1,0 +1,71 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Venues — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, esc, fmtTime, showError } from "./demo.js";
+await page("dean-venues.html", async main => {
+  const c = await api("/venue-calendar");
+  const mins = iso => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
+  const pos = iso => ((mins(iso) - 8 * 60) / (14 * 60)) * 100;
+  const days = [...new Set(c.bookings.map(b => b.starts_at.slice(0, 10)))].sort();
+  let day = days[0];
+  const paint = () => {
+    const todays = c.bookings.filter(b => b.starts_at.startsWith(day));
+    main.innerHTML = `
+      <div class="head"><div><h1>Venues</h1>
+        <p class="muted">Every venue, every booking. Clashes are flagged before two
+          clubs arrive at the same hall.</p></div>
+        <div><label for="d">Day</label><select id="d">${days.map(x =>
+          `<option value="${x}" ${x === day ? "selected" : ""}>${new Date(x).toLocaleDateString("en-IN",
+            { day: "numeric", month: "short" })}${c.clashes.some(cl =>
+              cl.events[0].starts_at.startsWith(x)) ? " — clash" : ""}</option>`).join("")}</select></div></div>
+      ${c.clashes.filter(cl => cl.events[0].starts_at.startsWith(day)).map(cl => `
+        <div class="note bad" style="margin-bottom:12px">
+          <div class="row" style="justify-content:space-between">
+            <span><b>${esc(cl.events[0].title)}</b> and <b>${esc(cl.events[1].title)}</b>
+              both want ${esc(cl.venue)}.</span>
+            <span class="row">${cl.events.map(e =>
+              `<button class="btn" data-move="${e.id}">Move ${esc(e.title)}</button>`).join("")}</span>
+          </div></div>`).join("")}
+      <div class="table-wrap"><div class="cal">
+        <div class="cal-hours"><div></div><div>${Array.from({ length: 14 }, (_, i) =>
+          `<span>${8 + i}:00</span>`).join("")}</div></div>
+        ${c.venues.map(v => `<div class="cal-row">
+          <div class="cal-venue">${esc(v.name)}<small>${v.capacity} seats</small></div>
+          <div class="cal-track">${todays.filter(b => b.venue === v.id).map(b => `
+            <div class="blk ${b.clash ? "clash" : b.confirmed ? "confirmed" : "provisional"}"
+              style="left:${pos(b.starts_at)}%;width:${pos(b.ends_at) - pos(b.starts_at)}%"
+              title="${esc(b.title)}">${esc(b.title)}<br>${fmtTime(b.starts_at)}–${fmtTime(b.ends_at)}</div>`).join("")}
+          </div></div>`).join("")}
+      </div></div>
+      <div class="row small muted" style="margin-top:10px;gap:18px">
+        <span><span class="pill" style="background:var(--ink);color:var(--paper)">Confirmed</span></span>
+        <span><span class="pill gold">Provisional</span></span>
+        <span><span class="pill bad">Clash</span></span></div>
+      <div id="msg"></div>`;
+    document.getElementById("d").addEventListener("change", e => { day = e.target.value; paint(); });
+    main.addEventListener("click", async ev => {
+      const t = ev.target.closest("[data-move]"); if (!t) return;
+      const msg = document.getElementById("msg");
+      try {
+        const opts = await api(`/events/${t.dataset.move}/clashes`);
+        if (!opts.free_venues.length) {
+          msg.innerHTML = `<div class="note bad">No venue is free and large enough then.
+            Propose a different time to the club instead.</div>`; return;
+        }
+        const to = opts.free_venues[0];
+        const reason = prompt(`Move to ${to.name}? Give a reason — the club is shown it.`,
+          "Hall double-booked; this one has the same setup");
+        if (!reason) return;
+        await api(`/events/${t.dataset.move}/reassign`,
+          { method: "POST", body: JSON.stringify({ to_venue: to.id, reason }) });
+        location.reload();
+      } catch (err) { showError(msg, err); }
+    });
+  };
+  paint();
+});
+</script></body></html>
