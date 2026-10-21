@@ -40,6 +40,10 @@ def tell_registered_students(sender, instance, created=False, raw=False, **kwarg
     from participation.services import notify_registered_students
 
     old_status, old_venue_id = before
+    # Each fan-out is deferred to commit (notify_registered_students itself
+    # queues through transaction.on_commit): a publication or a move that rolls
+    # back after this hook must not have told anyone, and the sends must not run
+    # while the caller still holds the event row lock.
     if old_status != EventStatus.PUBLISHED and instance.status == EventStatus.PUBLISHED:
         notify_registered_students(
             instance,
