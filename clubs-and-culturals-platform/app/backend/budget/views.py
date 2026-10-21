@@ -1,7 +1,9 @@
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
-from drf_spectacular.utils import extend_schema
+from django.http import FileResponse, HttpResponseRedirect
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,11 +15,22 @@ from common import roles as R
 from common.errors import ProblemDetail
 
 
+def _money(value):
+    return None if value is None else f"{Decimal(value):.2f}"
+
+
 class ReceiptSerializer(serializers.ModelSerializer):
+    is_current = serializers.BooleanField(read_only=True)
+    file_url = serializers.SerializerMethodField()
+
     class Meta:
         model = ReceiptDocument
-        fields = ("id", "file_name", "content_type", "byte_size", "amount", "created_at",
-                  "superseded_by")
+        fields = ("id", "file_name", "content_type", "byte_size", "amount", "vendor",
+                  "document_date", "created_at", "superseded_by", "is_current", "file_url")
+
+    def get_file_url(self, receipt):
+        return (f"/api/v1/budget/budgets/{receipt.line.budget_id}/lines/"
+                f"{receipt.line_id}/receipts/{receipt.id}/file")
 
 
 class BudgetLineSerializer(serializers.ModelSerializer):
@@ -35,6 +48,23 @@ class BudgetLineSerializer(serializers.ModelSerializer):
         return ReceiptSerializer(current, many=True).data
 
 
+class EnvelopeSummarySerializer(serializers.Serializer):
+    """Shape of the `envelope` block on a budget; response-only."""
+
+    year = serializers.IntegerField()
+    amount = serializers.CharField(allow_null=True)
+    sanctioned_to_date = serializers.CharField()
+    settled_to_date = serializers.CharField()
+    remaining = serializers.CharField(allow_null=True)
+
+
+class EnvelopeOutSerializer(EnvelopeSummarySerializer):
+    club_id = serializers.UUIDField()
+    club = serializers.CharField()
+    set_by = serializers.CharField(allow_blank=True)
+    updated_at = serializers.DateTimeField(allow_null=True)
+
+
 class BudgetSerializer(serializers.ModelSerializer):
     lines = BudgetLineSerializer(many=True, read_only=True)
     stage_label = serializers.CharField(source="get_stage_display", read_only=True)
@@ -50,13 +80,43 @@ class BudgetSerializer(serializers.ModelSerializer):
     nil_declaration = serializers.SerializerMethodField()
     is_editable = serializers.BooleanField(read_only=True)
     is_ready_to_submit = serializers.BooleanField(read_only=True)
+    envelope = serializers.SerializerMethodField()
 
     class Meta:
         model = Budget
         fields = ("id", "event", "fest", "stage", "stage_label", "lines", "total_requested",
                   "total_sanctioned", "total_spent", "settled_at", "settlement_problems",
                   "thresholds", "nil_declaration", "is_editable", "is_ready_to_submit",
-                  "can_settle", "settlement_waiting_on", "settlement_hint")
+                  "can_settle", "settlement_waiting_on", "settlement_hint", "envelope")
+
+    @extend_schema_field(EnvelopeSummarySerializer(allow_null=True))
+    def get_envelope(self, budget):
+        """
+        The club's annual envelope for the year this budget draws on, so the
+        officer pricing an event sees what remains without a second call (PRD
+        §5.19.5). Anyone who can see the budget can see its envelope; the
+        queryset has already excluded everyone else. Cached per (club, year) on
+        the shared context, so a list page costs one summary per club.
+        """
+        if budget.event_id:
+            club_id, year = budget.event.club_id, budget.event.starts_at.year
+        elif budget.fest_id:
+            club_id, year = budget.fest.club_id, budget.fest.starts_on.year
+        else:
+            return None
+        cache = self.context.setdefault("_envelopes", {})
+        key = (str(club_id), year)
+        if key not in cache:
+            summary = services.envelope_summary(club_id, year)
+            cache[key] = {
+                "year": year,
+                "amount": _money(summary["amount"]),
+                "sanctioned_to_date": _money(summary["sanctioned_to_date"]),
+                "settled_to_date": _money(summary["settled_to_date"]),
+                "remaining": _money(summary["remaining"]),
+            }
+        return cache[key]
+
 
     def get_nil_declaration(self, budget):
         """
@@ -293,6 +353,14 @@ class BudgetViewSet(viewsets.GenericViewSet):
             except (InvalidOperation, TypeError):
                 raise ProblemDetail(code="BUDGET_RECEIPT_AMOUNT", title="Unreadable amount",
                                     status_code=422, detail=f"{raw!r} is not an amount.")
+        document_date = None
+        if raw := request.data.get("document_date"):
+            try:
+                document_date = serializers.DateField().to_internal_value(raw)
+            except serializers.ValidationError:
+                raise ProblemDetail(code="BUDGET_RECEIPT_DATE", title="Unreadable date",
+                                    status_code=422,
+                                    detail=f"{raw!r} is not a date (use YYYY-MM-DD).")
         supersedes = None
         if replaced := request.data.get("supersedes"):
             supersedes = line.receipts.filter(pk=replaced).first()
@@ -300,8 +368,43 @@ class BudgetViewSet(viewsets.GenericViewSet):
             line, file_name=upload.name, content=upload.read(),
             content_type=upload.content_type or "application/octet-stream",
             amount=amount, uploaded_by_sub=ctx.sub, supersedes=supersedes,
+            vendor=request.data.get("vendor") or "", document_date=document_date,
         )
         return Response(ReceiptSerializer(receipt).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(summary="The stored receipt file, with its original content type")
+    @action(detail=True, methods=["get"],
+            url_path=r"lines/(?P<line_id>[0-9a-f-]+)/receipts/(?P<receipt_id>[0-9a-f-]+)/file")
+    def receipt_file(self, request, pk=None, line_id=None, receipt_id=None):
+        """
+        PRD §5.19.4: the people reviewing a settlement can open the attachment.
+
+        Who: the queryset already limits budgets to BUDGET_VIEWERS of the club and
+        to staff (Dean, Cultural Society, Vice-Chancellor, admin), so a plain
+        member is 404 here as everywhere else on the budget. The VC may see a
+        receipt: it is a vendor's bill and carries no student data. A superseded
+        receipt is still served — the old row is evidence of what was first
+        claimed, which is the whole reason it was kept.
+        """
+        budget = self._get(pk)
+        line = self._line_or_404(budget, line_id)
+        receipt = line.receipts.filter(pk=receipt_id).first()
+        if receipt is None:
+            raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
+                                detail="No such receipt on this line.")
+        location = services.receipt_location(receipt)
+        if location["kind"] == "redirect":
+            return HttpResponseRedirect(location["url"])
+        path = location["path"]
+        if not path.is_file():
+            raise ProblemDetail(code="BUDGET_RECEIPT_FILE_MISSING", title="File not found",
+                                status_code=404,
+                                detail="The receipt's file is no longer in the store.")
+        response = FileResponse(open(path, "rb"), content_type=receipt.content_type,
+                                filename=receipt.file_name)
+        response["Content-Length"] = path.stat().st_size
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @extend_schema(summary="Settle the budget once spend and evidence are complete")
     @action(detail=True, methods=["post"])
@@ -310,6 +413,90 @@ class BudgetViewSet(viewsets.GenericViewSet):
         ctx = self._require_settler(budget)
         services.settle(budget, actor=ctx)
         return Response(BudgetSerializer(budget, context={"request": request}).data)
+
+
+class EnvelopeSetSerializer(serializers.Serializer):
+    year = serializers.IntegerField(min_value=2000, max_value=2100)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+
+
+class EnvelopeView(APIView):
+    """
+    A club's annual envelope with running utilisation (PRD §5.7.3, §5.19.5).
+
+    GET: BUDGET_VIEWERS of that club, Dean, Cultural Society, Vice-Chancellor,
+    admin. Everyone else — including the club's own plain members, who have no
+    budget visibility (AGENT_PROMPT §6) — gets 404, the same as for the budgets
+    the figure is made of.
+
+    PUT: Dean or admin. PRD §5.13 names the Student Life Office as the body that
+    configures approval behaviour, but no such role exists in common/roles.py
+    yet, so the Dean sets the envelope until it does.
+    """
+
+    serializer_class = EnvelopeOutSerializer
+
+    def _club_or_404(self, request, club_id):
+        from clubs.models import Club
+
+        ctx = request.auth_context
+        club = Club.objects.filter(pk=club_id).first()
+        if club is None or not (ctx.can_see_all_clubs()
+                                or ctx.has_club_role(club_id, *R.BUDGET_VIEWERS)):
+            raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
+                                detail="No such club, or its envelope is not visible to you.")
+        return club
+
+    def _year(self, request):
+        raw = request.query_params.get("year")
+        if not raw:
+            return timezone.localdate().year
+        try:
+            return int(raw)
+        except ValueError:
+            raise ProblemDetail(code="VALIDATION_FAILED", title="Validation failed",
+                                status_code=422, detail="year must be a number.",
+                                errors=[{"field": "year", "code": "INVALID", "message": raw}])
+
+    @extend_schema(responses=EnvelopeOutSerializer,
+                   summary="Annual envelope and utilisation for one club")
+    def get(self, request, club_id):
+        club = self._club_or_404(request, club_id)
+        summary = services.envelope_summary(club.pk, self._year(request))
+        return Response(_envelope_out(club, summary))
+
+    @extend_schema(request=EnvelopeSetSerializer, responses=EnvelopeOutSerializer,
+                   summary="Set the envelope for a year")
+    def put(self, request, club_id):
+        club = self._club_or_404(request, club_id)
+        ctx = request.auth_context
+        if not ctx.has_any(R.DEAN, R.ADMIN):
+            raise ProblemDetail(
+                code="BUDGET_ENVELOPE_DENIED", title="Not permitted",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the Dean or an administrator may set a club's envelope.",
+            )
+        data = EnvelopeSetSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        services.set_envelope(club, year=data.validated_data["year"],
+                              amount=data.validated_data["amount"], actor=ctx,
+                              actor_user=request.user.record)
+        summary = services.envelope_summary(club.pk, data.validated_data["year"])
+        return Response(_envelope_out(club, summary))
+
+
+def _envelope_out(club, summary):
+    return {
+        "club_id": str(club.pk),
+        "club": club.name,
+        "year": summary["year"],
+        "amount": _money(summary["amount"]),
+        "sanctioned_to_date": _money(summary["sanctioned_to_date"]),
+        "settled_to_date": _money(summary["settled_to_date"]),
+        "remaining": _money(summary["remaining"]),
+        "set_by": summary["set_by"],
+        "updated_at": summary["updated_at"],
+    }
 
 
 class BudgetTemplateView(APIView):

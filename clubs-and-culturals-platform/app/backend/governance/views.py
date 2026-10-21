@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, viewsets
@@ -12,7 +13,7 @@ from common.errors import ProblemDetail
 from governance import services
 from governance.models import (
     ApprovalRequest, ApprovalStage, ApprovalState, ApprovalStep, AuditEntry, Decision,
-    Notification,
+    Delegation, Notification,
 )
 
 
@@ -22,7 +23,8 @@ class ApprovalStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = ApprovalStep
         fields = ("id", "stage", "stage_label", "decision", "comment", "actor_label",
-                  "actor_role", "mfa_verified", "amount_sanctioned", "created_at")
+                  "actor_role", "mfa_verified", "amount_sanctioned", "on_behalf_of",
+                  "on_behalf_of_label", "created_at")
 
 
 class ApprovalRequestSerializer(serializers.ModelSerializer):
@@ -41,13 +43,18 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
     my_stage = serializers.SerializerMethodField()
     requires_mfa = serializers.SerializerMethodField()
     nil_declaration = serializers.SerializerMethodField()
+    # SLA (PRD §5.11): hours at the current gate, and whether that is past the
+    # configured limit. Both derive from stage_entered_at, which resets on advance.
+    age_hours = serializers.FloatField(read_only=True)
+    escalated = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = ApprovalRequest
         fields = ("id", "event", "event_title", "club", "club_id", "venue", "starts_at",
                   "ends_at", "expected_attendance", "stages", "current_stage", "stage_label",
                   "state", "amount_requested", "requires_vc", "vc_reason", "steps", "lines",
-                  "clashes", "my_stage", "requires_mfa", "nil_declaration", "created_at")
+                  "clashes", "my_stage", "requires_mfa", "nil_declaration",
+                  "stage_entered_at", "age_hours", "escalated", "created_at")
 
     def get_lines(self, request_obj):
         budget = getattr(request_obj.event, "budget", None)
@@ -93,8 +100,16 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
         ]
 
     def get_my_stage(self, request_obj):
-        ctx = self.context["request"].auth_context
-        return ctx.has_any(R.STAGE_ROLE.get(request_obj.current_stage, "__none__"))
+        """
+        True when the caller may decide this one now — by role or as an active
+        delegate. Computed once per response and kept on the shared context, so a
+        queue of forty items costs one delegation query rather than forty.
+        """
+        held = self.context.get("_held_stages")
+        if held is None:
+            held = self.context["_held_stages"] = set(
+                services.held_stages(self.context["request"].auth_context))
+        return request_obj.current_stage in held
 
     def get_requires_mfa(self, request_obj):
         return services.requires_mfa(request_obj, request_obj.current_stage)
@@ -126,8 +141,16 @@ class ApprovalViewSet(viewsets.GenericViewSet):
         if ctx.can_see_all_clubs():
             pass
         else:
+            from django.db.models import Q
+
             clubs = ctx.scopes_for(*R.CLUB_ROLES)
-            qs = qs.filter(event__club_id__in=clubs) if clubs else qs.none()
+            visible = Q(event__club_id__in=clubs) if clubs else Q(pk__in=[])
+            # An active delegate sees the requests sitting at the stage they
+            # cover — they cannot decide what they cannot open — and nothing else.
+            delegated = services.delegated_stages_for(ctx)
+            if delegated:
+                visible |= Q(state=ApprovalState.PENDING, current_stage__in=delegated)
+            qs = qs.filter(visible)
         if state := self.request.query_params.get("state"):
             qs = qs.filter(state=state)
         if stage := self.request.query_params.get("stage"):
@@ -146,13 +169,17 @@ class ApprovalViewSet(viewsets.GenericViewSet):
                                 detail="No such approval request, or it is not visible to you.")
         return Response(ApprovalRequestSerializer(obj, context={"request": request}).data)
 
-    @extend_schema(summary="Your approval queue — only the stages you hold")
+    @extend_schema(summary="Your approval queue — only the stages you hold, oldest first")
     @action(detail=False, methods=["get"])
     def queue(self, request):
-        pending = services.pending_for(request.auth_context)
+        ctx = request.auth_context
+        escalated_only = request.query_params.get("escalated") in ("1", "true")
+        pending = services.pending_for(ctx, escalated=escalated_only)
         return Response({
-            "stages_you_hold": [s for s, role in R.STAGE_ROLE.items()
-                                if request.auth_context.has_any(role)],
+            "stages_you_hold": services.held_stages(ctx),
+            "stages_delegated_to_you": services.delegated_stages_for(ctx),
+            "sla_hours": settings.APPROVAL_SLA_HOURS,
+            "escalated_only": escalated_only,
             "count": pending.count(),
             "results": ApprovalRequestSerializer(pending, many=True,
                                                  context={"request": request}).data,
@@ -203,6 +230,117 @@ class ApprovalViewSet(viewsets.GenericViewSet):
             "step": ApprovalStepSerializer(step).data,
             "request": ApprovalRequestSerializer(obj, context={"request": request}).data,
         })
+
+
+class DelegationSerializer(serializers.ModelSerializer):
+    stage_label = serializers.CharField(source="get_stage_display", read_only=True)
+    principal_label = serializers.CharField(source="principal_user.display_name", read_only=True)
+    delegate_label = serializers.CharField(source="delegate_user.display_name", read_only=True)
+    created_by_label = serializers.CharField(source="created_by.display_name", read_only=True,
+                                             default="")
+    status = serializers.CharField(read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Delegation
+        fields = ("id", "stage", "stage_label", "principal_user", "principal_label",
+                  "delegate_user", "delegate_label", "starts_at", "ends_at", "reason",
+                  "created_by", "created_by_label", "revoked_at", "revoked_by_label",
+                  "status", "is_active", "created_at")
+
+
+class DelegationCreateSerializer(serializers.Serializer):
+    stage = serializers.ChoiceField(choices=[c[0] for c in ApprovalStage.choices])
+    delegate_user = serializers.UUIDField()
+    # Admin only; a role holder always delegates on their own behalf.
+    principal_user = serializers.UUIDField(required=False, allow_null=True)
+    starts_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField()
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=400, default="")
+
+
+class DelegationViewSet(viewsets.GenericViewSet):
+    """
+    Cover for an approval gate (MASTER_SPEC §11.3, PRD §5.13).
+
+    Visibility is "own": the principal and the delegate see a delegation,
+    administrators see all. There is no edit — change the window by revoking and
+    creating again, so the record of what was in force when stays whole.
+    """
+
+    serializer_class = DelegationSerializer
+
+    def get_queryset(self):
+        qs = services.delegations_visible_to(self.request.auth_context)
+        params = self.request.query_params
+        if stage := params.get("stage"):
+            qs = qs.filter(stage=stage)
+        if params.get("active") in ("1", "true"):
+            qs = qs.filter(pk__in=services.active_delegations().values("pk"))
+        return qs
+
+    def list(self, request):
+        page = self.paginate_queryset(self.get_queryset())
+        return self.get_paginated_response(DelegationSerializer(page, many=True).data)
+
+    def retrieve(self, request, pk=None):
+        obj = self.get_queryset().filter(pk=pk).first()
+        if obj is None:
+            raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
+                                detail="No such delegation, or it is not visible to you.")
+        return Response(DelegationSerializer(obj).data)
+
+    @extend_schema(request=DelegationCreateSerializer, summary="Delegate a stage you hold")
+    def create(self, request):
+        from identity.models import User
+
+        data = DelegationCreateSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        v = data.validated_data
+        actor_user = request.user.record
+        if actor_user is None:
+            raise ProblemDetail(code="GOVERNANCE_DELEGATION_DENIED", title="Not permitted",
+                                status_code=403,
+                                detail="Delegations need an account this module can record.")
+        delegate = User.objects.filter(pk=v["delegate_user"]).first()
+        if delegate is None:
+            raise ProblemDetail(code="GOVERNANCE_DELEGATE_UNKNOWN", title="No such account",
+                                status_code=422, detail="The delegate account does not exist.",
+                                errors=[{"field": "delegate_user", "code": "UNKNOWN",
+                                         "message": str(v["delegate_user"])}])
+        principal = None
+        if v.get("principal_user"):
+            principal = User.objects.filter(pk=v["principal_user"]).first()
+            if principal is None:
+                raise ProblemDetail(code="GOVERNANCE_PRINCIPAL_UNKNOWN", title="No such account",
+                                    status_code=422,
+                                    detail="The principal account does not exist.",
+                                    errors=[{"field": "principal_user", "code": "UNKNOWN",
+                                             "message": str(v["principal_user"])}])
+        delegation = services.create_delegation(
+            ctx=request.auth_context, actor_user=actor_user, stage=v["stage"],
+            delegate_user=delegate, principal_user=principal, starts_at=v["starts_at"],
+            ends_at=v["ends_at"], reason=v.get("reason", ""),
+        )
+        return Response(DelegationSerializer(delegation).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(summary="End a delegation now")
+    @action(detail=True, methods=["post"])
+    def revoke(self, request, pk=None):
+        obj = self.get_queryset().filter(pk=pk).first()
+        if obj is None:
+            raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
+                                detail="No such delegation, or it is not visible to you.")
+        ctx = request.auth_context
+        # The delegate may see it but not end it: giving the cover back is the
+        # principal's call (or an administrator's).
+        if not ctx.is_admin() and str(obj.principal_user_id) != str(ctx.sub):
+            raise ProblemDetail(code="GOVERNANCE_DELEGATION_DENIED", title="Not permitted",
+                                status_code=403,
+                                detail="Only the principal or an administrator may revoke it.")
+        services.revoke_delegation(obj, ctx=ctx)
+        obj.refresh_from_db()
+        return Response(DelegationSerializer(obj).data)
 
 
 class NotificationSerializer(serializers.ModelSerializer):

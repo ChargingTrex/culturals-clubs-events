@@ -9,7 +9,8 @@ from django.utils import timezone
 
 from common.errors import Conflict, ProblemDetail, Unprocessable
 from budget.models import (
-    Budget, BudgetLine, BudgetStage, BudgetTemplate, BudgetTemplateLine, ReceiptDocument,
+    Budget, BudgetLine, BudgetStage, BudgetTemplate, BudgetTemplateLine,
+    ClubBudgetEnvelope, ReceiptDocument,
 )
 
 
@@ -214,7 +215,7 @@ def withdraw_nil(budget, *, actor):
 
 
 def attach_receipt(line, *, file_name, content, content_type, amount=None,
-                   uploaded_by_sub=None, supersedes=None):
+                   uploaded_by_sub=None, supersedes=None, vendor="", document_date=None):
     """
     Attach a receipt to one line. Replacement supersedes, never overwrites (§5).
     """
@@ -224,7 +225,8 @@ def attach_receipt(line, *, file_name, content, content_type, amount=None,
     receipt = ReceiptDocument.objects.create(
         line=line, file_key=stored["key"], file_name=file_name, content_type=content_type,
         byte_size=stored["bytes"], sha256=stored["sha256"], amount=amount,
-        uploaded_by_sub=uploaded_by_sub,
+        uploaded_by_sub=uploaded_by_sub, vendor=(vendor or "").strip()[:120],
+        document_date=document_date,
     )
     if supersedes is not None:
         supersedes.superseded_by = receipt
@@ -327,3 +329,93 @@ def settle(budget, *, actor):
                "total_spent": str(budget.total_spent)},
     )
     return budget
+
+
+def receipt_location(receipt):
+    """
+    Where the bytes of a receipt are, through the FileStore seam.
+
+    Local mode keeps the module's own bucket on disk, so the view can stream
+    the file itself. Platform mode only knows a URL (`url_for`), so the view
+    redirects to it. Either way the DB holds a key, never the bytes.
+
+    Returns {"kind": "file", "path": Path} or {"kind": "redirect", "url": str}.
+    """
+    from integrations.files import LocalFileStore
+    from integrations.registry import file_store
+
+    store = file_store()
+    if isinstance(store, LocalFileStore):
+        root = store.root.resolve()
+        path = (root / receipt.file_key).resolve()
+        if root not in path.parents:
+            # A key that escapes the bucket was not written by this module.
+            raise ProblemDetail(code="BUDGET_RECEIPT_FILE_MISSING", title="File not found",
+                                status_code=404, detail="The stored file cannot be located.")
+        return {"kind": "file", "path": path}
+    return {"kind": "redirect", "url": store.url_for(receipt.file_key)}
+
+
+# --------------------------------------------------------------------------
+# Annual envelope (PRD §5.7.3, §5.19.5)
+# --------------------------------------------------------------------------
+COUNTS_AGAINST_ENVELOPE = (BudgetStage.SANCTIONED, BudgetStage.SETTLED)
+
+
+def envelope_summary(club_id, year):
+    """
+    The club's envelope for `year` with running utilisation.
+
+    `sanctioned_to_date` is the sum of `amount_sanctioned` over the club's
+    budgets in stage sanctioned or settled, for events (or fests) starting in
+    that calendar year. Budgets still under review, returned or rejected do not
+    count: nothing has been committed. `settled_to_date` is the actual spend
+    recorded on the settled ones. `remaining` = amount − sanctioned_to_date,
+    or None when no envelope has been set for the year.
+    """
+    envelope = ClubBudgetEnvelope.objects.filter(club_id=club_id, year=year).first()
+    lines = BudgetLine.objects.filter(
+        models.Q(budget__event__club_id=club_id, budget__event__starts_at__year=year)
+        | models.Q(budget__fest__club_id=club_id, budget__fest__starts_on__year=year),
+        budget__stage__in=COUNTS_AGAINST_ENVELOPE,
+    )
+    sanctioned = lines.aggregate(s=models.Sum("amount_sanctioned"))["s"] or Decimal("0")
+    settled = (lines.filter(budget__stage=BudgetStage.SETTLED)
+               .aggregate(s=models.Sum("amount_spent"))["s"] or Decimal("0"))
+    amount = envelope.amount if envelope else None
+    return {
+        "club_id": str(club_id),
+        "year": year,
+        "amount": amount,
+        "sanctioned_to_date": sanctioned,
+        "settled_to_date": settled,
+        "remaining": (amount - sanctioned) if amount is not None else None,
+        "set_by": envelope.set_by_label if envelope else "",
+        "updated_at": envelope.updated_at if envelope else None,
+    }
+
+
+@transaction.atomic
+def set_envelope(club, *, year, amount, actor, actor_user=None):
+    """Create or replace the envelope for one year. Audited with the old figure."""
+    amount = Decimal(str(amount))
+    if amount < 0:
+        raise Unprocessable(code="BUDGET_ENVELOPE_NEGATIVE", title="Amount cannot be negative",
+                            detail=f"{amount} is not an envelope.",
+                            errors=[{"field": "amount", "code": "NEGATIVE",
+                                     "message": "Use zero or more."}])
+    envelope = (ClubBudgetEnvelope.objects.select_for_update()
+                .filter(club=club, year=year).first())
+    before = {"amount": str(envelope.amount)} if envelope else {}
+    if envelope is None:
+        envelope = ClubBudgetEnvelope(club=club, year=year)
+    envelope.amount = amount
+    envelope.set_by = actor_user
+    envelope.set_by_label = actor.display_name
+    envelope.save()
+    from integrations.registry import audit_sink
+
+    audit_sink().record(actor=actor, action="budget.envelope_set", target=envelope,
+                        before=before, after={"year": year, "amount": str(amount),
+                                              "club": str(club.pk)})
+    return envelope

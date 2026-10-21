@@ -18,7 +18,7 @@ from common import roles as R
 from common.errors import Conflict, ProblemDetail
 from events.models import EventStatus
 from governance.models import (
-    ApprovalRequest, ApprovalStage, ApprovalState, ApprovalStep, Decision,
+    ApprovalRequest, ApprovalStage, ApprovalState, ApprovalStep, Decision, Delegation,
 )
 from integrations.registry import audit_sink, notifier
 
@@ -117,15 +117,19 @@ def _notify_stage_holders(request, event):
     """
     Tell whoever holds the current gate.
 
-    Recipients are resolved from the role, not from a hard-coded person: cover
-    when the Dean is unavailable is an open question in AGENT_PROMPT §9, and
-    notifying by role means granting a deputy the role is all that is needed.
+    Recipients are resolved from the role, not from a hard-coded person, plus
+    whoever is actively standing in for that gate under a Delegation
+    (MASTER_SPEC §11.3). A delegate who is not told the request exists cannot
+    cover for anyone.
     """
     from identity.models import User
 
     role = _stage_role(request.current_stage)
     stage_label = ApprovalStage(request.current_stage).label
-    for user in User.objects.with_global_role(role):
+    recipients = {u.pk: u for u in User.objects.with_global_role(role)}
+    for delegation in active_delegations(request.current_stage).select_related("delegate_user"):
+        recipients.setdefault(delegation.delegate_user_id, delegation.delegate_user)
+    for user in recipients.values():
         notifier().send(
             recipient=user,
             subject=f"{event.club.name} sent “{event.title}” for approval",
@@ -157,6 +161,189 @@ def _notify_club(event, subject, body, kind):
                             link=f"/club/{event.club_id}/events/{event.id}")
 
 
+# --------------------------------------------------------------------------
+# Delegation (MASTER_SPEC §11.3, PRD §5.13)
+# --------------------------------------------------------------------------
+def active_delegations(stage=None, at=None):
+    """Delegations in force at `at` (default now), optionally for one stage."""
+    at = at or timezone.now()
+    qs = Delegation.objects.filter(revoked_at__isnull=True, starts_at__lte=at, ends_at__gt=at)
+    if stage is not None:
+        qs = qs.filter(stage=stage)
+    return qs
+
+
+def delegated_stages_for(ctx, at=None):
+    """The stages `ctx` may act on right now as somebody's delegate."""
+    if not ctx.sub:
+        return []
+    return list(active_delegations(at=at).filter(delegate_user_id=ctx.sub)
+                .order_by("stage").values_list("stage", flat=True).distinct())
+
+
+def held_stages(ctx):
+    """
+    Every stage the caller may decide: by role, or by an active delegation.
+    Order follows STAGE_ROLE so the queue's `stages_you_hold` is stable.
+    """
+    delegated = set(delegated_stages_for(ctx))
+    return [stage for stage, role in R.STAGE_ROLE.items()
+            if ctx.has_any(role) or stage in delegated]
+
+
+def active_delegation_for(ctx, stage, at=None):
+    """
+    The delegation under which `ctx` may act at `stage`, or None.
+
+    If several principals delegated the same stage to one person, the earliest
+    is the one recorded: it is the one that was already in force when the
+    others were added, and a step has to name exactly one principal.
+    """
+    if not ctx.sub:
+        return None
+    return (active_delegations(stage, at=at).filter(delegate_user_id=ctx.sub)
+            .select_related("principal_user").order_by("starts_at", "created_at").first())
+
+
+def _is_staff_account(user):
+    """
+    A staff account for delegation purposes: flagged is_staff, or holding any
+    global role other than `student`. A bare student account is neither.
+    """
+    return bool(user.is_staff) or any(role != R.STUDENT for role in (user.global_roles or []))
+
+
+@transaction.atomic
+def create_delegation(*, ctx, actor_user, stage, delegate_user, starts_at, ends_at,
+                      reason="", principal_user=None):
+    """
+    Record that `delegate_user` covers `stage` for `principal_user` in the window.
+
+    Who may create one: the holder of the stage's role (for themselves) or an
+    admin (naming the principal). Rule decided for §11.3's open question on the
+    Vice-Chancellor gate: it may be delegated only to a staff account — is_staff,
+    or any non-student global role — unless an admin created the delegation.
+    A student account standing in for the VC is a configuration mistake the
+    Dean's own form should not be able to make; an administrator can still do
+    it knowingly, and the audit entry names them.
+    """
+    if stage not in R.STAGE_ROLE:
+        raise ProblemDetail(code="GOVERNANCE_UNKNOWN_STAGE", title="Unknown stage",
+                            status_code=422,
+                            detail=f"{stage!r} is not an approval stage.",
+                            errors=[{"field": "stage", "code": "INVALID",
+                                     "message": ", ".join(R.STAGE_ROLE)}])
+    role = _stage_role(stage)
+    is_admin = ctx.is_admin()
+    if principal_user is None:
+        principal_user = actor_user
+    if not is_admin:
+        if not ctx.has_any(role):
+            raise ProblemDetail(
+                code="GOVERNANCE_DELEGATION_DENIED", title="Not permitted", status_code=403,
+                detail=(f"Only the {ApprovalStage(stage).label} or an administrator may "
+                        f"delegate that stage."),
+            )
+        if principal_user.pk != actor_user.pk:
+            raise ProblemDetail(
+                code="GOVERNANCE_DELEGATION_DENIED", title="Not permitted", status_code=403,
+                detail="Only an administrator may delegate on somebody else's behalf.",
+            )
+    if role not in (principal_user.global_roles or []):
+        raise ProblemDetail(
+            code="GOVERNANCE_PRINCIPAL_NOT_HOLDER", title="Principal does not hold that stage",
+            status_code=422,
+            detail=(f"{principal_user.display_name} does not hold the "
+                    f"{ApprovalStage(stage).label} role, so there is nothing to delegate."),
+            errors=[{"field": "principal_user", "code": "NOT_HOLDER", "message": role}],
+        )
+    if delegate_user.pk == principal_user.pk:
+        raise ProblemDetail(
+            code="GOVERNANCE_DELEGATE_IS_PRINCIPAL", title="Cannot delegate to yourself",
+            status_code=422, detail="The delegate must be a different account.",
+            errors=[{"field": "delegate_user", "code": "SAME_AS_PRINCIPAL",
+                     "message": "Choose another account."}],
+        )
+    if not delegate_user.is_active:
+        raise ProblemDetail(
+            code="GOVERNANCE_DELEGATE_INACTIVE", title="Delegate cannot log in",
+            status_code=422, detail=f"{delegate_user.display_name}'s account is not active.",
+        )
+    if ends_at <= starts_at:
+        raise ProblemDetail(
+            code="GOVERNANCE_DELEGATION_WINDOW", title="Window ends before it starts",
+            status_code=422, detail="ends_at must be after starts_at.",
+            errors=[{"field": "ends_at", "code": "BEFORE_START", "message": str(starts_at)}],
+        )
+    if stage == ApprovalStage.VC and not is_admin and not _is_staff_account(delegate_user):
+        raise ProblemDetail(
+            code="GOVERNANCE_DELEGATE_NOT_STAFF", title="VC gate needs a staff delegate",
+            status_code=422,
+            detail=("The Vice-Chancellor's gate may only be delegated to a staff account. "
+                    "An administrator can record an exception."),
+            errors=[{"field": "delegate_user", "code": "NOT_STAFF",
+                     "message": delegate_user.email}],
+        )
+
+    delegation = Delegation.objects.create(
+        stage=stage, principal_user=principal_user, delegate_user=delegate_user,
+        starts_at=starts_at, ends_at=ends_at, reason=(reason or "").strip(),
+        created_by=actor_user,
+    )
+    audit_sink().record(
+        actor=ctx, action="delegation.created", target=delegation,
+        after={"stage": stage, "principal": str(principal_user.pk),
+               "delegate": str(delegate_user.pk), "starts_at": starts_at.isoformat(),
+               "ends_at": ends_at.isoformat()},
+        reason=delegation.reason,
+    )
+    notifier().send(
+        recipient=delegate_user,
+        subject=f"You are covering the {ApprovalStage(stage).label} gate",
+        body=(f"{principal_user.display_name} has delegated the "
+              f"{ApprovalStage(stage).label} stage to you from "
+              f"{starts_at:%d %b %Y %H:%M} to {ends_at:%d %b %Y %H:%M}."
+              + (f" Reason: {delegation.reason}" if delegation.reason else "")),
+        kind="delegation.granted",
+        link="/staff/approvals",
+    )
+    return delegation
+
+
+@transaction.atomic
+def revoke_delegation(delegation, *, ctx):
+    """End a delegation now. Idempotence is refused: a second revoke is a mistake."""
+    delegation = Delegation.objects.select_for_update().get(pk=delegation.pk)
+    if delegation.is_revoked:
+        raise Conflict(code="GOVERNANCE_DELEGATION_REVOKED", title="Already revoked",
+                       detail=f"Revoked at {delegation.revoked_at:%d %b %Y %H:%M}.")
+    delegation.revoked_at = timezone.now()
+    delegation.revoked_by_label = ctx.display_name
+    delegation.save(update_fields=["revoked_at", "revoked_by_label", "updated_at"])
+    audit_sink().record(actor=ctx, action="delegation.revoked", target=delegation,
+                        before={"ends_at": delegation.ends_at.isoformat()},
+                        after={"revoked_at": delegation.revoked_at.isoformat()})
+    notifier().send(
+        recipient=delegation.delegate_user,
+        subject=f"Your cover for the {ApprovalStage(delegation.stage).label} gate has ended",
+        body=f"{ctx.display_name} revoked the delegation.",
+        kind="delegation.revoked", link="/staff/approvals",
+    )
+    return delegation
+
+
+def delegations_visible_to(ctx):
+    """Own delegations — given or received. Administrators see all of them."""
+    qs = Delegation.objects.select_related("principal_user", "delegate_user", "created_by")
+    if ctx.is_admin():
+        return qs
+    if not ctx.sub:
+        return qs.none()
+    from django.db.models import Q
+
+    return qs.filter(Q(principal_user_id=ctx.sub) | Q(delegate_user_id=ctx.sub))
+
+
 def assert_can_decide(request, ctx, *, stage=None):
     """
     Who may act on this gate. Called before any state changes.
@@ -171,6 +358,11 @@ def assert_can_decide(request, ctx, *, stage=None):
     The middle one matters. A Dean opening a proposal still sitting with the
     Cultural Society needs to be told it is not with them yet, not handed a bare
     "not permitted" that reads like a broken permission.
+
+    An active delegate for the current stage is accepted as if they held the
+    role; the Delegation is returned so the step can name the principal. The
+    self-approval rule is checked after, and wins: a delegate with a club role in
+    the proposing club is refused however they came by the gate.
     """
     current = request.current_stage
     if request.state != ApprovalState.PENDING:
@@ -184,11 +376,15 @@ def assert_can_decide(request, ctx, *, stage=None):
                     f"not the {ApprovalStage(stage).label}."),
         )
 
+    delegation = None
     if not ctx.has_any(_stage_role(current)):
+        delegation = active_delegation_for(ctx, current)
+    if not ctx.has_any(_stage_role(current)) and delegation is None:
         # Does the caller hold some *other* gate on this route? If so this is a
         # turn-taking problem, not a permission problem.
+        delegated = set(delegated_stages_for(ctx))
         held_elsewhere = [s for s in request.stages
-                          if s != current and ctx.has_any(_stage_role(s))]
+                          if s != current and (ctx.has_any(_stage_role(s)) or s in delegated)]
         if held_elsewhere:
             raise Conflict(
                 code="GOVERNANCE_WRONG_STAGE", title="Not at your stage",
@@ -208,6 +404,7 @@ def assert_can_decide(request, ctx, *, stage=None):
             detail=("You hold a role in the club that submitted this proposal. "
                     "No club role approves its own budget."),
         )
+    return delegation
 
 
 def requires_mfa(request, stage):
@@ -232,7 +429,7 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
 
     request = ApprovalRequest.objects.select_for_update().get(pk=request.pk)
     stage = request.current_stage
-    assert_can_decide(request, ctx)
+    delegation = assert_can_decide(request, ctx)
 
     if decision != Decision.APPROVE and not comment.strip():
         raise ProblemDetail(
@@ -261,6 +458,8 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
         actor_sub=ctx.sub, actor_label=ctx.display_name, actor_role=_stage_role(stage),
         mfa_verified=ctx.mfa,
         amount_sanctioned=budget.total_sanctioned if budget else None,
+        on_behalf_of=delegation.principal_user if delegation else None,
+        on_behalf_of_label=delegation.principal_user.display_name if delegation else "",
     )
 
     if decision == Decision.RETURN:
@@ -283,6 +482,8 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
         remaining = request.remaining_stages()
         if remaining:
             request.current_stage = remaining[0]
+            # The SLA clock measures the gate holding it, so it restarts here.
+            request.stage_entered_at = timezone.now()
             if budget:
                 budget.stage = STAGE_TO_BUDGET_STAGE[remaining[0]]
             _notify_stage_holders(request, event)
@@ -308,12 +509,14 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
     if budget:
         budget.save(update_fields=["stage", "updated_at"])
 
+    after = {"state": request.state, "current_stage": request.current_stage,
+             "event_status": event.status}
+    if delegation:
+        after["on_behalf_of"] = str(delegation.principal_user_id)
+        after["delegation"] = str(delegation.pk)
     audit_sink().record(
         actor=ctx, action=f"approval.{decision}", target=event,
-        before={"stage": stage}, after={"state": request.state,
-                                        "current_stage": request.current_stage,
-                                        "event_status": event.status},
-        reason=comment,
+        before={"stage": stage}, after=after, reason=comment,
     )
     return step
 
@@ -349,19 +552,46 @@ def _apply_sanctions(budget, sanctioned_lines):
         line.save(update_fields=["amount_sanctioned", "updated_at"])
 
 
-def pending_for(ctx):
+def pending_for(ctx, *, escalated=False):
     """
     The queue for whoever is asking.
 
-    Filtered by the stages the caller actually holds, so the Dean's queue and the
-    Cultural Society's queue come from one endpoint without either seeing the
-    other's work as their own.
+    Filtered by the stages the caller actually holds — by role or by an active
+    delegation — so the Dean's queue and the Cultural Society's queue come from
+    one endpoint without either seeing the other's work as their own.
+
+    Oldest at the top: the SLA is about what has waited longest, not what is
+    on soonest. `escalated=True` keeps only the requests past the SLA.
     """
-    stages = [stage for stage, role in R.STAGE_ROLE.items() if ctx.has_any(role)]
+    stages = held_stages(ctx)
     if not stages:
         return ApprovalRequest.objects.none()
+    qs = (ApprovalRequest.objects
+          .filter(state=ApprovalState.PENDING, current_stage__in=stages)
+          .select_related("event__club", "event__venue")
+          .prefetch_related("event__budget__lines", "steps")
+          .order_by("stage_entered_at", "created_at"))
+    if escalated:
+        qs = qs.filter(stage_entered_at__lt=_sla_cutoff())
+    return qs
+
+
+def _sla_cutoff():
+    from datetime import timedelta
+
+    return timezone.now() - timedelta(hours=settings.APPROVAL_SLA_HOURS)
+
+
+def escalated_requests():
+    """
+    Every pending request that has sat at its current gate longer than
+    APPROVAL_SLA_HOURS, oldest first.
+
+    Exposed for the Dean overview (reporting owns the wiring) and for the
+    notification job that will chase them; the queue's `?escalated=true` is
+    the same predicate.
+    """
     return (ApprovalRequest.objects
-            .filter(state=ApprovalState.PENDING, current_stage__in=stages)
+            .filter(state=ApprovalState.PENDING, stage_entered_at__lt=_sla_cutoff())
             .select_related("event__club", "event__venue")
-            .prefetch_related("event__budget__lines", "steps")
-            .order_by("event__starts_at"))
+            .order_by("stage_entered_at", "created_at"))
