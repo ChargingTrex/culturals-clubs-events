@@ -22,11 +22,11 @@ from rest_framework.test import APIClient
 
 from common import roles as R
 from events.models import EventStatus
-from governance.models import ApprovalRequest, ApprovalStage, AuditEntry, Notification
+from governance.models import ApprovalRequest, ApprovalStage, AuditEntry, Delegation, Notification
 from participation.models import ExternalParticipant, Registration, ScanRecord, ScanResult
 from tests import factories as f
 
-TOKEN = "test-jobs-token-not-a-user"
+TOKEN = "test-jobs-token-not-a-user-32-chars-min"  # QA F8: < 32 chars is 503
 AUTH = {"HTTP_AUTHORIZATION": f"Bearer {TOKEN}"}
 
 
@@ -77,6 +77,19 @@ class JobTokenTests(TestCase):
         self.assertEqual(response.data["code"], "JOBS_DISABLED")
         self.assertFalse(AuditEntry.objects.exists())
 
+    @override_settings(JOBS_TOKEN="short-01")
+    def test_a_token_shorter_than_32_characters_is_treated_as_disabled(self):
+        """QA F8: an unauthenticated, unthrottled route needs a real secret."""
+        response = self.client.post("/api/v1/jobs/purge-external", HTTP_AUTHORIZATION="Bearer short-01")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data["code"], "JOBS_DISABLED")
+        self.assertIn("32", response.data["detail"])
+
+    def test_a_refused_attempt_is_logged(self):
+        with self.assertLogs("jobs.views", level="WARNING") as logs:
+            self.client.post("/api/v1/jobs/purge-external", HTTP_AUTHORIZATION="Bearer nope")
+        self.assertIn("refused trigger of 'purge-external'", logs.output[0])
+
     def test_an_unknown_job_is_404_after_the_token_check(self):
         self.assertEqual(self.client.post("/api/v1/jobs/make-coffee").status_code, 401)
         response = self.client.post("/api/v1/jobs/make-coffee", **AUTH)
@@ -103,14 +116,24 @@ class PurgeExternalTests(TestCase):
         self.due_today = ExternalParticipant.objects.create(
             full_name="Today Guest", purge_after=today)
 
-    def test_only_expired_rows_are_removed(self):
+    def test_only_expired_rows_are_blanked_and_no_row_is_deleted(self):
+        """Decision E-09: the row stays, the personal data goes."""
         response = self.client.post("/api/v1/jobs/purge-external", **AUTH)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["result"]["purged"], 1)
-        self.assertFalse(ExternalParticipant.objects.filter(pk=self.expired.pk).exists())
+        self.assertEqual(ExternalParticipant.objects.count(), 4, "no row is deleted")
+        self.expired.refresh_from_db()
+        self.assertEqual((self.expired.full_name, self.expired.institution,
+                          self.expired.email, self.expired.phone), ("", "", "", ""))
+        self.assertIsNotNone(self.expired.purged_at)
         for survivor in (self.kept, self.undecided, self.due_today):
-            self.assertTrue(ExternalParticipant.objects.filter(pk=survivor.pk).exists(),
-                            survivor.full_name)
+            survivor.refresh_from_db()
+            self.assertTrue(survivor.full_name, survivor.pk)
+
+    def test_a_second_run_does_not_count_the_same_row_again(self):
+        self.client.post("/api/v1/jobs/purge-external", **AUTH)
+        again = self.client.post("/api/v1/jobs/purge-external", **AUTH).data
+        self.assertEqual(again["result"]["purged"], 0)
 
     def test_the_run_is_audited_with_the_count_only(self):
         self.client.post("/api/v1/jobs/purge-external", **AUTH)
@@ -126,13 +149,24 @@ class PurgeExternalTests(TestCase):
         self.assertEqual(set(data), {"job", "started_at", "finished_at", "result"})
         self.assertLessEqual(data["started_at"], data["finished_at"])
 
-    def test_a_cascaded_registration_is_reported_not_hidden(self):
-        """Registration.external is CASCADE; the job says how many rows went with it."""
+    def test_the_registration_survives_and_the_semester_figure_is_unchanged(self):
+        """QA F1 / decision E-09: a purge must not rewrite a reported semester."""
+        from reporting.services import semester_report
+
+        semester = f.semester()
         event = f.event(f.club(), f.venue(), days=-5, status=EventStatus.REPORTED)
-        Registration.objects.create(event=event, external=self.expired, attended=True,
-                                    checked_in_at=event.starts_at)
+        registration = Registration.objects.create(event=event, external=self.expired, attended=True,
+                                                   checked_in_at=event.starts_at)
+        before = semester_report(semester)
         data = self.client.post("/api/v1/jobs/purge-external", **AUTH).data
-        self.assertEqual(data["result"]["registrations_removed"], 1)
+        after = semester_report(semester)
+        self.assertEqual(data["result"]["registrations_removed"], 0)
+        registration.refresh_from_db()
+        self.assertTrue(registration.attended)
+        self.assertEqual(registration.external_id, self.expired.pk)
+        self.assertEqual(after["external_participants"], before["external_participants"])
+        self.assertEqual(after["external_participants"], 1)
+        self.assertEqual(after["total_participation"], before["total_participation"])
 
 
 @override_settings(JOBS_TOKEN=TOKEN)
@@ -226,15 +260,77 @@ class WiredTests(TestCase):
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(first.data["result"],
-                         {"escalated": 1, "dean_recipients": 2, "notifications_sent": 2})
+                         {"escalated": 1, "dean_recipients": 2, "notifications_sent": 2, "failed": 0})
         self.assertEqual(second.data["result"]["notifications_sent"], 0, "no re-nagging")
         notes = Notification.objects.filter(kind="approval.escalated")
         self.assertEqual(notes.count(), 2)
         self.assertEqual({n.user for n in notes}, {self.dean, self.other_dean})
         note = notes.get(user=self.dean)
         self.assertIn("Late Night", note.subject)
-        self.assertEqual(note.link, f"/staff/approvals/{event.id}")
+        self.assertEqual(note.link, f"/staff/approvals/{event.id}?request={request.id}&stage=dean")
         self.assertIn("80.0 h", note.body)
+
+    def _stale_request(self, title="Stuck", stage=ApprovalStage.DEAN, stages=("dean",)):
+        event = f.event(self.club, f.venue(f"V {title}"), title=title, days=10,
+                        status=EventStatus.SUBMITTED)
+        request = ApprovalRequest.objects.create(event=event, stages=list(stages), current_stage=stage)
+        ApprovalRequest.objects.filter(pk=request.pk).update(
+            stage_entered_at=timezone.now() - timedelta(hours=80))
+        request.refresh_from_db()
+        return request
+
+    def test_an_active_delegate_for_the_stage_is_told_and_an_expired_one_is_not(self):
+        """QA F5: the person who can actually clear the gate hears about it."""
+        active = f.user("deputy@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        expired = f.user("former@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        now = timezone.now()
+        Delegation.objects.create(stage=ApprovalStage.DEAN, principal_user=self.dean,
+                                  delegate_user=active, starts_at=now - timedelta(hours=1),
+                                  ends_at=now + timedelta(days=2))
+        Delegation.objects.create(stage=ApprovalStage.DEAN, principal_user=self.dean,
+                                  delegate_user=expired, starts_at=now - timedelta(days=5),
+                                  ends_at=now - timedelta(days=1))
+        request = self._stale_request()
+        with wired("governance.services", "escalated_requests", lambda: [request]):
+            data = self.client.post("/api/v1/jobs/escalate-sla", **AUTH).data
+        self.assertEqual(data["result"]["notifications_sent"], 3)
+        told = {n.user.email for n in Notification.objects.filter(kind="approval.escalated")}
+        self.assertEqual(told, {"dean@college.edu", "dean2@college.edu", "deputy@college.edu"})
+
+    def test_a_breach_at_the_society_stage_reaches_the_society_and_the_dean(self):
+        society = f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        request = self._stale_request(stage=ApprovalStage.CULTURAL_SOCIETY,
+                                      stages=("cultural_society", "dean"))
+        with wired("governance.services", "escalated_requests", lambda: [request]):
+            data = self.client.post("/api/v1/jobs/escalate-sla", **AUTH).data
+        self.assertEqual(data["result"]["notifications_sent"], 3)
+        self.assertTrue(Notification.objects.filter(user=society, kind="approval.escalated").exists())
+
+    def test_a_long_title_fits_the_subject_column(self):
+        """QA F4: on Postgres an over-long subject is a DataError for the whole run."""
+        request = self._stale_request(title="L" * 200)
+        with wired("governance.services", "escalated_requests", lambda: [request]):
+            data = self.client.post("/api/v1/jobs/escalate-sla", **AUTH).data
+        self.assertEqual(data["result"]["failed"], 0)
+        width = Notification._meta.get_field("subject").max_length
+        for note in Notification.objects.filter(kind="approval.escalated"):
+            self.assertLessEqual(len(note.subject), width)
+            self.assertTrue(note.subject.endswith("…"))
+
+    def test_one_bad_row_does_not_abort_the_run(self):
+        """QA F4: the row is logged and counted; the others are still notified."""
+        class Broken:
+            @property
+            def event(self):
+                raise RuntimeError("row cannot be read")
+
+        good = self._stale_request(title="Fine")
+        with wired("governance.services", "escalated_requests", lambda: [Broken(), good]), \
+                self.assertLogs("jobs.services", level="ERROR"):
+            data = self.client.post("/api/v1/jobs/escalate-sla", **AUTH).data
+        self.assertEqual(data["result"]["failed"], 1)
+        self.assertEqual(data["result"]["notifications_sent"], 2)
+        self.assertEqual(data["result"]["escalated"], 2)
 
     def test_escalate_sla_accepts_dict_rows_too(self):
         """The dependency's row shape is unknown; a dict must work as well as a model."""
@@ -243,7 +339,8 @@ class WiredTests(TestCase):
         with wired("governance.services", "escalated_requests", lambda: [row]):
             response = self.client.post("/api/v1/jobs/escalate-sla", **AUTH)
         self.assertEqual(response.data["result"]["notifications_sent"], 2)
-        self.assertEqual(Notification.objects.filter(link="/staff/approvals/evt-1").count(), 2)
+        self.assertEqual(Notification.objects.filter(
+            link="/staff/approvals/evt-1?request=abc&stage=dean").count(), 2)
 
 
 class CeleryTaskTests(TestCase):

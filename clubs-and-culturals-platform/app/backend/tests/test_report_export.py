@@ -27,7 +27,7 @@ def parse_csv(text):
     """Rows grouped by their `section` tag; each row is a dict keyed by its block's header."""
     sections = {}
     header = None
-    for row in csv.reader(io.StringIO(text)):
+    for row in csv.reader(io.StringIO(text.lstrip("\ufeff"))):
         if not row:
             header = None
             continue
@@ -77,12 +77,21 @@ class _OverlapDataset(TestCase):
 
 
 class SemesterReportCSVTests(_OverlapDataset):
+    def test_clubs_active_counts_only_clubs_that_ran_something(self):
+        """QA F11: the key says what it counts; an idle club in the category is not in it."""
+        f.club("Idle Choir")  # cultural, no events
+        f.as_user(self.client, "dean@college.edu", mfa_code="1")
+        [cultural] = [r for r in self.client.get("/api/v1/reporting/reports/semester").data["by_category"]
+                      if r["category"] == "cultural"]
+        self.assertEqual(cultural["clubs_active"], 1)
+        self.assertNotIn("clubs", cultural)
+
     def test_by_category_is_in_the_json(self):
         f.as_user(self.client, "dean@college.edu", mfa_code="1")
         report = self.client.get("/api/v1/reporting/reports/semester").data
         self.assertEqual(report["by_category"], [
-            {"category": "cultural", "clubs": 1, "events_run": 2, "attendance": 7},
-            {"category": "technical", "clubs": 1, "events_run": 1, "attendance": 2},
+            {"category": "cultural", "clubs_active": 1, "events_run": 2, "attendance": 7},
+            {"category": "technical", "clubs_active": 1, "events_run": 1, "attendance": 2},
         ])
         self.assertEqual(report["total_participation"], 9)
         self.assertEqual(report["unique_students"], 6)
@@ -94,6 +103,7 @@ class SemesterReportCSVTests(_OverlapDataset):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response["Content-Type"].startswith("text/csv"))
         self.assertIn("attachment", response["Content-Disposition"])
+        self.assertTrue(response.content.startswith("\ufeff".encode("utf-8")), "UTF-8 BOM for Excel (QA F7)")
 
         sections = parse_csv(response.content.decode())
         totals = {row["metric"]: row["value"] for row in sections["totals"]}
@@ -108,9 +118,9 @@ class SemesterReportCSVTests(_OverlapDataset):
             [(r["club"], r["category"], r["events_run"], r["attendance"]) for r in report["by_club"]],
         )
         self.assertEqual(
-            [(r["category"], int(r["clubs"]), int(r["events_run"]), int(r["attendance"]))
+            [(r["category"], int(r["clubs_active"]), int(r["events_run"]), int(r["attendance"]))
              for r in sections["by_category"]],
-            [(r["category"], r["clubs"], r["events_run"], r["attendance"]) for r in report["by_category"]],
+            [(r["category"], r["clubs_active"], r["events_run"], r["attendance"]) for r in report["by_category"]],
         )
         self.assertEqual(
             [(r["department"], int(r["students_reached"]), int(r["attendance"]))
@@ -285,6 +295,19 @@ class DeanOverviewAdditionsTests(TestCase):
         self.assertEqual(row["stage"], "dean")
         self.assertEqual(row["age_hours"], 72.0)
         self.assertEqual(row["event_id"], str(self.complete.id))
+        self.assertIsNotNone(row["stage_entered_at"])
+
+    def test_the_age_is_stage_based_and_has_no_created_at_fallback(self):
+        """QA F3: an old request freshly at a new gate is not old at that gate."""
+        from reporting.services import escalation_summary
+
+        request = ApprovalRequest.objects.create(
+            event=self.complete, stages=["dean"], current_stage=ApprovalStage.DEAN)
+        ApprovalRequest.objects.filter(pk=request.pk).update(
+            created_at=timezone.now() - timedelta(hours=72))
+        request.refresh_from_db()
+        self.assertEqual(escalation_summary(request)["age_hours"], 0.0)
+        self.assertIsNone(escalation_summary({"id": "x", "stage": "dean"})["age_hours"])
 
     def test_wrong_roles_cannot_read_the_overview(self):
         for email, mfa in (("vc@college.edu", "1"), ("student@college.edu", "")):

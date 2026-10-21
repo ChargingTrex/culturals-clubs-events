@@ -11,7 +11,6 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.db.models import Count, Q, Sum
-from django.utils import timezone
 
 from events.models import REPORTABLE, SLOT_HOLDING, Event
 from participation.models import ACCEPTING, Registration, ScanRecord
@@ -55,9 +54,11 @@ def semester_report(semester):
 
     # PRD §6.2 asks for the split by club category (cultural, technical, ...);
     # `by_club` carries each club's category too, this is the roll-up of it.
+    # `clubs_active` = clubs in the category with at least one completed event
+    # this semester — not the number of clubs registered in the category.
     by_category = list(
         events.values("club__category")
-        .annotate(clubs=Count("club_id", distinct=True),
+        .annotate(clubs_active=Count("club_id", distinct=True),
                   events_run=Count("id", distinct=True),
                   attendance=Count("registrations", filter=_ATTENDED))
         .order_by("-attendance")
@@ -94,7 +95,7 @@ def semester_report(semester):
             for row in by_club
         ],
         "by_category": [
-            {"category": row["club__category"], "clubs": row["clubs"],
+            {"category": row["club__category"], "clubs_active": row["clubs_active"],
              "events_run": row["events_run"], "attendance": row["attendance"]}
             for row in by_category
         ],
@@ -251,10 +252,12 @@ def escalation_summary(item):
     get = item.get if isinstance(item, dict) else (lambda key, default=None: getattr(item, key, default))
     event = get("event")
     event_id = getattr(event, "id", None) or get("event_id") or (event if isinstance(event, (str, UUID)) else None)
-    submitted_at = get("created_at") or get("submitted_at")
+    # The age is stage-based (B-07: the clock restarts at each gate), so the
+    # timestamp reported beside it is the one it is measured from. No fallback to
+    # created_at: that would quietly report a different clock.
     age = get("age_hours")
-    if age is None and submitted_at is not None:
-        age = (timezone.now() - submitted_at).total_seconds() / 3600
+    if callable(age):
+        age = age()
     return {
         "id": str(get("id") or ""),
         "event_id": str(event_id or ""),
@@ -262,5 +265,6 @@ def escalation_summary(item):
         "club": getattr(getattr(event, "club", None), "name", None) or get("club") or "",
         "stage": get("current_stage") or get("stage") or "",
         "age_hours": round(float(age), 1) if age is not None else None,
-        "submitted_at": submitted_at,
+        "stage_entered_at": get("stage_entered_at"),
+        "submitted_at": get("created_at") or get("submitted_at"),
     }
