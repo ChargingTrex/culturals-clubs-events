@@ -10,8 +10,10 @@ No club role approves its own budget (AGENT_PROMPT §6). `decide` refuses any
 actor who does not hold the stage's role, and refuses a club office bearer
 outright even if they somehow hold an approval role for their own club's event.
 """
+from datetime import timedelta
+
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from common import roles as R
@@ -165,12 +167,12 @@ def _notify_club(event, subject, body, kind):
 # Delegation (MASTER_SPEC §11.3, PRD §5.13)
 # --------------------------------------------------------------------------
 def active_delegations(stage=None, at=None):
-    """Delegations in force at `at` (default now), optionally for one stage."""
-    at = at or timezone.now()
-    qs = Delegation.objects.filter(revoked_at__isnull=True, starts_at__lte=at, ends_at__gt=at)
-    if stage is not None:
-        qs = qs.filter(stage=stage)
-    return qs
+    """
+    Delegations in force at `at` (default now), optionally for one stage. The
+    predicate — window, not revoked, principal still holds the role — is
+    `Delegation.objects.in_force`, shared with the login view's MFA demand.
+    """
+    return Delegation.objects.in_force(at=at, stage=stage)
 
 
 def delegated_stages_for(ctx, at=None):
@@ -181,36 +183,55 @@ def delegated_stages_for(ctx, at=None):
                 .order_by("stage").values_list("stage", flat=True).distinct())
 
 
-def held_stages(ctx):
+def held_stages(ctx, *, delegated=None):
     """
     Every stage the caller may decide: by role, or by an active delegation.
     Order follows STAGE_ROLE so the queue's `stages_you_hold` is stable.
+    `delegated` lets a view that already looked the delegations up pass them
+    in rather than querying again.
     """
-    delegated = set(delegated_stages_for(ctx))
+    delegated = set(delegated_stages_for(ctx) if delegated is None else delegated)
     return [stage for stage, role in R.STAGE_ROLE.items()
             if ctx.has_any(role) or stage in delegated]
 
 
-def active_delegation_for(ctx, stage, at=None):
+def has_active_delegation(user, at=None):
+    """Whether `user` is covering any gate right now (login reads the queryset directly)."""
+    return active_delegations(at=at).filter(delegate_user_id=user.pk).exists()
+
+
+def active_delegation_for(ctx, stage, at=None, *, lock=False):
     """
     The delegation under which `ctx` may act at `stage`, or None.
 
     If several principals delegated the same stage to one person, the earliest
     is the one recorded: it is the one that was already in force when the
     others were added, and a step has to name exactly one principal.
+
+    `lock=True` (from `decide`, inside its transaction) takes a row lock so a
+    revoke cannot land between the permission check and the step insert.
     """
     if not ctx.sub:
         return None
-    return (active_delegations(stage, at=at).filter(delegate_user_id=ctx.sub)
-            .select_related("principal_user").order_by("starts_at", "created_at").first())
+    qs = (active_delegations(stage, at=at).filter(delegate_user_id=ctx.sub)
+          .select_related("principal_user").order_by("starts_at", "created_at"))
+    if lock:
+        qs = qs.select_for_update(of=("self",))
+    delegation = qs.first()
+    if delegation is not None and delegation.revoked_at is not None:
+        return None     # revoked between the candidate query and the lock
+    return delegation
 
 
 def _is_staff_account(user):
     """
-    A staff account for delegation purposes: flagged is_staff, or holding any
-    global role other than `student`. A bare student account is neither.
+    A staff account for delegation purposes: flagged is_staff, or holding the
+    Dean or admin role. Deliberately not "any non-student role": Cultural
+    Society office bearers are students here (PRD §4), so that role must not
+    qualify an account to stand in for the Vice-Chancellor.
     """
-    return bool(user.is_staff) or any(role != R.STUDENT for role in (user.global_roles or []))
+    return bool(user.is_staff) or any(role in (R.DEAN, R.ADMIN)
+                                      for role in (user.global_roles or []))
 
 
 @transaction.atomic
@@ -274,6 +295,17 @@ def create_delegation(*, ctx, actor_user, stage, delegate_user, starts_at, ends_
             code="GOVERNANCE_DELEGATION_WINDOW", title="Window ends before it starts",
             status_code=422, detail="ends_at must be after starts_at.",
             errors=[{"field": "ends_at", "code": "BEFORE_START", "message": str(starts_at)}],
+        )
+    if ends_at - starts_at > timedelta(days=settings.DELEGATION_MAX_DAYS):
+        # Cover is for an absence. A window longer than this is a role change
+        # dressed as cover, and would be a standing, MFA-free route to the gate.
+        raise ProblemDetail(
+            code="GOVERNANCE_DELEGATION_TOO_LONG", title="Window too long",
+            status_code=422,
+            detail=(f"A delegation may cover at most {settings.DELEGATION_MAX_DAYS} days. "
+                    "For a longer absence, grant the role."),
+            errors=[{"field": "ends_at", "code": "MAX_DAYS",
+                     "message": str(settings.DELEGATION_MAX_DAYS)}],
         )
     if stage == ApprovalStage.VC and not is_admin and not _is_staff_account(delegate_user):
         raise ProblemDetail(
@@ -344,7 +376,7 @@ def delegations_visible_to(ctx):
     return qs.filter(Q(principal_user_id=ctx.sub) | Q(delegate_user_id=ctx.sub))
 
 
-def assert_can_decide(request, ctx, *, stage=None):
+def assert_can_decide(request, ctx, *, stage=None, lock=False):
     """
     Who may act on this gate. Called before any state changes.
 
@@ -378,7 +410,7 @@ def assert_can_decide(request, ctx, *, stage=None):
 
     delegation = None
     if not ctx.has_any(_stage_role(current)):
-        delegation = active_delegation_for(ctx, current)
+        delegation = active_delegation_for(ctx, current, lock=lock)
     if not ctx.has_any(_stage_role(current)) and delegation is None:
         # Does the caller hold some *other* gate on this route? If so this is a
         # turn-taking problem, not a permission problem.
@@ -416,6 +448,12 @@ def requires_mfa(request, stage):
             or request.amount_requested > settings.VC_BUDGET_THRESHOLD)
 
 
+# The PostgreSQL exclusion constraint on confirmed bookings
+# (events/migrations/0004_venue_exclusion_constraint.py). When two approvals race
+# past the lock on a database without it, this is the name in the error.
+VENUE_EXCLUSION_CONSTRAINT = "venue_confirmed_bookings_do_not_overlap"
+
+
 @transaction.atomic
 def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_user=None):
     """
@@ -424,13 +462,45 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
     `sanctioned_lines` is {line_id: amount}; an approver may reduce a head but
     never raise it above what was requested — a sanction larger than the request
     is a data entry error, not a generosity the system should accept.
+
+    The final approval is the one transition into a confirmed booking, so it
+    takes the same locks as submission (event row, then venue row) and re-checks
+    the slot inside the transaction; the view's clash check runs before the
+    transaction and cannot see a concurrent approval. On PostgreSQL the
+    exclusion constraint is the backstop, and its IntegrityError is mapped to
+    the same 409 rather than surfacing as a 500 with the step rolled back.
     """
+    try:
+        with transaction.atomic():
+            return _decide(request, ctx=ctx, decision=decision, comment=comment,
+                           sanctioned_lines=sanctioned_lines, actor_user=actor_user)
+    except IntegrityError as exc:
+        if VENUE_EXCLUSION_CONSTRAINT in str(exc):
+            raise Conflict(
+                code="GOVERNANCE_CLASH_UNRESOLVED", title="Venue clash unresolved",
+                detail=("Another event was confirmed in this venue for the same slot "
+                        "while this decision was being recorded. Move one of them first."),
+            ) from exc
+        raise
+
+
+def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
     from budget.models import BudgetStage
+    from events.models import Event
 
     request = ApprovalRequest.objects.select_for_update().get(pk=request.pk)
     stage = request.current_stage
-    delegation = assert_can_decide(request, ctx)
+    delegation = assert_can_decide(request, ctx, lock=True)
 
+    if delegation is not None and not ctx.mfa:
+        # Every delegated decision — approve, return or reject, at any gate and
+        # any amount — needs a second factor. The principal's role is MFA-
+        # mandatory at login (§5.5); cover must not be a weaker path to it.
+        raise ProblemDetail(
+            code="GOVERNANCE_MFA_REQUIRED", title="Second factor required",
+            status_code=403,
+            detail="Deciding on somebody's behalf requires a multi-factor-verified session.",
+        )
     if decision != Decision.APPROVE and not comment.strip():
         raise ProblemDetail(
             code="GOVERNANCE_COMMENT_REQUIRED", title="A comment is required",
@@ -447,7 +517,10 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
                     "multi-factor-verified session."),
         )
 
-    event = request.event
+    # Event row first, then (when publishing) the venue row — the order every
+    # booking path uses (events/views.py submit, events/services.reassign_venue).
+    event = Event.objects.select_for_update().select_related("club", "venue").get(
+        pk=request.event_id)
     budget = getattr(event, "budget", None)
 
     if decision == Decision.APPROVE and stage == ApprovalStage.DEAN and sanctioned_lines:
@@ -495,6 +568,7 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
             # Last gate cleared. An approved event is published in the same
             # transaction: an "approved but not published" limbo is a state
             # nobody watches, and proposals rot in it.
+            _assert_slot_still_free(event)
             request.state = ApprovalState.APPROVED
             request.resolved_at = timezone.now()
             event.status = EventStatus.PUBLISHED
@@ -519,6 +593,29 @@ def decide(request, *, ctx, decision, comment="", sanctioned_lines=None, actor_u
         before={"stage": stage}, after=after, reason=comment,
     )
     return step
+
+
+def _assert_slot_still_free(event):
+    """
+    Lock the venue and refuse to publish into a confirmed booking.
+
+    A soft clash (another *pending* request) was the approver's call and the
+    view already surfaced it; a hard clash here means somebody else's approval
+    landed first, and this one must not become the second confirmed booking.
+    """
+    from events.models import Venue
+    from events.services import assert_bookable
+
+    Venue.objects.select_for_update().get(pk=event.venue_id)
+    try:
+        assert_bookable(venue_id=event.venue_id, starts_at=event.starts_at,
+                        ends_at=event.ends_at, exclude_id=event.pk)
+    except Conflict as exc:
+        raise Conflict(
+            code="GOVERNANCE_CLASH_UNRESOLVED", title="Venue clash unresolved",
+            detail=(f"“{event.title}” now overlaps a confirmed booking in "
+                    f"{event.venue.name}: {exc.detail_text} Move one of them first."),
+        ) from exc
 
 
 def _apply_sanctions(budget, sanctioned_lines):
@@ -552,7 +649,7 @@ def _apply_sanctions(budget, sanctioned_lines):
         line.save(update_fields=["amount_sanctioned", "updated_at"])
 
 
-def pending_for(ctx, *, escalated=False):
+def pending_for(ctx, *, escalated=False, held=None):
     """
     The queue for whoever is asking.
 
@@ -563,7 +660,7 @@ def pending_for(ctx, *, escalated=False):
     Oldest at the top: the SLA is about what has waited longest, not what is
     on soonest. `escalated=True` keeps only the requests past the SLA.
     """
-    stages = held_stages(ctx)
+    stages = held_stages(ctx) if held is None else list(held)
     if not stages:
         return ApprovalRequest.objects.none()
     qs = (ApprovalRequest.objects

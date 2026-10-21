@@ -72,6 +72,46 @@ class ReceiptFileTests(TestCase):
         self.assertEqual(self.body(response), PDF)
         self.assertEqual(int(response["Content-Length"]), len(PDF))
 
+    def test_only_pdfs_and_photographs_are_accepted(self):
+        """QA F3. Exact allowlist: an SVG is an image by type and a script by content."""
+        svg = b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
+        response = self.upload(content=svg, name="bill.svg", content_type="image/svg+xml")
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.data["code"], "BUDGET_RECEIPT_TYPE")
+        for content_type in ("text/html", "application/octet-stream", "image/gif"):
+            self.assertEqual(self.upload(content=b"x", name="x", content_type=content_type)
+                             .status_code, 422, content_type)
+        for content_type in ("image/jpeg", "image/webp", "image/heic", "application/pdf"):
+            self.assertEqual(self.upload(content=b"x", name="x", content_type=content_type)
+                             .status_code, 201, content_type)
+        self.assertEqual(ReceiptDocument.objects.filter(content_type="image/svg+xml").count(), 0)
+
+    def test_a_row_stored_with_a_type_outside_the_allowlist_is_never_rendered_inline(self):
+        """
+        QA F3, defence in depth: a receipt row stored before the allowlist was
+        exact goes out as an opaque download, whatever its declared type says.
+        """
+        from budget import services as budget_services
+
+        svg = b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
+        receipt = budget_services.attach_receipt(self.line, file_name="old.svg", content=svg,
+                                                 content_type="image/svg+xml")
+        response = self.fetch("treas@college.edu", receipt.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/octet-stream")
+        self.assertTrue(response["Content-Disposition"].startswith("attachment"))
+        self.assertEqual(response["Content-Security-Policy"], "sandbox")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(self.body(response), svg)
+
+    def test_inline_receipts_carry_the_sandbox_and_no_store_headers(self):
+        created = self.upload()
+        response = self.fetch("treas@college.edu", created.data["id"])
+        self.assertTrue(response["Content-Disposition"].startswith("inline"))
+        self.assertEqual(response["Content-Security-Policy"], "sandbox")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+
     def test_an_image_keeps_its_own_content_type(self):
         png = b"\x89PNG\r\n\x1a\n not really a png"
         created = self.upload(content=png, name="bill.png", content_type="image/png")
@@ -161,6 +201,7 @@ class ReceiptFileTests(TestCase):
             response = self.fetch("treas@college.edu", created.data["id"])
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response["Location"].startswith("https://files.portal.college.edu/"))
+        self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_an_unreadable_document_date_is_refused(self):
         response = self.upload(document_date="14/03/2026")

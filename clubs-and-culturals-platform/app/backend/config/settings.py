@@ -225,6 +225,9 @@ RECEIPT_THRESHOLD = _env_int("RECEIPT_THRESHOLD", 5000)
 # Hours a request may sit at one gate before it is flagged as escalated on the
 # queue and the Dean overview (PRD §5.11, §6.3).
 APPROVAL_SLA_HOURS = _env_int("APPROVAL_SLA_HOURS", 48)
+# Longest window one Delegation may cover (MASTER_SPEC §11.3). Cover is for an
+# absence; a longer grant is a role change and should be made as one.
+DELEGATION_MAX_DAYS = _env_int("DELEGATION_MAX_DAYS", 30)
 # PRD §5.1: a club with no activity for this long is flagged dormant.
 DORMANCY_DAYS = _env_int("DORMANCY_DAYS", 180)
 VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 30)

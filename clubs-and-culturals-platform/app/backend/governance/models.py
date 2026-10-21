@@ -146,6 +146,24 @@ class ApprovalStep(UUIDModel):
         return f"{self.stage}:{self.decision} by {self.actor_label}"
 
 
+class DelegationQuerySet(models.QuerySet):
+    def in_force(self, at=None, stage=None):
+        """
+        Delegations active at `at` (default now): inside the window, not revoked,
+        and with a principal who still holds the stage's role. The role check runs
+        in Python because `global_roles` is a JSON array and `__contains` on it is
+        PostgreSQL-only (see identity.models.UserManager.with_global_role); the
+        rows are few — only staff delegate. Every reader of "who is covering"
+        (queue, notifications, login's MFA demand, `decide`) goes through here.
+        """
+        at = at or timezone.now()
+        qs = self.filter(revoked_at__isnull=True, starts_at__lte=at, ends_at__gt=at)
+        if stage is not None:
+            qs = qs.filter(stage=stage)
+        live = [d.pk for d in qs.select_related("principal_user") if d.principal_still_holds]
+        return self.model.objects.filter(pk__in=live)
+
+
 class Delegation(UUIDModel):
     """
     Cover for an approval gate while its holder is away (MASTER_SPEC §11.3,
@@ -164,7 +182,15 @@ class Delegation(UUIDModel):
         non-student global role) unless an admin created the delegation;
       - the self-approval rule still wins: a delegate with a club role in the
         proposing club is refused at decision time, whatever the delegation says;
-      - the MFA rule is unchanged: the delegate's own session needs the claim.
+      - every delegated decision needs an MFA-verified session (login runs the
+        challenge for anyone holding an active delegation);
+      - a delegation is inert while its principal does not hold the stage's role;
+      - a window may cover at most DELEGATION_MAX_DAYS.
+
+    What a delegate does NOT get: the principal's other powers. A Dean-stage
+    delegate cannot reassign a venue, open a budget or read a roster; faced with
+    an unresolved clash they can only return the proposal. Once decided, the
+    request leaves their visible set.
     """
 
     stage = models.CharField(max_length=20, choices=ApprovalStage.choices)
@@ -179,6 +205,8 @@ class Delegation(UUIDModel):
                                    null=True, blank=True, related_name="delegations_created")
     revoked_at = models.DateTimeField(null=True, blank=True)
     revoked_by_label = models.CharField(max_length=80, blank=True)
+
+    objects = DelegationQuerySet.as_manager()
 
     class Meta:
         ordering = ("-starts_at",)
@@ -205,9 +233,23 @@ class Delegation(UUIDModel):
     def is_revoked(self):
         return self.revoked_at is not None
 
+    @property
+    def principal_still_holds(self):
+        """
+        Cover is for a gate the principal holds *now*. A Dean replaced on day 3
+        of a 30-day delegation has nothing left to delegate, so the delegation
+        is inert from that moment, with no revoke needed.
+        """
+        from common import roles as R
+
+        principal = self.principal_user
+        return (principal.is_active
+                and R.STAGE_ROLE[self.stage] in (principal.global_roles or []))
+
     def is_active_at(self, when=None):
         when = when or timezone.now()
-        return (not self.is_revoked and self.starts_at <= when < self.ends_at)
+        return (not self.is_revoked and self.starts_at <= when < self.ends_at
+                and self.principal_still_holds)
 
     @property
     def is_active(self):

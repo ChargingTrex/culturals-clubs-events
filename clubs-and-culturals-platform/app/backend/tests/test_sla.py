@@ -99,6 +99,36 @@ class ApprovalSlaTests(TestCase):
         self.old.save(update_fields=["stage_entered_at"])
         self.assertFalse(self.old.escalated)
 
+    def test_the_backfill_migration_dates_in_flight_requests_from_their_last_step(self):
+        """
+        QA F11. Rows that existed before the SLA clock must not restart their age
+        at deploy: a pending request is dated from its latest step, or from
+        submission when no step exists.
+        """
+        from importlib import import_module
+
+        from django.apps import apps
+
+        backfill = import_module("governance.migrations.0004_stage_entered_at_backfill").backfill
+        f.as_user(self.client, "society@college.edu", mfa_code="1")
+        self.client.post(f"/api/v1/governance/approvals/{self.old.id}/decide",
+                         {"decision": "approve"}, format="json")
+        step = self.old.steps.get()
+        step_time = timezone.now() - timedelta(hours=60)
+        type(step).objects.filter(pk=step.pk).update(created_at=step_time)
+        deploy = timezone.now()
+        type(self.old).objects.update(stage_entered_at=deploy)
+
+        backfill(apps, None)
+
+        self.old.refresh_from_db()
+        self.fresh.refresh_from_db()
+        self.assertEqual(self.old.stage_entered_at, step_time,
+                         "a request that advanced is dated from its last step")
+        self.assertEqual(self.fresh.stage_entered_at, self.fresh.created_at,
+                         "a request with no step yet is dated from submission")
+        self.assertTrue(self.old.escalated)
+
     def test_escalated_requests_is_exposed_for_the_overview_and_the_job(self):
         escalated = list(governance.escalated_requests())
         self.assertEqual([r.pk for r in escalated], [self.old.pk])
