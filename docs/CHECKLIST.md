@@ -90,7 +90,7 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | E-06 | Cancelled event with committed spend — who signs off? | unhandled | D-05 |
 | E-07 | Cultural Society gate stays? deputy? | on | B-06 |
 | E-08 | Capture-rate definition | both shipped (B-11) | – |
-| E-09 | Purging an external participant cascades to their registrations and changes an already-reported semester's `external_participants` (W4). Keep the row and blank PII, or accept the drift? | delete (as specified) | D-07 |
+| E-09 | External participant purge: **decided** — keep the row, blank PII, set `purged_at` (Registration.external is PROTECT) | blank, never delete | D-07 |
 | E-10 | ScanRecord roll-up after one year: retention rule not recorded, so the job counts and deletes nothing | count only | B-10 |
 | E-11 | Budget envelope year: calendar year (current) or academic year via `Semester`? | calendar, in DISPLAY_TIME_ZONE | B-08 |
 
