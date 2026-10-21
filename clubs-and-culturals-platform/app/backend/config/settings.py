@@ -220,6 +220,8 @@ CERTIFICATE_VERIFY_BASE = _env("CERTIFICATE_VERIFY_BASE", "http://localhost:5173
 # so they are configuration rather than constants in the code.
 VC_BUDGET_THRESHOLD = _env_int("VC_BUDGET_THRESHOLD", 50000)
 RECEIPT_THRESHOLD = _env_int("RECEIPT_THRESHOLD", 5000)
+# PRD §5.1: a club with no activity for this long is flagged dormant.
+DORMANCY_DAYS = _env_int("DORMANCY_DAYS", 180)
 VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 30)
 CONTINGENCY_PERCENT = _env_int("CONTINGENCY_PERCENT", 8)
 

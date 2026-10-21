@@ -31,16 +31,18 @@ def roles_for(user):
     role per active club membership, so "President of Swara" travels in the
     token and needs no lookup on render (§5.1 step 8).
     """
-    from clubs.models import Membership
+    from clubs.services import active_club_roles
+    from events.models import EventOrganiser
 
     out = list(user.global_roles or [])
     if user.student and R.STUDENT not in out:
         out.append(R.STUDENT)
     if user.student:
-        memberships = Membership.objects.filter(
-            student=user.student, ended_at__isnull=True
-        ).values_list("role", "club_id")
-        out += [R.scoped(role, str(club_id)) for role, club_id in memberships]
+        # Club roles come through the office-bearer terms (an expired President
+        # is a member); organiser scopes from the event's organiser roster.
+        out += [R.scoped(role, str(club_id)) for role, club_id in active_club_roles(user.student)]
+        out += [R.scoped(R.EVENT_ORGANISER, str(event_id))
+                for event_id in EventOrganiser.active_event_ids(user.student)]
     return sorted(set(out))
 
 

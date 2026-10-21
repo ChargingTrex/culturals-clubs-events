@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from common import roles as R
@@ -17,6 +18,10 @@ class Club(UUIDModel):
         DORMANT = "dormant", "Dormant"
         ARCHIVED = "archived", "Archived"
 
+    class JoinMode(models.TextChoices):
+        OPEN = "open", "Open — anyone may join"
+        APPROVAL = "approval", "Approval — an office bearer accepts each request"
+
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True)
     tag = models.CharField(max_length=40, blank=True)   # "Music", "Dance"
@@ -27,6 +32,13 @@ class Club(UUIDModel):
     # Soft delete via status (§4). Rows are never removed: a club's past events
     # and attendance are part of semesters that have already been reported.
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    # PRD §5.2: a club decides whether joining is immediate or vetted. Approval
+    # is the default because a club that never chose is safer with a queue.
+    join_mode = models.CharField(max_length=16, choices=JoinMode.choices,
+                                 default=JoinMode.APPROVAL)
+    # PRD §5.1: the dormancy job reads this. Touched on event submission,
+    # publication and close, and on membership changes (clubs/services.py).
+    last_activity_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("name",)
@@ -115,3 +127,76 @@ class RoleChange(UUIDModel):
 
     class Meta:
         ordering = ("-created_at",)
+
+
+class JoinRequest(UUIDModel):
+    """
+    PRD §5.2: a student asks to join an approval-mode club and an office bearer
+    decides. One pending request per student per club, enforced by a partial
+    unique constraint so two taps on the button cannot queue twice.
+    """
+
+    class State(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+
+    club = models.ForeignKey(Club, on_delete=models.PROTECT, related_name="join_requests")
+    student = models.ForeignKey("identity.Student", on_delete=models.PROTECT,
+                                related_name="join_requests")
+    state = models.CharField(max_length=16, choices=State.choices, default=State.PENDING)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name="join_decisions")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=280, blank=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["club", "student"],
+                condition=models.Q(state="pending"),
+                name="one_pending_join_request_per_student_per_club",
+            ),
+        ]
+        indexes = [models.Index(fields=["club", "state"])]
+
+    def __str__(self):
+        return f"{self.student_id} -> {self.club_id} ({self.state})"
+
+
+class OfficeBearerTerm(UUIDModel):
+    """
+    PRD §5.3 / §5.18: who held which office, from when until when.
+
+    The term, not the membership row, is what the token derivation consults
+    (clubs/services.active_club_roles): a President whose term ended yesterday
+    gets no `club_president:<club>` scope at the next login, whatever the
+    Membership row still says. `RoleChange` remains the log of who made the
+    change; this is the calendar of who held the office.
+    """
+
+    club = models.ForeignKey(Club, on_delete=models.PROTECT, related_name="office_bearer_terms")
+    student = models.ForeignKey("identity.Student", on_delete=models.PROTECT,
+                                related_name="office_bearer_terms")
+    role = models.CharField(max_length=32, choices=Membership.ROLE_CHOICES)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField(null=True, blank=True)   # null = open-ended
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name="terms_created")
+
+    class Meta:
+        ordering = ("-starts_at",)
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=models.F("starts_at")),
+                name="office_bearer_term_ends_after_start",
+            ),
+        ]
+        indexes = [models.Index(fields=["club", "student", "ends_at"])]
+
+    def __str__(self):
+        return f"{self.student_id} {self.role} of {self.club_id} from {self.starts_at:%Y-%m-%d}"
+
+    def is_current(self, now):
+        return self.starts_at <= now and (self.ends_at is None or self.ends_at > now)

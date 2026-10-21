@@ -1,16 +1,25 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from clubs.models import Club, Membership, RoleChange
+from clubs import services
+from clubs.models import Club, JoinRequest, Membership, RoleChange
 from clubs.serializers import (
-    ClubSerializer, MembershipSerializer, RoleChangeRequestSerializer, RoleChangeSerializer,
+    ClubSerializer, HandoverRequestSerializer, JoinDecisionSerializer, JoinRequestSerializer,
+    MembershipSerializer, OfficeBearerTermSerializer, RoleChangeRequestSerializer,
+    RoleChangeSerializer,
 )
 from common import roles as R
 from common.errors import Conflict, ProblemDetail
-from integrations.registry import audit_sink
+from integrations.registry import audit_sink, notifier
+
+
+def _not_found(detail):
+    return ProblemDetail(code="NOT_FOUND", title="Not found",
+                         status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
 class ClubViewSet(viewsets.ModelViewSet):
@@ -28,6 +37,23 @@ class ClubViewSet(viewsets.ModelViewSet):
             raise ProblemDetail(code="CLUBS_NOT_PERMITTED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Only the Dean or an administrator may change a club record.")
+
+    def _require_role_assigner(self, club, *, what):
+        """
+        404 for a caller with no connection to the club (the queue's existence
+        is not theirs to learn), 403 for a member or officer of the club who
+        holds the wrong role — the Treasurer explicitly (AGENT_PROMPT §6).
+        """
+        ctx = self.request.auth_context
+        if ctx.has_club_role(club.id, *R.ROLE_ASSIGNERS):
+            return
+        if ctx.club_role(club.id) is None and not ctx.can_see_individual_records():
+            raise _not_found(f"No such {what}, or it is not visible to you.")
+        raise ProblemDetail(
+            code="CLUBS_ROLE_ASSIGN_DENIED", title="Not permitted",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Only the President or Vice-President of this club may {what}.",
+        )
 
     def perform_create(self, serializer):
         self._require_admin()
@@ -55,19 +81,199 @@ class ClubViewSet(viewsets.ModelViewSet):
         # A caller with no connection sees 404, not 403 — a 403 would confirm the
         # roster exists (API_Standards §3.3).
         if not (ctx.can_see_individual_records() or ctx.club_role(club.id)):
-            raise ProblemDetail(code="NOT_FOUND", title="Not found",
-                                status_code=status.HTTP_404_NOT_FOUND,
-                                detail="No such club roster, or it is not visible to you.")
-        memberships = (club.memberships.filter(ended_at__isnull=True)
-                       .select_related("student")
-                       .order_by("role", "student__full_name"))
-        return Response({
-            "club": {"id": str(club.id), "name": club.name},
-            "can_assign_roles": ctx.has_club_role(club.id, *R.ROLE_ASSIGNERS),
+            raise _not_found("No such club roster, or it is not visible to you.")
+        memberships = list(club.memberships.filter(ended_at__isnull=True)
+                           .select_related("student")
+                           .order_by("role", "student__full_name"))
+        # A roster is names and PRNs; every read of it is audited, as the
+        # attendee list is (PRD §8, B-14).
+        audit_sink().record(actor=ctx, action="club.roster.read", target=club,
+                            after={"rows": len(memberships)})
+        can_assign = ctx.has_club_role(club.id, *R.ROLE_ASSIGNERS)
+        body = {
+            "club": {"id": str(club.id), "name": club.name, "join_mode": club.join_mode},
+            "can_assign_roles": can_assign,
             "results": MembershipSerializer(memberships, many=True,
                                            context={"request": request}).data,
             "recent_changes": RoleChangeSerializer(
                 RoleChange.objects.filter(membership__club=club)[:10], many=True).data,
+        }
+        if can_assign or ctx.can_see_individual_records():
+            # The queue count is for the people who can act on it. A plain member
+            # does not learn how many people are waiting at the door.
+            body["pending_join_requests"] = club.join_requests.filter(
+                state=JoinRequest.State.PENDING).count()
+        return Response(body)
+
+    # ---- join (PRD §5.2) -------------------------------------------------
+    @extend_schema(summary="Ask to join a club: immediate for open clubs, queued otherwise")
+    @action(detail=True, methods=["post"])
+    def join(self, request, pk=None):
+        club = self.get_object()
+        ctx = request.auth_context
+        if not ctx.student_id:
+            raise ProblemDetail(code="CLUBS_STUDENTS_ONLY", title="Not permitted",
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Only a student may join a club.")
+        if club.status == Club.Status.ARCHIVED:
+            raise Conflict(code="CLUBS_ARCHIVED", title="Club archived",
+                           detail="This club is no longer taking members.")
+        if club.memberships.filter(student_id=ctx.student_id, ended_at__isnull=True).exists():
+            raise Conflict(code="CLUBS_ALREADY_MEMBER", title="Already a member",
+                           detail=f"You are already a member of {club.name}.")
+
+        if club.join_mode == Club.JoinMode.OPEN:
+            try:
+                with transaction.atomic():
+                    membership = Membership.objects.create(
+                        club=club, student_id=ctx.student_id, role=R.CLUB_MEMBER)
+            except IntegrityError:
+                # The partial unique constraint caught a concurrent double-tap.
+                raise Conflict(code="CLUBS_ALREADY_MEMBER", title="Already a member",
+                               detail=f"You are already a member of {club.name}.")
+            services.touch_activity(club, actor=ctx)
+            audit_sink().record(actor=ctx, action="club.joined", target=membership,
+                                after={"club": club.name, "role": R.CLUB_MEMBER})
+            return Response(MembershipSerializer(membership, context={"request": request}).data,
+                            status=status.HTTP_201_CREATED)
+
+        try:
+            with transaction.atomic():
+                join_request = JoinRequest.objects.create(club=club, student_id=ctx.student_id)
+        except IntegrityError:
+            raise Conflict(code="CLUBS_JOIN_PENDING", title="Request already pending",
+                           detail=f"Your request to join {club.name} is waiting for a decision.")
+        audit_sink().record(actor=ctx, action="club.join_requested", target=join_request,
+                            after={"club": club.name})
+        self._notify_assigners(
+            club, f"{ctx.display_name} asked to join {club.name}",
+            "Accept or decline the request from the club roster.", "club.join_requested")
+        return Response(JoinRequestSerializer(join_request).data,
+                        status=status.HTTP_202_ACCEPTED)
+
+    @extend_schema(summary="Pending join requests (President or Vice-President only)")
+    @action(detail=True, methods=["get"], url_path="join-requests")
+    def join_requests(self, request, pk=None):
+        club = self.get_object()
+        self._require_role_assigner(club, what="read the join queue")
+        qs = club.join_requests.select_related("student", "decided_by")
+        state = request.query_params.get("state", JoinRequest.State.PENDING)
+        if state != "all":
+            qs = qs.filter(state=state)
+        return Response({
+            "club": {"id": str(club.id), "name": club.name, "join_mode": club.join_mode},
+            "results": JoinRequestSerializer(qs, many=True).data,
+        })
+
+    @extend_schema(request=JoinDecisionSerializer, summary="Accept a join request")
+    @action(detail=True, methods=["post"], url_path=r"join-requests/(?P<request_id>[^/]+)/accept")
+    def accept_join_request(self, request, pk=None, request_id=None):
+        return self._decide_join(request, request_id, JoinRequest.State.ACCEPTED)
+
+    @extend_schema(request=JoinDecisionSerializer, summary="Decline a join request")
+    @action(detail=True, methods=["post"], url_path=r"join-requests/(?P<request_id>[^/]+)/decline")
+    def decline_join_request(self, request, pk=None, request_id=None):
+        return self._decide_join(request, request_id, JoinRequest.State.DECLINED)
+
+    def _decide_join(self, request, request_id, outcome):
+        club = self.get_object()
+        self._require_role_assigner(club, what="decide join requests")
+        ctx = request.auth_context
+        data = JoinDecisionSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        note = data.validated_data.get("note", "")
+
+        with transaction.atomic():
+            join_request = (JoinRequest.objects.select_for_update().select_related("student__user")
+                            .filter(pk=request_id, club=club).first())
+            if join_request is None:
+                raise _not_found("No such join request.")
+            if join_request.state != JoinRequest.State.PENDING:
+                raise Conflict(code="CLUBS_JOIN_ALREADY_DECIDED", title="Already decided",
+                               detail=f"This request was {join_request.get_state_display().lower()}.")
+            membership = None
+            if outcome == JoinRequest.State.ACCEPTED:
+                try:
+                    with transaction.atomic():
+                        membership = Membership.objects.create(
+                            club=club, student=join_request.student, role=R.CLUB_MEMBER)
+                except IntegrityError:
+                    # Already an active member (the one-active-membership
+                    # constraint): nothing to create, the request is moot.
+                    raise Conflict(code="CLUBS_ALREADY_MEMBER", title="Already a member",
+                                   detail="This student is already a member of the club.")
+            join_request.state = outcome
+            join_request.decided_by = request.user.record
+            join_request.decided_at = timezone.now()
+            join_request.note = note
+            join_request.save(update_fields=["state", "decided_by", "decided_at", "note",
+                                             "updated_at"])
+            if membership is not None:
+                services.touch_activity(club, actor=ctx)
+
+        audit_sink().record(actor=ctx, action=f"club.join_{outcome}", target=join_request,
+                            before={"state": JoinRequest.State.PENDING},
+                            after={"state": outcome, "membership": str(membership.id)
+                                   if membership else None},
+                            reason=note)
+        user = getattr(join_request.student, "user", None)
+        if user is not None:
+            if outcome == JoinRequest.State.ACCEPTED:
+                subject = f"Welcome to {club.name}"
+                body = f"Your request to join {club.name} was accepted."
+            else:
+                subject = f"Your request to join {club.name} was declined"
+                body = f"{club.name} declined your request." + (f" Note: {note}" if note else "")
+            notifier().send(recipient=user, subject=subject, body=body,
+                            kind=f"club.join_{outcome}", link=f"/clubs/{club.id}")
+        return Response(JoinRequestSerializer(join_request).data)
+
+    def _notify_assigners(self, club, subject, body, kind):
+        memberships = club.memberships.filter(
+            ended_at__isnull=True, role__in=R.ROLE_ASSIGNERS).select_related("student__user")
+        for membership in memberships:
+            user = getattr(membership.student, "user", None)
+            if user is not None:
+                notifier().send(recipient=user, subject=subject, body=body, kind=kind,
+                                link=f"/club/{club.id}/members")
+
+    # ---- office bearers (PRD §5.3, §5.18) ----------------------------------
+    @extend_schema(request=HandoverRequestSerializer,
+                   summary="Hand the club's offices over (President or Vice-President only)")
+    @action(detail=True, methods=["post"])
+    def handover(self, request, pk=None):
+        club = self.get_object()
+        self._require_role_assigner(club, what="run a handover")
+        ctx = request.auth_context
+        data = HandoverRequestSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        created = services.handover(
+            club, actor=ctx, actor_user=request.user.record,
+            effective_at=data.validated_data["effective_at"],
+            assignments=data.validated_data["assignments"],
+        )
+        return Response({
+            "club": {"id": str(club.id), "name": club.name},
+            "effective_at": data.validated_data["effective_at"],
+            "terms": OfficeBearerTermSerializer(created, many=True).data,
+        }, status=status.HTTP_201_CREATED)
+
+    @extend_schema(summary="Who held which office, when")
+    @action(detail=True, methods=["get"], url_path="office-bearers/history")
+    def office_bearer_history(self, request, pk=None):
+        club = self.get_object()
+        ctx = request.auth_context
+        allowed = (ctx.is_dean() or ctx.is_admin()
+                   or ctx.has_club_role(club.id, *services.OFFICE_BEARER_ROLES))
+        if not allowed:
+            raise _not_found("No such history, or it is not visible to you.")
+        terms = services.office_bearer_history(club)
+        now = timezone.now()
+        return Response({
+            "club": {"id": str(club.id), "name": club.name},
+            "current": OfficeBearerTermSerializer(
+                [t for t in terms if t.is_current(now)], many=True).data,
+            "results": OfficeBearerTermSerializer(terms, many=True).data,
         })
 
 
@@ -94,9 +300,7 @@ class MembershipViewSet(viewsets.GenericViewSet):
         """
         membership = self.get_queryset().filter(pk=pk).first()
         if membership is None:
-            raise ProblemDetail(code="NOT_FOUND", title="Not found",
-                                status_code=status.HTTP_404_NOT_FOUND,
-                                detail="No such membership, or it is not visible to you.")
+            raise _not_found("No such membership, or it is not visible to you.")
         ctx = request.auth_context
         if not ctx.has_club_role(membership.club_id, *R.ROLE_ASSIGNERS):
             raise ProblemDetail(
@@ -133,6 +337,18 @@ class MembershipViewSet(viewsets.GenericViewSet):
                 from_role=old_role, to_role=new_role,
                 reason=data.validated_data.get("reason", ""),
             )
+            # A direct assignment supersedes any term calendar for this pair:
+            # close whatever term is current and open one for the new role, so
+            # the token derivation and the history both agree with the row.
+            now = timezone.now()
+            for term in services.current_terms(locked.club_id, locked.student_id, now):
+                term.ends_at = now
+                term.save(update_fields=["ends_at", "updated_at"])
+            if new_role in services.OFFICE_BEARER_ROLES:
+                services.OfficeBearerTerm.objects.create(
+                    club_id=locked.club_id, student_id=locked.student_id, role=new_role,
+                    starts_at=now, created_by=request.user.record)
+            services.touch_activity(locked.club_id, now, actor=ctx)
         audit_sink().record(actor=ctx, action="club.role_changed", target=membership,
                             before={"role": old_role}, after={"role": new_role},
                             reason=data.validated_data.get("reason", ""))

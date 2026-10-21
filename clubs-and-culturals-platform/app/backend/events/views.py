@@ -1,5 +1,6 @@
-from django.db import transaction
-from django.db.models import Prefetch
+from django.db import IntegrityError, transaction
+from django.db.models import Prefetch, ProtectedError
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -9,11 +10,12 @@ from rest_framework.views import APIView
 from budget.models import BudgetTemplate
 from budget.services import create_lines, ensure_budget, seed_from_template
 from common import roles as R
-from common.errors import ProblemDetail
-from events.models import SLOT_HOLDING, Event, EventStatus, Venue
+from common.errors import Conflict, ProblemDetail
+from events.models import SLOT_HOLDING, Event, EventOrganiser, EventStatus, Venue
 from events.serializers import (
-    CloseEventSerializer, EventCreateSerializer, EventSerializer, ReassignRequestSerializer,
-    VenueReassignmentSerializer, VenueSerializer,
+    CloseEventSerializer, EventCreateSerializer, EventOrganiserSerializer, EventSerializer,
+    OrganiserAssignSerializer, ReassignRequestSerializer, VenueReassignmentSerializer,
+    VenueSerializer,
 )
 from events.services import (
     all_clashes, assert_bookable, clashes_for, close_event, free_venues_for, reassign_venue,
@@ -25,6 +27,20 @@ from participation.models import Registration
 
 PUBLIC_STATUSES = (EventStatus.PUBLISHED, EventStatus.LIVE, EventStatus.COMPLETED,
                    EventStatus.REPORTED)
+
+# A proposal that holds no slot and has reached nobody's calendar may be
+# deleted outright. Anything else is cancelled (with a reason), never deleted:
+# a published event has registrations and a history that must survive it.
+DELETABLE_STATUSES = (EventStatus.DRAFT, EventStatus.RETURNED, EventStatus.REJECTED)
+
+
+def _not_found(detail):
+    return ProblemDetail(code="NOT_FOUND", title="Not found",
+                         status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
+def _soft_clash_payload(soft):
+    return [{"id": str(e.id), "title": e.title, "club": e.club.name} for e in soft]
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -51,17 +67,24 @@ class EventViewSet(viewsets.ModelViewSet):
         if ctx.can_see_all_clubs():
             qs = base
         else:
-            # A student sees what is published; a club officer additionally sees
-            # their own club's drafts and rejected proposals.
             from django.db.models import Q
 
-            visible = Q(status__in=PUBLIC_STATUSES)
             club_scopes = ctx.scopes_for(*R.CLUB_ROLES)
-            if club_scopes:
-                visible |= Q(club_id__in=club_scopes)
-            organiser_events = ctx.organiser_events()
-            if organiser_events:
-                visible |= Q(id__in=organiser_events)
+            if self.action == "destroy":
+                # Deleting is a club act. Only the caller's own clubs' events are
+                # in scope, so a student — or another club's officer — gets 404
+                # for a published event rather than a 403 that admits the
+                # endpoint would have worked with a different role.
+                visible = Q(club_id__in=club_scopes) if club_scopes else Q(pk__in=[])
+            else:
+                # A student sees what is published; a club officer additionally
+                # sees their own club's drafts and rejected proposals.
+                visible = Q(status__in=PUBLIC_STATUSES)
+                if club_scopes:
+                    visible |= Q(club_id__in=club_scopes)
+                organiser_events = ctx.organiser_events()
+                if organiser_events:
+                    visible |= Q(id__in=organiser_events)
             qs = base.filter(visible)
 
         params = self.request.query_params
@@ -96,10 +119,16 @@ class EventViewSet(viewsets.ModelViewSet):
                         "may submit a proposal."),
             )
 
-        soft = assert_bookable(venue_id=payload["venue"].id, starts_at=payload["starts_at"],
-                              ends_at=payload["ends_at"])
-
         with transaction.atomic():
+            # The clash check and the insert happen under a lock on the venue
+            # row, so two proposals for one slot serialise: the second always
+            # sees the first (AGENT_PROMPT §3 rule 3 — an unlocked application
+            # check loses under concurrency). On PostgreSQL the exclusion
+            # constraint (events/migrations/0004) is the backstop for confirmed
+            # bookings; SQLite has only this lock.
+            Venue.objects.select_for_update().get(pk=payload["venue"].pk)
+            soft = assert_bookable(venue_id=payload["venue"].id, starts_at=payload["starts_at"],
+                                   ends_at=payload["ends_at"])
             event = Event.objects.create(
                 title=payload["title"], club=club, kind=payload["kind"],
                 description=payload.get("description", ""), venue=payload["venue"],
@@ -131,10 +160,7 @@ class EventViewSet(viewsets.ModelViewSet):
         audit_sink().record(actor=ctx, action="event.created", target=event,
                             after={"title": event.title, "venue": event.venue.name})
         body = EventSerializer(event, context={"request": request}).data
-        body["soft_clashes"] = [
-            {"id": str(e.id), "title": e.title, "club": e.club.name}
-            for e in soft
-        ]
+        body["soft_clashes"] = _soft_clash_payload(soft)
         body["approval"] = (
             {"id": str(request_obj.id), "stages": request_obj.stages,
              "current_stage": request_obj.current_stage,
@@ -161,6 +187,42 @@ class EventViewSet(viewsets.ModelViewSet):
             )
         serializer.save()
 
+    # ---- deletion ------------------------------------------------------
+    def destroy(self, request, *args, **kwargs):
+        """
+        Hard-delete a proposal that never left the club.
+
+        Only PROPOSERS of the owning club, and only while the event is a draft,
+        returned or rejected. A published event is cancelled with a reason,
+        never deleted: its registrations and approval trail are part of a
+        semester that may already be reported.
+        """
+        event = self.get_object()   # 404 for anything outside the caller's clubs
+        ctx = request.auth_context
+        if not ctx.has_club_role(event.club_id, *R.PROPOSERS):
+            raise ProblemDetail(code="EVENTS_DELETE_DENIED", title="Not permitted",
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Only the club's office bearers may delete this proposal.")
+        if event.status not in DELETABLE_STATUSES:
+            raise Conflict(
+                code="EVENT_NOT_DELETABLE", title="Cannot delete this event",
+                detail=(f"“{event.title}” is {event.get_status_display().lower()}. Only a "
+                        "draft, returned or rejected proposal can be deleted; cancel a "
+                        "published event instead, with a reason."),
+            )
+        snapshot = {"title": event.title, "status": event.status, "club": event.club.name,
+                    "venue": event.venue.name, "starts_at": event.starts_at.isoformat()}
+        with transaction.atomic():
+            audit_sink().record(actor=ctx, action="event.deleted", target=event, before=snapshot)
+            try:
+                event.delete()
+            except ProtectedError:
+                raise Conflict(
+                    code="EVENT_NOT_DELETABLE", title="Cannot delete this event",
+                    detail="Registrations exist for this event; cancel it instead.",
+                )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     # ---- actions -------------------------------------------------------
     @extend_schema(summary="Submit or resubmit a proposal for approval")
     @action(detail=True, methods=["post"])
@@ -171,11 +233,22 @@ class EventViewSet(viewsets.ModelViewSet):
             raise ProblemDetail(code="EVENTS_PROPOSE_DENIED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Only the club's office bearers may submit this proposal.")
-        approval = governance.submit(event, actor=ctx, actor_user=request.user.record)
+        with transaction.atomic():
+            # Event row first, then the venue row — the order every booking
+            # path uses. The slot is re-checked at submission because a draft
+            # may have sat for weeks while the venue was booked by someone else.
+            locked = Event.objects.select_for_update().select_related("club", "venue").get(pk=event.pk)
+            Venue.objects.select_for_update().get(pk=locked.venue_id)
+            soft = []
+            if locked.status in (EventStatus.DRAFT, EventStatus.RETURNED):
+                soft = assert_bookable(venue_id=locked.venue_id, starts_at=locked.starts_at,
+                                       ends_at=locked.ends_at, exclude_id=locked.pk)
+            approval = governance.submit(locked, actor=ctx, actor_user=request.user.record)
         return Response({"id": str(approval.id), "stages": approval.stages,
                          "current_stage": approval.current_stage,
                          "requires_vc": approval.requires_vc,
-                         "vc_reason": approval.vc_reason})
+                         "vc_reason": approval.vc_reason,
+                         "soft_clashes": _soft_clash_payload(soft)})
 
     @extend_schema(request=CloseEventSerializer, summary="Close an event with its evidence")
     @action(detail=True, methods=["post"])
@@ -258,6 +331,75 @@ class EventViewSet(viewsets.ModelViewSet):
                             before={"venue": from_name}, after={"venue": venue.name},
                             reason=data.validated_data["reason"])
         return Response(VenueReassignmentSerializer(event.reassignments.first()).data)
+
+    # ---- organisers (event_organiser scope, local mode) ------------------
+    def _require_organiser_assigner(self, event):
+        # Same people who assign club roles (AGENT_PROMPT §6): President and
+        # Vice-President of the owning club. The Treasurer explicitly cannot.
+        if not self.request.auth_context.has_club_role(event.club_id, *R.ROLE_ASSIGNERS):
+            raise ProblemDetail(
+                code="EVENTS_ORGANISER_ASSIGN_DENIED", title="Not permitted",
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the President or Vice-President of this club may name organisers.",
+            )
+
+    @extend_schema(request=OrganiserAssignSerializer, responses=EventOrganiserSerializer,
+                   summary="Organisers of this event; POST names one (President/VP only)")
+    @action(detail=True, methods=["get", "post"], url_path="organisers")
+    def organisers(self, request, pk=None):
+        event = self.get_object()
+        ctx = request.auth_context
+        if request.method == "GET":
+            allowed = (ctx.can_see_individual_records() or ctx.club_role(event.club_id)
+                       or str(event.id) in ctx.organiser_events())
+            if not allowed:
+                raise _not_found("No such organiser list, or it is not visible to you.")
+            grants = EventOrganiser.active().filter(event=event).select_related("student", "assigned_by")
+            return Response({"event": {"id": str(event.id), "title": event.title},
+                             "results": EventOrganiserSerializer(grants, many=True).data})
+
+        self._require_organiser_assigner(event)
+        data = OrganiserAssignSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        from identity.models import Student
+
+        student = Student.objects.filter(pk=data.validated_data["student_id"]).first()
+        if student is None:
+            raise ProblemDetail(code="EVENTS_UNKNOWN_STUDENT", title="Unknown student",
+                                status_code=422, detail="No such student.",
+                                errors=[{"field": "student_id", "code": "UNKNOWN",
+                                         "message": "No such student."}])
+        ends_at = data.validated_data.get("ends_at")
+        if ends_at is not None and ends_at <= timezone.now():
+            raise ProblemDetail(code="EVENTS_ORGANISER_ALREADY_ENDED", title="Grant already over",
+                                status_code=422, detail="ends_at must be in the future.")
+        try:
+            with transaction.atomic():
+                grant = EventOrganiser.objects.create(
+                    event=event, student=student, assigned_by=request.user.record, ends_at=ends_at)
+        except IntegrityError:
+            raise Conflict(code="EVENTS_ORGANISER_EXISTS", title="Already an organiser",
+                           detail=f"{student.full_name} already organises “{event.title}”.")
+        audit_sink().record(actor=ctx, action="event.organiser_added", target=event,
+                            after={"student": str(student.id), "prn": student.prn,
+                                   "ends_at": ends_at.isoformat() if ends_at else None})
+        return Response(EventOrganiserSerializer(grant).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(summary="Withdraw an organiser grant (President/VP only)")
+    @action(detail=True, methods=["delete"], url_path=r"organisers/(?P<student_id>[^/]+)")
+    def remove_organiser(self, request, pk=None, student_id=None):
+        event = self.get_object()
+        self._require_organiser_assigner(event)
+        grant = EventOrganiser.active().filter(event=event, student_id=student_id).first()
+        if grant is None:
+            raise _not_found("No such organiser on this event.")
+        now = timezone.now()
+        grant.ends_at = now
+        grant.save(update_fields=["ends_at", "updated_at"])
+        audit_sink().record(actor=request.auth_context, action="event.organiser_removed",
+                            target=event, before={"student": str(grant.student_id)},
+                            after={"ends_at": now.isoformat()})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class VenueViewSet(viewsets.ReadOnlyModelViewSet):
