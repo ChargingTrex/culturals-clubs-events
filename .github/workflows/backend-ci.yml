@@ -79,7 +79,7 @@ jobs:
         # fail ONLY on Postgres with "FOR UPDATE cannot be applied to the
         # nullable side of an outer join" (select_for_update + select_related
         # over a nullable FK in the scan path). Drop this flag once W1 fixes it.
-        continue-on-error: true
+        continue-on-error: true  # TODO: remove once the suite has run green on Postgres in CI (B-15 fix is merged)
         run: |
           cat > config/settings_ci.py <<'PY'
           from config.settings_test import *  # noqa: F401,F403
