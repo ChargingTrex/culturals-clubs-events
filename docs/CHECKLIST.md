@@ -21,22 +21,22 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 
 | Id | PRD § | Feature | Existing | Owner | Status | Acceptance test (must exist and pass) |
 |---|---|---|---|---|---|---|
-| B-00a | – | **Hotfix:** `EventViewSet.destroy` — only PROPOSERS of the owning club may delete, and only in `draft`/`returned`/`rejected`; everything else is `409`; cancel is the route for published events | MISSING (X-1) | W2 | in-progress | student 404/403 on DELETE of a published event; president cannot delete a published event |
-| B-00b | §4 | **Hotfix:** venue booking integrity — `select_for_update` on the venue inside `EventViewSet.create`/`submit` clash check; Postgres `ExclusionConstraint` (btree_gist) migration on (venue, tstzrange with buffer) guarded by `vendor == postgresql` | MISSING (X-2) | W2 | in-progress | two concurrent creates for one slot: exactly one succeeds (threaded test on Postgres, skip on SQLite) |
-| B-00c | – | Grant `event_organiser:<event_id>` in local mode via `POST /events/{id}/organisers` (President/VP) so the Organiser role is exercisable standalone (X-4) | MISSING | W2 | in-progress | organiser scans own event; refused at another |
-| B-01 | 5.6 | Waitlist: `Registration.waitlisted`, join waitlist when full, FIFO promotion on cancellation, pass minted on promotion, notification | MISSING | W1 | verified | full event → waitlisted; cancel → promoted + pass; wrong-role cannot promote |
+| B-00a | – | **Hotfix:** `EventViewSet.destroy` — only PROPOSERS of the owning club may delete, and only in `draft`/`returned`/`rejected`; everything else is `409`; cancel is the route for published events | MISSING (X-1) | W2 | verified | student 404/403 on DELETE of a published event; president cannot delete a published event |
+| B-00b | §4 | **Hotfix:** venue booking integrity — `select_for_update` on the venue inside `EventViewSet.create`/`submit` clash check; Postgres `ExclusionConstraint` (btree_gist) migration on (venue, tstzrange with buffer) guarded by `vendor == postgresql` | MISSING (X-2) | W2 | verified | two concurrent creates for one slot: exactly one succeeds (threaded test on Postgres, skip on SQLite) |
+| B-00c | – | Grant `event_organiser:<event_id>` in local mode via `POST /events/{id}/organisers` (President/VP) so the Organiser role is exercisable standalone (X-4) | MISSING | W2 | verified | organiser scans own event; refused at another |
+| B-01 | 5.6 | Waitlist: `Registration.waitlisted`, join waitlist when full, FIFO promotion on cancellation, pass minted on promotion, notification | MISSING | W1 | qa-rework | full event → waitlisted; cancel → promoted + pass; wrong-role cannot promote |
 | B-02 | 5.8 | Feedback: model (rating 1–5 CHECK, one per student per event UNIQUE), submit only if attended, aggregates for organiser/Dean, individual rows hidden from organisers | MISSING | W1 | verified | non-attendee 403; second submission 409; organiser aggregate has no student ids |
-| B-03 | 5.2 | Club join: `Club.join_mode` (open/approval), `JoinRequest`, accept/decline by President/VP, roster shows pending | MISSING | W2 | in-progress | open club → member immediately; approval club → pending; Treasurer cannot accept |
-| B-04 | 5.3, 5.18 | `OfficeBearerTerm` start/end; handover endpoint; token/role lookup ignores expired terms; history endpoint | MISSING | W2 | in-progress | expired President refused on role assignment; history lists who held what when |
-| B-05 | 5.1 | Dormancy: `Club.last_activity_at`, job flags dormant after `DORMANCY_DAYS` | PARTIAL (status only) | W2 | in-progress | job flips an inactive club; active club untouched |
-| B-06 | 5.13, §11.3 | Delegation: `Delegation(from_role, to_user, starts_at, ends_at, reason)`; `assert_can_decide` honours it; step records delegate + principal | MISSING | W3 | in-progress | delegate approves inside window; refused outside; self-approval still refused |
-| B-07 | 5.11, 6.3 | SLA: `age_hours` on queue items, `APPROVAL_SLA_HOURS`, `escalated` flag on Dean overview | MISSING | W3 | in-progress | item older than SLA shows escalated |
-| B-08 | 5.7.3, 5.19.5 | Annual envelope: `Club.annual_envelope`, utilisation = Σ sanctioned this year, on budget list and club profile | MISSING | W3 | in-progress | utilisation sums only sanctioned/settled; member cannot see it |
+| B-03 | 5.2 | Club join: `Club.join_mode` (open/approval), `JoinRequest`, accept/decline by President/VP, roster shows pending | MISSING | W2 | verified | open club → member immediately; approval club → pending; Treasurer cannot accept |
+| B-04 | 5.3, 5.18 | `OfficeBearerTerm` start/end; handover endpoint; token/role lookup ignores expired terms; history endpoint | MISSING | W2 | verified | expired President refused on role assignment; history lists who held what when |
+| B-05 | 5.1 | Dormancy: `Club.last_activity_at`, job flags dormant after `DORMANCY_DAYS` | PARTIAL (status only) | W2 | verified | job flips an inactive club; active club untouched |
+| B-06 | 5.13, §11.3 | Delegation: `Delegation(from_role, to_user, starts_at, ends_at, reason)`; `assert_can_decide` honours it; step records delegate + principal | MISSING | W3 | verified | delegate approves inside window; refused outside; self-approval still refused |
+| B-07 | 5.11, 6.3 | SLA: `age_hours` on queue items, `APPROVAL_SLA_HOURS`, `escalated` flag on Dean overview | MISSING | W3 | verified | item older than SLA shows escalated |
+| B-08 | 5.7.3, 5.19.5 | Annual envelope: `Club.annual_envelope`, utilisation = Σ sanctioned this year, on budget list and club profile | MISSING | W3 | verified | utilisation sums only sanctioned/settled; member cannot see it |
 | B-09 | – | OpenAPI hygiene: response serializers for ad-hoc views, `ENUM_NAME_OVERRIDES`; `spectacular` 0 errors | 92 errors | W4 | todo (after wave-1 merge) | `manage.py spectacular --fail-on-warn` exits 0 |
-| B-10 | 6.1, 10.2 | `jobs/` app: token-guarded `POST /api/v1/jobs/{dormancy,purge-external,rollup-scans,escalate-sla}`; CSV export of the semester report | MISSING | W4 | in-progress | no token → 401; CSV has the same totals as JSON |
-| B-11 | §7.6 | Two capture metrics under distinct names on the overview | DEVIATES | W4 | in-progress | both present, documented |
+| B-10 | 6.1, 10.2 | `jobs/` app: token-guarded `POST /api/v1/jobs/{dormancy,purge-external,rollup-scans,escalate-sla}`; CSV export of the semester report | MISSING | W4 | verified | no token → 401; CSV has the same totals as JSON |
+| B-11 | §7.6 | Two capture metrics under distinct names on the overview | DEVIATES | W4 | verified | both present, documented |
 | B-12 | 5.5, 5.16.3 | Registration confirmation: in-app + email with the pass on register and on waitlist promotion; registered students notified on publication and venue move | MISSING | W1 | verified | notification rows exist for the student after register; email backend receives one message |
-| B-13 | 5.19.4 | Serve receipt files: `GET /budget/budgets/{id}/lines/{line_id}/receipts/{receipt_id}/file` via `FileStore.url_for`, BUDGET_VIEWERS + approvers only | MISSING | W3 | in-progress | member 404; treasurer gets the bytes; superseded receipt still retrievable |
+| B-13 | 5.19.4 | Serve receipt files: `GET /budget/budgets/{id}/lines/{line_id}/receipts/{receipt_id}/file` via `FileStore.url_for`, BUDGET_VIEWERS + approvers only | MISSING | W3 | verified | member 404; treasurer gets the bytes; superseded receipt still retrievable |
 | B-14 | 8 auditability | Audit entry on every roster read (`EventRosterView`, `GET /clubs/{id}/members`) as the docstring promises | MISSING | W1 | verified | reading a roster writes an AuditEntry naming the reader |
 | B-15 | §8 Postgres | `select_for_update` + `select_related` over a nullable FK fails on Postgres (10 tests): lock the row only (`of=("self",)`) and fetch related rows after | BUG | W1 | verified-sqlite-only | suite green on Postgres in CI; remove `continue-on-error` |
 
@@ -51,6 +51,7 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | F-05 | Staff screens: three queues, line sanction, venues + reassign, overview, report | W6 | todo | Playwright: Society → Dean → VC on a >50k event |
 | H-01 | Backend on Vercel + Neon (seeded), React on Vercel, web-app on Netlify, `docs/HOSTING.md` | W7 | done-unverified | URLs reachable; `/api/v1/module/auth/mode` answers | — config + docs/HOSTING.md written; deploy needs the user's Neon/Vercel/Netlify accounts
 | H-02 | Hosted run-through (DEMO_CREDENTIALS ten-minute script) | QA | todo | all steps pass |
+| H-03 | `vercel.json` `crons` block for `/api/v1/jobs/{rollup-scans,purge-external,flag-dormant,escalate-sla}` with `JOBS_TOKEN` = Vercel `CRON_SECRET` (GET form exists) | W7 | todo | cron hits return 200 with a job result |
 
 ## D. Later waves (not yet assigned)
 
@@ -86,6 +87,8 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | E-06 | Cancelled event with committed spend — who signs off? | unhandled | D-05 |
 | E-07 | Cultural Society gate stays? deputy? | on | B-06 |
 | E-08 | Capture-rate definition | both shipped (B-11) | – |
+| E-09 | Purging an external participant cascades to their registrations and changes an already-reported semester's `external_participants` (W4). Keep the row and blank PII, or accept the drift? | delete (as specified) | D-07 |
+| E-10 | ScanRecord roll-up after one year: retention rule not recorded, so the job counts and deletes nothing | count only | B-10 |
 
 ## QA log
 
