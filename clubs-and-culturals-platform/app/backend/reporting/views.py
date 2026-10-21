@@ -8,6 +8,7 @@ from common import roles as R
 from common.errors import ProblemDetail
 from identity.models import Semester
 from reporting.export import SemesterReportCSVRenderer
+from reporting.serializers import DeanOverviewSerializer, SemesterReportSerializer
 from reporting.services import dean_overview, semester_report
 
 
@@ -46,6 +47,8 @@ class SemesterReportView(APIView):
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False,
                              enum=["json", "csv"], description="csv returns text/csv with the same totals."),
         ],
+        responses={(200, "application/json"): SemesterReportSerializer,
+                   (200, "text/csv"): OpenApiTypes.STR},
     )
     def get(self, request, **kwargs):
         ctx = request.auth_context
@@ -68,7 +71,12 @@ class DeanOverviewView(APIView):
     `capture` is documented by reporting.serializers.CaptureMetricsSerializer.
     """
 
-    @extend_schema(summary="Running totals and what needs chasing")
+    @extend_schema(
+        parameters=[OpenApiParameter("semester", OpenApiTypes.UUID, OpenApiParameter.QUERY, required=False,
+                                     description="Semester id; defaults to the current semester.")],
+        responses=DeanOverviewSerializer,
+        summary="Running totals and what needs chasing",
+    )
     def get(self, request):
         ctx = request.auth_context
         if not ctx.has_any(R.DEAN, R.ADMIN, R.CULTURAL_SOCIETY):

@@ -29,3 +29,8 @@ def flag_dormant():
 @shared_task(name="jobs.escalate_sla")
 def escalate_sla():
     return run_job("escalate-sla")
+
+
+@shared_task(name="jobs.apply_due_terms")
+def apply_due_terms():
+    return run_job("apply-due-terms")

@@ -1,6 +1,7 @@
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,8 +9,9 @@ from rest_framework.response import Response
 from clubs import services
 from clubs.models import Club, JoinRequest, Membership, RoleChange
 from clubs.serializers import (
-    ClubSerializer, HandoverRequestSerializer, JoinDecisionSerializer, JoinRequestSerializer,
-    MembershipSerializer, OfficeBearerTermSerializer, RoleChangeRequestSerializer,
+    ClubMembersSerializer, ClubSerializer, HandoverOutSerializer, HandoverRequestSerializer,
+    JoinDecisionSerializer, JoinRequestSerializer, JoinRequestsSerializer, MembershipSerializer,
+    OfficeBearerHistorySerializer, OfficeBearerTermSerializer, RoleChangeRequestSerializer,
     RoleChangeSerializer,
 )
 from common import roles as R
@@ -20,6 +22,7 @@ from integrations.registry import audit_sink, notifier
 # Nested-path ids are matched as UUIDs at the router, so a typo is a plain 404
 # like any other unknown resource (API_Standards §3.3), not a validation error.
 UUID_RE = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+_REQUEST_ID = OpenApiParameter("request_id", OpenApiTypes.UUID, OpenApiParameter.PATH)
 
 
 def _not_found(detail):
@@ -80,7 +83,7 @@ class ClubViewSet(viewsets.ModelViewSet):
         instance.status = Club.Status.ARCHIVED
         instance.save(update_fields=["status", "updated_at"])
 
-    @extend_schema(summary="Members of a club, with their roles")
+    @extend_schema(responses=ClubMembersSerializer, summary="Members of a club, with their roles")
     @action(detail=True, methods=["get"])
     def members(self, request, pk=None):
         club = self.get_object()
@@ -116,7 +119,9 @@ class ClubViewSet(viewsets.ModelViewSet):
         return Response(body)
 
     # ---- join (PRD §5.2) -------------------------------------------------
-    @extend_schema(summary="Ask to join a club: immediate for open clubs, queued otherwise")
+    @extend_schema(request=None,
+                   responses={201: MembershipSerializer, 202: JoinRequestSerializer},
+                   summary="Ask to join a club: immediate for open clubs, queued otherwise")
     @action(detail=True, methods=["post"])
     def join(self, request, pk=None):
         club = self.get_object()
@@ -169,7 +174,13 @@ class ClubViewSet(viewsets.ModelViewSet):
         return Response(JoinRequestSerializer(join_request).data,
                         status=status.HTTP_202_ACCEPTED)
 
-    @extend_schema(summary="Pending join requests (President or Vice-President only)")
+    @extend_schema(
+        parameters=[OpenApiParameter("state", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                                     enum=[*JoinRequest.State.values, "all"],
+                                     description="Default `pending`; `all` for every state.")],
+        responses=JoinRequestsSerializer,
+        summary="Pending join requests (President or Vice-President only)",
+    )
     @action(detail=True, methods=["get"], url_path="join-requests")
     def join_requests(self, request, pk=None):
         club = self.get_object()
@@ -183,12 +194,14 @@ class ClubViewSet(viewsets.ModelViewSet):
             "results": JoinRequestSerializer(qs, many=True).data,
         })
 
-    @extend_schema(request=JoinDecisionSerializer, summary="Accept a join request")
+    @extend_schema(request=JoinDecisionSerializer, responses=JoinRequestSerializer,
+                   parameters=[_REQUEST_ID], summary="Accept a join request")
     @action(detail=True, methods=["post"], url_path=rf"join-requests/(?P<request_id>{UUID_RE})/accept")
     def accept_join_request(self, request, pk=None, request_id=None):
         return self._decide_join(request, request_id, JoinRequest.State.ACCEPTED)
 
-    @extend_schema(request=JoinDecisionSerializer, summary="Decline a join request")
+    @extend_schema(request=JoinDecisionSerializer, responses=JoinRequestSerializer,
+                   parameters=[_REQUEST_ID], summary="Decline a join request")
     @action(detail=True, methods=["post"], url_path=rf"join-requests/(?P<request_id>{UUID_RE})/decline")
     def decline_join_request(self, request, pk=None, request_id=None):
         return self._decide_join(request, request_id, JoinRequest.State.DECLINED)
@@ -236,7 +249,7 @@ class ClubViewSet(viewsets.ModelViewSet):
                                 link=f"/club/{club.id}/members")
 
     # ---- office bearers (PRD §5.3, §5.18) ----------------------------------
-    @extend_schema(request=HandoverRequestSerializer,
+    @extend_schema(request=HandoverRequestSerializer, responses={201: HandoverOutSerializer},
                    summary="Hand the club's offices over (President or Vice-President only)")
     @action(detail=True, methods=["post"])
     def handover(self, request, pk=None):
@@ -256,7 +269,7 @@ class ClubViewSet(viewsets.ModelViewSet):
             "terms": OfficeBearerTermSerializer(created, many=True).data,
         }, status=status.HTTP_201_CREATED)
 
-    @extend_schema(summary="Who held which office, when")
+    @extend_schema(responses=OfficeBearerHistorySerializer, summary="Who held which office, when")
     @action(detail=True, methods=["get"], url_path="office-bearers/history")
     def office_bearer_history(self, request, pk=None):
         club = self.get_object()
@@ -277,6 +290,9 @@ class ClubViewSet(viewsets.ModelViewSet):
 
 class MembershipViewSet(viewsets.GenericViewSet):
     serializer_class = MembershipSerializer
+    # Schema hint only: drf-spectacular types the `id` path parameter from the
+    # model. Every request goes through get_queryset(), which scopes it.
+    queryset = Membership.objects.none()
 
     def get_queryset(self):
         ctx = self.request.auth_context
@@ -287,7 +303,7 @@ class MembershipViewSet(viewsets.GenericViewSet):
         visible_clubs = ctx.scopes_for(*R.CLUB_ROLES)
         return qs.filter(club_id__in=visible_clubs) if visible_clubs else qs.none()
 
-    @extend_schema(request=RoleChangeRequestSerializer,
+    @extend_schema(request=RoleChangeRequestSerializer, responses=MembershipSerializer,
                    summary="Assign a club role (President or Vice-President only)")
     @action(detail=True, methods=["post"], url_path="role")
     def set_role(self, request, pk=None):

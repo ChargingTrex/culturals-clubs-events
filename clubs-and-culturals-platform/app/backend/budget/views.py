@@ -2,7 +2,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.http import FileResponse, HttpResponseRedirect
-from drf_spectacular.utils import extend_schema, extend_schema_field
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,12 +11,21 @@ from rest_framework.views import APIView
 
 from budget import services
 from budget.models import Budget, BudgetLine, BudgetTemplate, ReceiptDocument
+from budget.serializers import (
+    BudgetTemplatesSerializer, BudgetThresholdsSerializer, NilDeclarationSerializer,
+    ReceiptUploadSerializer, SettlementProblemSerializer,
+)
 from common import roles as R
 from common.errors import ProblemDetail
 
 
 def _money(value):
     return None if value is None else f"{Decimal(value):.2f}"
+
+
+# Nested-path ids on the line routes, typed for the schema.
+_LINE_ID = OpenApiParameter("line_id", OpenApiTypes.UUID, OpenApiParameter.PATH)
+_RECEIPT_ID = OpenApiParameter("receipt_id", OpenApiTypes.UUID, OpenApiParameter.PATH)
 
 
 class ReceiptSerializer(serializers.ModelSerializer):
@@ -27,6 +37,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
         fields = ("id", "file_name", "content_type", "byte_size", "amount", "vendor",
                   "document_date", "created_at", "superseded_by", "is_current", "file_url")
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_file_url(self, receipt):
         return (f"/api/v1/budget/budgets/{receipt.line.budget_id}/lines/"
                 f"{receipt.line_id}/receipts/{receipt.id}/file")
@@ -42,6 +53,7 @@ class BudgetLineSerializer(serializers.ModelSerializer):
                   "amount_spent", "variance_note", "is_overspent", "receipts", "position")
         read_only_fields = ("id", "amount_requested", "amount_sanctioned")
 
+    @extend_schema_field(ReceiptSerializer(many=True))
     def get_receipts(self, line):
         current = [r for r in line.receipts.all() if r.is_current]
         return ReceiptSerializer(current, many=True).data
@@ -118,6 +130,7 @@ class BudgetSerializer(serializers.ModelSerializer):
         return cache[key]
 
 
+    @extend_schema_field(NilDeclarationSerializer(allow_null=True))
     def get_nil_declaration(self, budget):
         """
         Present as an explicit entry, not an absent one.
@@ -134,6 +147,7 @@ class BudgetSerializer(serializers.ModelSerializer):
             "declared_at": budget.nil_declared_at,
         }
 
+    @extend_schema_field(SettlementProblemSerializer(many=True))
     def get_settlement_problems(self, budget):
         """
         What blocks settlement, once settlement is actually the next step.
@@ -143,6 +157,7 @@ class BudgetSerializer(serializers.ModelSerializer):
         """
         return services.settlement_problems(budget)
 
+    @extend_schema_field(BudgetThresholdsSerializer)
     def get_thresholds(self, budget):
         return {"receipt_threshold": settings.RECEIPT_THRESHOLD,
                 "vc_threshold": settings.VC_BUDGET_THRESHOLD}
@@ -173,6 +188,9 @@ class SpendSerializer(serializers.Serializer):
 
 class BudgetViewSet(viewsets.GenericViewSet):
     serializer_class = BudgetSerializer
+    # Schema hint only: drf-spectacular types the `id` path parameter from the
+    # model. Every request goes through get_queryset(), which scopes it.
+    queryset = Budget.objects.none()
 
     def get_queryset(self):
         """
@@ -244,7 +262,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
                                 detail="No such budget line on this budget.")
         return line
 
-    @extend_schema(request=LineSerializer, summary="Add a budget line")
+    @extend_schema(request=LineSerializer, responses={201: BudgetSerializer},
+                   summary="Add a budget line")
     @action(detail=True, methods=["post"], url_path="lines")
     def add_line(self, request, pk=None):
         budget = self._get(pk)
@@ -258,7 +277,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
         return Response(BudgetSerializer(budget, context={"request": request}).data,
                         status=status.HTTP_201_CREATED)
 
-    @extend_schema(request=LineEditSerializer, summary="Edit a budget line's head or amount")
+    @extend_schema(request=LineEditSerializer, responses=BudgetSerializer, parameters=[_LINE_ID],
+                   summary="Edit a budget line's head or amount")
     @action(detail=True, methods=["put"], url_path=r"lines/(?P<line_id>[0-9a-f-]+)/edit")
     def edit_line(self, request, pk=None, line_id=None):
         budget = self._get(pk)
@@ -270,7 +290,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
         budget.refresh_from_db()
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 
-    @extend_schema(summary="Remove a budget line before submission")
+    @extend_schema(responses={200: BudgetSerializer}, parameters=[_LINE_ID],
+                   summary="Remove a budget line before submission")
     @action(detail=True, methods=["delete"], url_path=r"lines/(?P<line_id>[0-9a-f-]+)/remove")
     def remove_line(self, request, pk=None, line_id=None):
         budget = self._get(pk)
@@ -280,7 +301,7 @@ class BudgetViewSet(viewsets.GenericViewSet):
         budget.refresh_from_db()
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 
-    @extend_schema(request=NilSerializer,
+    @extend_schema(request=NilSerializer, responses=BudgetSerializer,
                    summary="Declare that the event needs no budget")
     @action(detail=True, methods=["post"], url_path="declare-nil")
     def declare_nil(self, request, pk=None):
@@ -292,7 +313,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
         budget.refresh_from_db()
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 
-    @extend_schema(summary="Withdraw a nil declaration so the budget can be priced")
+    @extend_schema(request=None, responses=BudgetSerializer,
+                   summary="Withdraw a nil declaration so the budget can be priced")
     @action(detail=True, methods=["post"], url_path="withdraw-nil")
     def withdraw_nil(self, request, pk=None):
         budget = self._get(pk)
@@ -301,7 +323,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
         budget.refresh_from_db()
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 
-    @extend_schema(request=SpendSerializer, summary="Record spend on one budget line")
+    @extend_schema(request=SpendSerializer, responses=BudgetSerializer, parameters=[_LINE_ID],
+                   summary="Record spend on one budget line")
     @action(detail=True, methods=["patch"], url_path=r"lines/(?P<line_id>[0-9a-f-]+)")
     def set_spend(self, request, pk=None, line_id=None):
         budget = self._get(pk)
@@ -326,7 +349,9 @@ class BudgetViewSet(viewsets.GenericViewSet):
         line.save(update_fields=["amount_spent", "variance_note", "updated_at"])
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 
-    @extend_schema(summary="Attach a receipt to one budget line")
+    @extend_schema(request={"multipart/form-data": ReceiptUploadSerializer},
+                   responses={201: ReceiptSerializer}, parameters=[_LINE_ID],
+                   summary="Attach a receipt to one budget line")
     @action(detail=True, methods=["post"],
             url_path=r"lines/(?P<line_id>[0-9a-f-]+)/receipts")
     def attach_receipt(self, request, pk=None, line_id=None):
@@ -376,7 +401,9 @@ class BudgetViewSet(viewsets.GenericViewSet):
         )
         return Response(ReceiptSerializer(receipt).data, status=status.HTTP_201_CREATED)
 
-    @extend_schema(summary="The stored receipt file, with its original content type")
+    @extend_schema(responses={(200, "*/*"): OpenApiTypes.BINARY, 302: None},
+                   parameters=[_LINE_ID, _RECEIPT_ID],
+                   summary="The stored receipt file, with its original content type")
     @action(detail=True, methods=["get"],
             url_path=r"lines/(?P<line_id>[0-9a-f-]+)/receipts/(?P<receipt_id>[0-9a-f-]+)/file")
     def receipt_file(self, request, pk=None, line_id=None, receipt_id=None):
@@ -422,7 +449,8 @@ class BudgetViewSet(viewsets.GenericViewSet):
         response["Cache-Control"] = "private, no-store"
         return response
 
-    @extend_schema(summary="Settle the budget once spend and evidence are complete")
+    @extend_schema(request=None, responses=BudgetSerializer,
+                   summary="Settle the budget once spend and evidence are complete")
     @action(detail=True, methods=["post"])
     def settle(self, request, pk=None):
         budget = self._get(pk)
@@ -520,7 +548,12 @@ class BudgetTemplateView(APIView):
     which meant two implementations of the same arithmetic.
     """
 
-    @extend_schema(summary="Budget templates, priced for an expected attendance")
+    @extend_schema(
+        parameters=[OpenApiParameter("expected_attendance", OpenApiTypes.INT, OpenApiParameter.QUERY,
+                                     description="Headcount to price per-head lines at (default 80).")],
+        responses=BudgetTemplatesSerializer,
+        summary="Budget templates, priced for an expected attendance",
+    )
     def get(self, request):
         try:
             expected = max(1, int(request.query_params.get("expected_attendance", 80)))

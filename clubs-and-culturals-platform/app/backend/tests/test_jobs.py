@@ -20,9 +20,11 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from clubs.models import Membership, OfficeBearerTerm, RoleChange
 from common import roles as R
 from events.models import EventStatus
 from governance.models import ApprovalRequest, ApprovalStage, AuditEntry, Delegation, Notification
+from jobs.services import JOBS
 from participation.models import ExternalParticipant, Registration, ScanRecord, ScanResult
 from tests import factories as f
 
@@ -363,3 +365,82 @@ class CeleryTaskTests(TestCase):
 
         for name in JOBS:
             self.assertTrue(hasattr(tasks, name.replace("-", "_")), name)
+
+    def test_every_http_job_is_on_the_beat_schedule(self):
+        from config.celery import app
+
+        scheduled = {entry["task"] for entry in app.conf.beat_schedule.values()}
+        self.assertEqual(scheduled, {f"jobs.{name.replace('-', '_')}" for name in JOBS})
+
+
+@override_settings(JOBS_TOKEN=TOKEN)
+class ApplyDueTermsTests(TestCase):
+    """B-17: the daily job brings Membership rows in line with office-bearer terms that are due."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.club = f.club("Swara")
+        self.old = f.student("old@college.edu", prn="23CS1001")
+        f.member(self.club, self.old, R.CLUB_PRESIDENT)
+        self.new = f.student("new@college.edu", prn="23CS1002")
+        f.member(self.club, self.new, R.CLUB_MEMBER)
+        now = timezone.now()
+        # The state a dated handover leaves once its date has passed.
+        OfficeBearerTerm.objects.create(club=self.club, student=self.old, role=R.CLUB_PRESIDENT,
+                                        starts_at=now - timedelta(days=400),
+                                        ends_at=now - timedelta(days=1))
+        OfficeBearerTerm.objects.create(club=self.club, student=self.new, role=R.CLUB_PRESIDENT,
+                                        starts_at=now - timedelta(days=1))
+
+    def test_the_trigger_flips_the_rows_once_the_term_is_due(self):
+        self.assertEqual(Membership.objects.get(student=self.old).role, R.CLUB_PRESIDENT)
+        response = self.client.get("/api/v1/jobs/apply-due-terms", **AUTH)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["job"], "apply-due-terms")
+        self.assertEqual(response.data["result"]["memberships_updated"], 2)
+        self.assertEqual(response.data["result"]["clubs_changed"], 1)
+        self.assertEqual(Membership.objects.get(student=self.old).role, R.CLUB_MEMBER)
+        self.assertEqual(Membership.objects.get(student=self.new).role, R.CLUB_PRESIDENT)
+        # Audited with counts only; the result carries no PRN or name either.
+        entry = AuditEntry.objects.get(action="jobs.apply_due_terms")
+        self.assertEqual(entry.after["memberships_updated"], 2)
+        self.assertNotIn("23CS100", json.dumps(response.data, default=str))
+
+    def test_a_second_run_changes_nothing(self):
+        self.client.get("/api/v1/jobs/apply-due-terms", **AUTH)
+        response = self.client.get("/api/v1/jobs/apply-due-terms", **AUTH)
+        self.assertEqual(response.data["result"]["memberships_updated"], 0)
+        self.assertEqual(RoleChange.objects.filter(membership__club=self.club).count(), 2)
+
+    def test_a_term_not_yet_due_leaves_the_rows_alone(self):
+        OfficeBearerTerm.objects.all().delete()
+        OfficeBearerTerm.objects.create(club=self.club, student=self.new, role=R.CLUB_PRESIDENT,
+                                        starts_at=timezone.now() + timedelta(days=3))
+        response = self.client.get("/api/v1/jobs/apply-due-terms", **AUTH)
+        self.assertEqual(response.data["result"]["memberships_updated"], 0)
+        self.assertEqual(Membership.objects.get(student=self.old).role, R.CLUB_PRESIDENT)
+
+    def test_the_celery_task_runs_the_same_job(self):
+        from config import celery  # noqa: F401
+        from jobs import tasks
+
+        result = tasks.apply_due_terms.apply().get()
+        self.assertEqual(result["result"]["memberships_updated"], 2)
+        self.assertEqual(Membership.objects.get(student=self.new).role, R.CLUB_PRESIDENT)
+
+
+@override_settings(JOBS_TOKEN=TOKEN)
+class VercelCronTests(TestCase):
+    """H-03: every cron entry in vercel.json names a real job, and a cron hit returns a job result."""
+
+    def test_each_cron_path_runs_its_job(self):
+        from django.conf import settings
+
+        crons = json.loads((settings.BASE_DIR / "vercel.json").read_text())["crons"]
+        self.assertEqual({c["path"].rsplit("/", 1)[1] for c in crons}, set(JOBS))
+        for cron in crons:
+            name = cron["path"].rsplit("/", 1)[1]
+            response = APIClient().get(cron["path"], **AUTH)
+            self.assertEqual(response.status_code, 200, cron["path"])
+            self.assertEqual(response.data["job"], name)
+            self.assertTrue(AuditEntry.objects.filter(action=f"jobs.{name.replace('-', '_')}").exists())

@@ -41,3 +41,115 @@ class CaptureMetricsSerializer(serializers.Serializer):
         allow_null=True, help_text="attended_by_scan / attended; null when nobody attended.")
     capture_rate = serializers.FloatField(
         allow_null=True, help_text="Alias of scan_capture_rate (the documents' definition).")
+
+
+class ReportSemesterSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    starts_on = serializers.DateField()
+    ends_on = serializers.DateField()
+
+
+class ReportByClubSerializer(serializers.Serializer):
+    club_id = serializers.UUIDField()
+    club = serializers.CharField()
+    tag = serializers.CharField()
+    category = serializers.CharField()
+    events_run = serializers.IntegerField()
+    attendance = serializers.IntegerField()
+
+
+class ReportByCategorySerializer(serializers.Serializer):
+    category = serializers.CharField()
+    clubs_active = serializers.IntegerField(
+        help_text="Clubs in the category with at least one completed event this semester.")
+    events_run = serializers.IntegerField()
+    attendance = serializers.IntegerField()
+
+
+class ReportByDepartmentSerializer(serializers.Serializer):
+    department = serializers.CharField()
+    students_reached = serializers.IntegerField()
+    attendance = serializers.IntegerField()
+
+
+class ReportMoneySerializer(serializers.Serializer):
+    requested = serializers.CharField()
+    sanctioned = serializers.CharField()
+    spent = serializers.CharField()
+
+
+class ReportEventSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    club = serializers.CharField()
+    starts_at = serializers.DateTimeField()
+    attended = serializers.IntegerField()
+    registered = serializers.IntegerField()
+    photos = serializers.IntegerField()
+    social_links = serializers.ListField(child=serializers.CharField())
+    sanctioned = serializers.CharField()
+    spent = serializers.CharField()
+
+
+class SemesterReportSerializer(serializers.Serializer):
+    """GET /reporting/reports/semester — aggregates only, no individual records."""
+
+    semester = ReportSemesterSerializer()
+    events_run = serializers.IntegerField()
+    total_participation = serializers.IntegerField()
+    unique_students = serializers.IntegerField()
+    external_participants = serializers.IntegerField(
+        help_text="Counted separately from own students; never summed with them.")
+    avg_attendance = serializers.IntegerField()
+    by_club = ReportByClubSerializer(many=True)
+    by_category = ReportByCategorySerializer(many=True)
+    by_department = ReportByDepartmentSerializer(many=True)
+    money = ReportMoneySerializer()
+    events = ReportEventSerializer(many=True)
+    caveats = serializers.ListField(child=serializers.CharField())
+
+
+class EscalatedApprovalSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    event_id = serializers.UUIDField()
+    event_title = serializers.CharField()
+    club = serializers.CharField()
+    stage = serializers.CharField()
+    age_hours = serializers.FloatField(allow_null=True)
+    stage_entered_at = serializers.DateTimeField(allow_null=True)
+    submitted_at = serializers.DateTimeField(allow_null=True)
+
+
+class ChaseEventSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    club = serializers.CharField()
+
+
+class MissingEvidenceSerializer(ChaseEventSerializer):
+    missing = serializers.ListField(child=serializers.CharField())
+
+
+class VenueUseSerializer(serializers.Serializer):
+    venue__name = serializers.CharField()
+    bookings = serializers.IntegerField()
+
+
+class DeanOverviewSerializer(serializers.Serializer):
+    """GET /reporting/reports/overview — running totals and what needs chasing."""
+
+    semester = serializers.CharField()
+    pending_approvals = serializers.IntegerField()
+    pending_by_stage = serializers.DictField(child=serializers.IntegerField())
+    escalated_approvals = EscalatedApprovalSerializer(many=True)
+    venue_clashes = serializers.IntegerField()
+    clubs_active = serializers.IntegerField()
+    clubs_total = serializers.IntegerField()
+    clubs_inactive = serializers.ListField(child=serializers.CharField())
+    dormant_clubs = serializers.IntegerField()
+    missing_evidence = MissingEvidenceSerializer(many=True)
+    events_missing_photos = ChaseEventSerializer(many=True)
+    events_missing_social_links = ChaseEventSerializer(many=True)
+    venue_use = VenueUseSerializer(many=True)
+    capture = CaptureMetricsSerializer()

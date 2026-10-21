@@ -1,6 +1,9 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from budget.models import BudgetStage
 from common import roles as R
+from common.serializers import EventRefSerializer
 from participation.services import live_pass
 from events.models import Event, EventOrganiser, EventStatus, Fest, Venue, VenueReassignment
 
@@ -11,10 +14,32 @@ class VenueSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "capacity", "location", "active")
 
 
+class BudgetSummarySerializer(serializers.Serializer):
+    """The `budget` block on an event; present only for roles with budget visibility."""
+
+    id = serializers.UUIDField()
+    stage = serializers.ChoiceField(choices=BudgetStage.choices)
+    stage_label = serializers.CharField()
+    total_requested = serializers.CharField()
+    total_sanctioned = serializers.CharField()
+    total_spent = serializers.CharField()
+
+
+class MyRegistrationSerializer(serializers.Serializer):
+    """The caller's own live registration on an event, if any."""
+
+    id = serializers.UUIDField()
+    attended = serializers.BooleanField()
+    pass_token = serializers.CharField(allow_null=True)
+
+
 class EventSerializer(serializers.ModelSerializer):
     club_name = serializers.CharField(source="club.name", read_only=True)
     venue_name = serializers.CharField(source="venue.name", read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
+    # A JSON column on the model; declared so the schema says "list of URLs"
+    # rather than "anything". CloseEventSerializer is what validates them.
+    social_links = serializers.ListField(child=serializers.URLField(), read_only=True)
     registered = serializers.SerializerMethodField()
     attended = serializers.SerializerMethodField()
     budget = serializers.SerializerMethodField()
@@ -30,12 +55,15 @@ class EventSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "status", "photo_count", "social_links", "submitted_at",
                             "closed_at")
 
+    @extend_schema_field(serializers.IntegerField())
     def get_registered(self, event):
         return event.registered_count()
 
+    @extend_schema_field(serializers.IntegerField())
     def get_attended(self, event):
         return event.attended_count()
 
+    @extend_schema_field(BudgetSummarySerializer(allow_null=True))
     def get_budget(self, event):
         """
         Budget totals are shown only to the roles allowed to see them.
@@ -60,6 +88,7 @@ class EventSerializer(serializers.ModelSerializer):
             "total_spent": str(budget.total_spent),
         }
 
+    @extend_schema_field(MyRegistrationSerializer(allow_null=True))
     def get_my_registration(self, event):
         ctx = self.context["request"].auth_context
         if not ctx.student_id:
@@ -73,6 +102,82 @@ class EventSerializer(serializers.ModelSerializer):
             return None
         return {"id": str(registration.id), "attended": registration.attended,
                 "pass_token": getattr(live_pass(registration), "token", None)}
+
+
+class SoftClashSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    club = serializers.CharField()
+
+
+class ApprovalSummarySerializer(serializers.Serializer):
+    """The approval request opened by a submission, as the proposer sees it."""
+
+    id = serializers.UUIDField()
+    stages = serializers.ListField(child=serializers.CharField())
+    current_stage = serializers.CharField()
+    requires_vc = serializers.BooleanField()
+    vc_reason = serializers.CharField()
+
+
+class EventCreatedSerializer(EventSerializer):
+    """Response of POST /events: the event plus what submission found and opened."""
+
+    soft_clashes = SoftClashSerializer(many=True, read_only=True)
+    approval = ApprovalSummarySerializer(read_only=True, allow_null=True)
+
+    class Meta(EventSerializer.Meta):
+        fields = EventSerializer.Meta.fields + ("soft_clashes", "approval")
+
+
+class SubmitOutSerializer(ApprovalSummarySerializer):
+    """Response of POST /events/{id}/submit."""
+
+    soft_clashes = SoftClashSerializer(many=True)
+
+
+class EventClashSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    club = serializers.CharField()
+    starts_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField()
+    status = serializers.ChoiceField(choices=EventStatus.choices)
+    expected_attendance = serializers.IntegerField()
+
+
+class ClashesSerializer(serializers.Serializer):
+    """Response of GET /events/{id}/clashes."""
+
+    clashes = EventClashSerializer(many=True)
+    free_venues = VenueSerializer(many=True)
+
+
+class CalendarBookingSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    club = serializers.CharField()
+    venue = serializers.UUIDField()
+    venue_name = serializers.CharField()
+    starts_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField()
+    status = serializers.ChoiceField(choices=EventStatus.choices)
+    confirmed = serializers.BooleanField()
+    clash = serializers.BooleanField()
+
+
+class CalendarClashSerializer(serializers.Serializer):
+    venue = serializers.CharField()
+    events = EventClashSerializer(many=True)
+
+
+class VenueCalendarSerializer(serializers.Serializer):
+    """Response of GET /venue-calendar."""
+
+    buffer_minutes = serializers.CharField(allow_null=True)
+    venues = VenueSerializer(many=True)
+    bookings = CalendarBookingSerializer(many=True)
+    clashes = CalendarClashSerializer(many=True)
 
 
 class EventCreateSerializer(serializers.ModelSerializer):
@@ -154,3 +259,10 @@ class EventOrganiserSerializer(serializers.ModelSerializer):
 class OrganiserAssignSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     ends_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class OrganisersSerializer(serializers.Serializer):
+    """Response of GET /events/{id}/organisers."""
+
+    event = EventRefSerializer()
+    results = EventOrganiserSerializer(many=True)

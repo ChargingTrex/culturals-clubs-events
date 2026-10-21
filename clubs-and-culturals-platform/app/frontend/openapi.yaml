@@ -15,11 +15,23 @@ paths:
         is the figure that will be created — the prototype computed it in the browser,
         which meant two implementations of the same arithmetic.
       summary: Budget templates, priced for an expected attendance
+      parameters:
+      - in: query
+        name: expected_attendance
+        schema:
+          type: integer
+        description: Headcount to price per-head lines at (default 80).
       tags:
       - budget
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetTemplates'
+          description: ''
   /api/v1/budget/budgets:
     get:
       operationId: budget_budgets_list
@@ -38,6 +50,8 @@ paths:
           type: integer
       tags:
       - budget
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -53,9 +67,13 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       tags:
       - budget
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -72,6 +90,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       tags:
       - budget
@@ -87,6 +107,8 @@ paths:
             schema:
               $ref: '#/components/schemas/Nil'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -103,6 +125,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       tags:
       - budget
@@ -118,8 +142,10 @@ paths:
             schema:
               $ref: '#/components/schemas/Line'
         required: true
+      security:
+      - bearerAuth: []
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -134,12 +160,14 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       - in: path
         name: line_id
         schema:
           type: string
-          pattern: ^[0-9a-f-]+$
+          format: uuid
         required: true
       tags:
       - budget
@@ -154,6 +182,8 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedSpend'
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -170,12 +200,14 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       - in: path
         name: line_id
         schema:
           type: string
-          pattern: ^[0-9a-f-]+$
+          format: uuid
         required: true
       tags:
       - budget
@@ -190,6 +222,8 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/LineEdit'
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -206,33 +240,79 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       - in: path
         name: line_id
         schema:
           type: string
-          pattern: ^[0-9a-f-]+$
+          format: uuid
         required: true
       tags:
       - budget
       requestBody:
         content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Budget'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Budget'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Budget'
+              $ref: '#/components/schemas/ReceiptUpload'
+        required: true
+      security:
+      - bearerAuth: []
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Budget'
+                $ref: '#/components/schemas/Receipt'
           description: ''
+  /api/v1/budget/budgets/{id}/lines/{line_id}/receipts/{receipt_id}/file:
+    get:
+      operationId: budget_budgets_lines_receipts_file_retrieve
+      description: |-
+        PRD §5.19.4: the people reviewing a settlement can open the attachment.
+
+        Who: the queryset already limits budgets to BUDGET_VIEWERS of the club and
+        to staff (Dean, Cultural Society, Vice-Chancellor, admin), so a plain
+        member is 404 here as everywhere else on the budget. The VC may see a
+        receipt: it is a vendor's bill and carries no student data. A superseded
+        receipt is still served — the old row is evidence of what was first
+        claimed, which is the whole reason it was kept.
+      summary: The stored receipt file, with its original content type
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this budget.
+        required: true
+      - in: path
+        name: line_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: receipt_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - budget
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '302':
+          description: No response body
   /api/v1/budget/budgets/{id}/lines/{line_id}/remove:
     delete:
       operationId: budget_budgets_lines_remove_destroy
@@ -242,18 +322,26 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       - in: path
         name: line_id
         schema:
           type: string
-          pattern: ^[0-9a-f-]+$
+          format: uuid
         required: true
       tags:
       - budget
+      security:
+      - bearerAuth: []
       responses:
-        '204':
-          description: No response body
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
   /api/v1/budget/budgets/{id}/settle:
     post:
       operationId: budget_budgets_settle_create
@@ -263,20 +351,13 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
         required: true
       tags:
       - budget
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Budget'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Budget'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Budget'
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -293,6 +374,73 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this budget.
+        required: true
+      tags:
+      - budget
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
+  /api/v1/budget/envelopes/{club_id}:
+    get:
+      operationId: budget_envelopes_retrieve
+      description: |-
+        A club's annual envelope with running utilisation (PRD §5.7.3, §5.19.5).
+
+        GET: BUDGET_VIEWERS of that club, Dean, Cultural Society, Vice-Chancellor,
+        admin. Everyone else — including the club's own plain members, who have no
+        budget visibility (AGENT_PROMPT §6) — gets 404, the same as for the budgets
+        the figure is made of.
+
+        PUT: Dean or admin. PRD §5.13 names the Student Life Office as the body that
+        configures approval behaviour, but no such role exists in common/roles.py
+        yet, so the Dean sets the envelope until it does.
+      summary: Annual envelope and utilisation for one club
+      parameters:
+      - in: path
+        name: club_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - budget
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOut'
+          description: ''
+    put:
+      operationId: budget_envelopes_update
+      description: |-
+        A club's annual envelope with running utilisation (PRD §5.7.3, §5.19.5).
+
+        GET: BUDGET_VIEWERS of that club, Dean, Cultural Society, Vice-Chancellor,
+        admin. Everyone else — including the club's own plain members, who have no
+        budget visibility (AGENT_PROMPT §6) — gets 404, the same as for the budgets
+        the figure is made of.
+
+        PUT: Dean or admin. PRD §5.13 names the Student Life Office as the body that
+        configures approval behaviour, but no such role exists in common/roles.py
+        yet, so the Dean sets the envelope until it does.
+      summary: Set the envelope for a year
+      parameters:
+      - in: path
+        name: club_id
+        schema:
+          type: string
+          format: uuid
         required: true
       tags:
       - budget
@@ -300,19 +448,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Budget'
+              $ref: '#/components/schemas/EnvelopeSet'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Budget'
+              $ref: '#/components/schemas/EnvelopeSet'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Budget'
+              $ref: '#/components/schemas/EnvelopeSet'
+        required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Budget'
+                $ref: '#/components/schemas/EnvelopeOut'
           description: ''
   /api/v1/clubs:
     get:
@@ -332,6 +483,8 @@ paths:
           type: integer
       tags:
       - clubs
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -355,6 +508,8 @@ paths:
             schema:
               $ref: '#/components/schemas/Club'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '201':
           content:
@@ -375,6 +530,8 @@ paths:
         required: true
       tags:
       - clubs
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -406,6 +563,8 @@ paths:
             schema:
               $ref: '#/components/schemas/Club'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -436,6 +595,8 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedClub'
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -455,9 +616,188 @@ paths:
         required: true
       tags:
       - clubs
+      security:
+      - bearerAuth: []
       responses:
         '204':
           description: No response body
+  /api/v1/clubs/{id}/handover:
+    post:
+      operationId: clubs_handover_create
+      summary: Hand the club's offices over (President or Vice-President only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HandoverRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HandoverRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverOut'
+          description: ''
+  /api/v1/clubs/{id}/join:
+    post:
+      operationId: clubs_join_create
+      summary: 'Ask to join a club: immediate for open clubs, queued otherwise'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinRequest'
+          description: ''
+  /api/v1/clubs/{id}/join-requests:
+    get:
+      operationId: clubs_join_requests_retrieve
+      summary: Pending join requests (President or Vice-President only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      - in: query
+        name: state
+        schema:
+          type: string
+          enum:
+          - accepted
+          - all
+          - declined
+          - pending
+        description: Default `pending`; `all` for every state.
+      tags:
+      - clubs
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinRequests'
+          description: ''
+  /api/v1/clubs/{id}/join-requests/{request_id}/accept:
+    post:
+      operationId: clubs_join_requests_accept_create
+      summary: Accept a join request
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      - in: path
+        name: request_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - clubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JoinDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JoinDecision'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinRequest'
+          description: ''
+  /api/v1/clubs/{id}/join-requests/{request_id}/decline:
+    post:
+      operationId: clubs_join_requests_decline_create
+      summary: Decline a join request
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      - in: path
+        name: request_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - clubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JoinDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JoinDecision'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinRequest'
+          description: ''
   /api/v1/clubs/{id}/members:
     get:
       operationId: clubs_members_retrieve
@@ -472,17 +812,63 @@ paths:
         required: true
       tags:
       - clubs
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Club'
+                $ref: '#/components/schemas/ClubMembers'
+          description: ''
+  /api/v1/clubs/{id}/office-bearers/history:
+    get:
+      operationId: clubs_office_bearers_history_retrieve
+      summary: Who held which office, when
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficeBearerHistory'
           description: ''
   /api/v1/events:
     get:
       operationId: events_list
       parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+          enum:
+          - cultural
+          - literary
+          - social
+          - sports
+          - technical
+        description: Events of clubs in this category. An unknown value matches nothing.
+      - in: query
+        name: club
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Model field to order by (default `starts_at`).
       - name: page
         required: false
         in: query
@@ -495,8 +881,25 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: starts_at_after
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: starts_at_before
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Comma-separated event statuses.
       tags:
       - events
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -521,12 +924,14 @@ paths:
             schema:
               $ref: '#/components/schemas/EventCreate'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Event'
+                $ref: '#/components/schemas/EventCreated'
           description: ''
   /api/v1/events/{id}:
     get:
@@ -536,9 +941,13 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -553,6 +962,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
@@ -568,6 +979,8 @@ paths:
             schema:
               $ref: '#/components/schemas/Event'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -582,6 +995,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
@@ -596,6 +1011,8 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedEvent'
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -605,14 +1022,25 @@ paths:
           description: ''
     delete:
       operationId: events_destroy
+      description: |-
+        Hard-delete a proposal that never left the club.
+
+        Only PROPOSERS of the owning club, and only while the event is a draft,
+        returned or rejected. A published event is cancelled with a reason,
+        never deleted: its registrations and approval trail are part of a
+        semester that may already be reported.
       parameters:
       - in: path
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
+      security:
+      - bearerAuth: []
       responses:
         '204':
           description: No response body
@@ -625,15 +1053,19 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Event'
+                $ref: '#/components/schemas/Clashes'
           description: ''
   /api/v1/events/{id}/close:
     post:
@@ -644,6 +1076,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
@@ -659,6 +1093,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CloseEvent'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -675,21 +1111,13 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Event'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Event'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Event'
-        required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -697,6 +1125,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/Event'
           description: ''
+  /api/v1/events/{id}/organisers:
+    get:
+      operationId: events_organisers_retrieve
+      summary: Organisers of this event
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organisers'
+          description: ''
+    post:
+      operationId: events_organisers_create
+      summary: Name an organiser (President/VP only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganiserAssign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrganiserAssign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrganiserAssign'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventOrganiser'
+          description: ''
+  /api/v1/events/{id}/organisers/{student_id}:
+    delete:
+      operationId: events_organisers_destroy
+      summary: Withdraw an organiser grant (President/VP only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/events/{id}/reassign:
     post:
       operationId: events_reassign_create
@@ -706,6 +1216,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
@@ -721,12 +1233,14 @@ paths:
             schema:
               $ref: '#/components/schemas/ReassignRequest'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Event'
+                $ref: '#/components/schemas/VenueReassignment'
           description: ''
   /api/v1/events/{id}/submit:
     post:
@@ -737,27 +1251,75 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this event.
         required: true
       tags:
       - events
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Event'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Event'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Event'
-        required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Event'
+                $ref: '#/components/schemas/SubmitOut'
+          description: ''
+  /api/v1/feedback/events/{event_id}:
+    post:
+      operationId: feedback_events_create
+      summary: Leave feedback on an attended event
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - feedback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackIn'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeedbackIn'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeedbackIn'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackOut'
+          description: ''
+  /api/v1/feedback/events/{event_id}/summary:
+    get:
+      operationId: feedback_events_summary_retrieve
+      summary: Aggregate feedback for one event — no identities
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - feedback
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackSummary'
           description: ''
   /api/v1/governance/approvals:
     get:
@@ -775,8 +1337,29 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: stage
+        schema:
+          type: string
+          enum:
+          - cultural_society
+          - dean
+          - vc
+        description: Current stage.
+      - in: query
+        name: state
+        schema:
+          type: string
+          enum:
+          - approved
+          - pending
+          - rejected
+          - returned
+          - withdrawn
       tags:
       - governance
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -792,9 +1375,13 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this approval request.
         required: true
       tags:
       - governance
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -811,6 +1398,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this approval request.
         required: true
       tags:
       - governance
@@ -826,25 +1415,35 @@ paths:
             schema:
               $ref: '#/components/schemas/Decide'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalRequest'
+                $ref: '#/components/schemas/DecisionOut'
           description: ''
   /api/v1/governance/approvals/queue:
     get:
       operationId: governance_approvals_queue_retrieve
-      summary: Your approval queue — only the stages you hold
+      summary: Your approval queue — only the stages you hold, oldest first
+      parameters:
+      - in: query
+        name: escalated
+        schema:
+          type: boolean
+        description: Only items past the SLA.
       tags:
       - governance
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalRequest'
+                $ref: '#/components/schemas/ApprovalQueue'
           description: ''
   /api/v1/governance/audit:
     get:
@@ -852,11 +1451,163 @@ paths:
       description: |-
         Read-only audit trail. Append-only by construction: nothing in the API writes
         to it except the adapter, and nothing anywhere updates or deletes an entry.
+      summary: Audit trail, newest 200 (Dean, admin, Vice-Chancellor)
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+        description: Exact action name, e.g. `event.created`.
+      - in: query
+        name: target_id
+        schema:
+          type: string
       tags:
       - governance
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditResults'
+          description: ''
+  /api/v1/governance/delegations:
+    get:
+      operationId: governance_delegations_list
+      description: |-
+        Cover for an approval gate (MASTER_SPEC §11.3, PRD §5.13).
+
+        Visibility is "own": the principal and the delegate see a delegation,
+        administrators see all. There is no edit — change the window by revoking and
+        creating again, so the record of what was in force when stays whole.
+      parameters:
+      - in: query
+        name: active
+        schema:
+          type: boolean
+        description: Only delegations in force now.
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: stage
+        schema:
+          type: string
+          enum:
+          - cultural_society
+          - dean
+          - vc
+      tags:
+      - governance
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDelegationList'
+          description: ''
+    post:
+      operationId: governance_delegations_create
+      description: |-
+        Cover for an approval gate (MASTER_SPEC §11.3, PRD §5.13).
+
+        Visibility is "own": the principal and the delegate see a delegation,
+        administrators see all. There is no edit — change the window by revoking and
+        creating again, so the record of what was in force when stays whole.
+      summary: Delegate a stage you hold
+      tags:
+      - governance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DelegationCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DelegationCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DelegationCreate'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delegation'
+          description: ''
+  /api/v1/governance/delegations/{id}:
+    get:
+      operationId: governance_delegations_retrieve
+      description: |-
+        Cover for an approval gate (MASTER_SPEC §11.3, PRD §5.13).
+
+        Visibility is "own": the principal and the delegate see a delegation,
+        administrators see all. There is no edit — change the window by revoking and
+        creating again, so the record of what was in force when stays whole.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this delegation.
+        required: true
+      tags:
+      - governance
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delegation'
+          description: ''
+  /api/v1/governance/delegations/{id}/revoke:
+    post:
+      operationId: governance_delegations_revoke_create
+      description: |-
+        Cover for an approval gate (MASTER_SPEC §11.3, PRD §5.13).
+
+        Visibility is "own": the principal and the delegate see a delegation,
+        administrators see all. There is no edit — change the window by revoking and
+        creating again, so the record of what was in force when stays whole.
+      summary: End a delegation now
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this delegation.
+        required: true
+      tags:
+      - governance
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delegation'
+          description: ''
   /api/v1/governance/notifications:
     get:
       operationId: governance_notifications_list
@@ -876,8 +1627,15 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+        description: Unread only.
       tags:
       - governance
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -894,24 +1652,14 @@ paths:
       summary: Mark all as read
       tags:
       - governance
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Notification'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Notification'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Notification'
-        required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Notification'
+                $ref: '#/components/schemas/MarkRead'
           description: ''
   /api/v1/governance/notifications/unread-count:
     get:
@@ -922,12 +1670,82 @@ paths:
       summary: Unread count for the bell
       tags:
       - governance
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Notification'
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
+  /api/v1/jobs/{name}:
+    get:
+      operationId: jobs_retrieve
+      description: |-
+        `POST /api/v1/jobs/{name}` with `Authorization: Bearer <JOBS_TOKEN>`.
+
+        401 JOBS_UNAUTHORIZED when the header is missing or wrong (logged), 503
+        JOBS_DISABLED when the host has no token or one shorter than 32 characters, 404 JOBS_UNKNOWN for a name not in
+        `jobs.services.JOBS`, 501 JOBS_NOT_WIRED when the job's dependency is not in
+        this build. Success returns `{job, started_at, finished_at, result}` and
+        writes an AuditEntry.
+      summary: Trigger a scheduled job — GET form, because Vercel Cron only issues
+        GET
+      parameters:
+      - in: path
+        name: name
+        schema:
+          type: string
+          enum:
+          - apply-due-terms
+          - escalate-sla
+          - flag-dormant
+          - purge-external
+          - rollup-scans
+        description: Job name
+        required: true
+      tags:
+      - jobs
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRun'
+          description: ''
+    post:
+      operationId: jobs_create
+      description: |-
+        `POST /api/v1/jobs/{name}` with `Authorization: Bearer <JOBS_TOKEN>`.
+
+        401 JOBS_UNAUTHORIZED when the header is missing or wrong (logged), 503
+        JOBS_DISABLED when the host has no token or one shorter than 32 characters, 404 JOBS_UNKNOWN for a name not in
+        `jobs.services.JOBS`, 501 JOBS_NOT_WIRED when the job's dependency is not in
+        this build. Success returns `{job, started_at, finished_at, result}` and
+        writes an AuditEntry.
+      summary: Trigger a scheduled job (Vercel Cron; shared secret, not a user token)
+      parameters:
+      - in: path
+        name: name
+        schema:
+          type: string
+          enum:
+          - apply-due-terms
+          - escalate-sla
+          - flag-dormant
+          - purge-external
+          - rollup-scans
+        description: Job name
+        required: true
+      tags:
+      - jobs
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRun'
           description: ''
   /api/v1/memberships/{id}/role:
     post:
@@ -942,6 +1760,8 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this membership.
         required: true
       tags:
       - memberships
@@ -957,6 +1777,8 @@ paths:
             schema:
               $ref: '#/components/schemas/RoleChangeRequest'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -986,7 +1808,11 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoSession'
+          description: ''
   /api/v1/module/auth/demo/personas:
     get:
       operationId: module_auth_demo_personas_retrieve
@@ -998,7 +1824,11 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoPersonas'
+          description: ''
   /api/v1/module/auth/login:
     post:
       operationId: module_auth_login_create
@@ -1022,15 +1852,21 @@ paths:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
   /api/v1/module/auth/logout:
     post:
       operationId: module_auth_logout_create
       summary: Revoke the refresh token; the access token expires naturally
       tags:
       - module
+      security:
+      - bearerAuth: []
       responses:
-        '200':
+        '204':
           description: No response body
   /api/v1/module/auth/me:
     get:
@@ -1038,9 +1874,15 @@ paths:
       summary: The caller's claims, as the frontend sees them
       tags:
       - module
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
   /api/v1/module/auth/mode:
     get:
       operationId: module_auth_mode_retrieve
@@ -1048,21 +1890,42 @@ paths:
       tags:
       - module
       security:
+      - bearerAuth: []
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMode'
+          description: ''
   /api/v1/module/auth/refresh:
     post:
       operationId: module_auth_refresh_create
       summary: Exchange a refresh token, rotating it
       tags:
       - module
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+        required: true
       security:
       - {}
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
   /api/v1/module/directory/students:
     get:
       operationId: module_directory_students_retrieve
@@ -1073,20 +1936,40 @@ paths:
         event only (AGENT_PROMPT §6), so this requires either an approval role or an
         organiser scope, and returns the minimum a desk needs to identify someone.
       summary: Find a student by PRN or name (desk lookup)
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: PRN or part of a name.
       tags:
       - module
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectoryResults'
+          description: ''
   /api/v1/module/semesters:
     get:
-      operationId: module_semesters_retrieve
+      operationId: module_semesters_list
       summary: Academic calendar (platform-owned; read only)
       tags:
       - module
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Semester'
+          description: ''
   /api/v1/participation/events/{event_id}/check-in:
     post:
       operationId: participation_events_check_in_create
@@ -1111,9 +1994,15 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ManualCheckIn'
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanOutcome'
+          description: ''
   /api/v1/participation/events/{event_id}/roster:
     get:
       operationId: participation_events_roster_retrieve
@@ -1126,7 +2015,13 @@ paths:
 
         Everyone else gets 404 rather than 403: the existence of an attendee list is
         itself disclosure (API_Standards §3.3).
+      summary: Attendee list for one event (organisers, door staff, Dean)
       parameters:
+      - in: query
+        name: attended
+        schema:
+          type: boolean
+        description: Only those checked in (or only those not).
       - in: path
         name: event_id
         schema:
@@ -1135,9 +2030,15 @@ paths:
         required: true
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Roster'
+          description: ''
   /api/v1/participation/events/{event_id}/scan:
     get:
       operationId: participation_events_scan_retrieve
@@ -1156,9 +2057,15 @@ paths:
         required: true
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanStation'
+          description: ''
     post:
       operationId: participation_events_scan_create
       description: |-
@@ -1188,9 +2095,15 @@ paths:
             schema:
               $ref: '#/components/schemas/ScanRequest'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanOutcome'
+          description: ''
   /api/v1/participation/events/{event_id}/scan-session:
     post:
       operationId: participation_events_scan_session_create
@@ -1211,9 +2124,15 @@ paths:
         required: true
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanSession'
+          description: ''
   /api/v1/participation/events/{event_id}/scan/sync:
     post:
       operationId: participation_events_scan_sync_create
@@ -1240,49 +2159,85 @@ paths:
             schema:
               $ref: '#/components/schemas/OfflineBatch'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfflineSync'
+          description: ''
   /api/v1/participation/me/qr:
     get:
       operationId: participation_me_qr_retrieve
-      description: 'The student''s wallet: one pass per live registration, plus the
-        profile QR.'
+      description: |-
+        The student's wallet: one pass per live registration, plus the profile QR.
+        A waitlisted registration is listed with `waitlisted: true` and no pass.
+      summary: Your passes and profile QR (students only)
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+          description: ''
     post:
       operationId: participation_me_qr_create
-      description: 'The student''s wallet: one pass per live registration, plus the
-        profile QR.'
+      description: |-
+        The student's wallet: one pass per live registration, plus the profile QR.
+        A waitlisted registration is listed with `waitlisted: true` and no pass.
       summary: Reissue the profile QR (lost phone)
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileQr'
+          description: ''
   /api/v1/participation/my-passes:
     get:
       operationId: participation_my_passes_retrieve
-      description: 'The student''s wallet: one pass per live registration, plus the
-        profile QR.'
+      description: |-
+        The student's wallet: one pass per live registration, plus the profile QR.
+        A waitlisted registration is listed with `waitlisted: true` and no pass.
+      summary: Your passes and profile QR (students only)
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+          description: ''
     post:
       operationId: participation_my_passes_create
-      description: 'The student''s wallet: one pass per live registration, plus the
-        profile QR.'
+      description: |-
+        The student's wallet: one pass per live registration, plus the profile QR.
+        A waitlisted registration is listed with `waitlisted: true` and no pass.
       summary: Reissue the profile QR (lost phone)
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileQr'
+          description: ''
   /api/v1/participation/registrations:
     get:
       operationId: participation_registrations_list
@@ -1301,6 +2256,8 @@ paths:
           type: integer
       tags:
       - participation
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -1317,14 +2274,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Registration'
+              $ref: '#/components/schemas/RegisterRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Registration'
+              $ref: '#/components/schemas/RegisterRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Registration'
+              $ref: '#/components/schemas/RegisterRequest'
         required: true
+      security:
+      - bearerAuth: []
       responses:
         '201':
           content:
@@ -1341,28 +2300,16 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this registration.
         required: true
       tags:
       - participation
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Registration'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Registration'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Registration'
-        required: true
+      security:
+      - bearerAuth: []
       responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Registration'
-          description: ''
+        '204':
+          description: No response body
   /api/v1/participation/registrations/{id}/reissue-pass:
     post:
       operationId: participation_registrations_reissue_pass_create
@@ -1372,37 +2319,46 @@ paths:
         name: id
         schema:
           type: string
+          format: uuid
+        description: A UUID string identifying this registration.
         required: true
       tags:
       - participation
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Registration'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Registration'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Registration'
-        required: true
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Registration'
+                $ref: '#/components/schemas/PassReissue'
           description: ''
   /api/v1/reporting/reports/overview:
     get:
       operationId: reporting_reports_overview_retrieve
+      description: |-
+        Running totals and what needs chasing (PRD §6.3). Dean, admin and the
+        Cultural Society; the VC gets the semester report, not the chase list.
+        `capture` is documented by reporting.serializers.CaptureMetricsSerializer.
       summary: Running totals and what needs chasing
+      parameters:
+      - in: query
+        name: semester
+        schema:
+          type: string
+          format: uuid
+        description: Semester id; defaults to the current semester.
       tags:
       - reporting
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeanOverview'
+          description: ''
   /api/v1/reporting/reports/semester:
     get:
       operationId: reporting_reports_semester_retrieve
@@ -1412,12 +2368,83 @@ paths:
         Available to the Dean and the Vice-Chancellor. The VC sees aggregates only —
         AGENT_PROMPT §6 is explicit that the Vice-Chancellor gets no individual
         records, and this endpoint returns none.
+
+        `?format=csv` (or the `/csv` path) returns the same figures as `text/csv`
+        (B-10b). One permission check serves both: the renderer is chosen before the
+        handler runs, and the handler decides who may read regardless of format.
       summary: Semester report — aggregates only, no individual records
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - csv
+          - json
+        description: csv returns text/csv with the same totals.
+      - in: query
+        name: semester
+        schema:
+          type: string
+          format: uuid
+        description: Semester id; defaults to the current semester.
       tags:
       - reporting
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemesterReport'
+            text/csv:
+              schema:
+                type: string
+          description: ''
+  /api/v1/reporting/reports/semester/csv:
+    get:
+      operationId: reporting_reports_semester_csv_retrieve
+      description: |-
+        The semester report.
+
+        Available to the Dean and the Vice-Chancellor. The VC sees aggregates only —
+        AGENT_PROMPT §6 is explicit that the Vice-Chancellor gets no individual
+        records, and this endpoint returns none.
+
+        `?format=csv` (or the `/csv` path) returns the same figures as `text/csv`
+        (B-10b). One permission check serves both: the renderer is chosen before the
+        handler runs, and the handler decides who may read regardless of format.
+      summary: Semester report — aggregates only, no individual records
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - csv
+          - json
+        description: csv returns text/csv with the same totals.
+      - in: query
+        name: semester
+        schema:
+          type: string
+          format: uuid
+        description: Semester id; defaults to the current semester.
+      tags:
+      - reporting
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemesterReport'
+            text/csv:
+              schema:
+                type: string
+          description: ''
   /api/v1/venue-calendar:
     get:
       operationId: venue_calendar_retrieve
@@ -1426,11 +2453,25 @@ paths:
 
         Restricted to staff. A student does not need to see which club is pitching
         for Friday evening, and a pending proposal is not public information.
+      summary: Master venue calendar with clashes flagged (staff only)
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Bookings starting on this day only.
       tags:
       - venue-calendar
+      security:
+      - bearerAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VenueCalendar'
+          description: ''
   /api/v1/venues:
     get:
       operationId: venues_list
@@ -1449,6 +2490,8 @@ paths:
           type: integer
       tags:
       - venues
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -1469,6 +2512,8 @@ paths:
         required: true
       tags:
       - venues
+      security:
+      - bearerAuth: []
       responses:
         '200':
           content:
@@ -1478,6 +2523,78 @@ paths:
           description: ''
 components:
   schemas:
+    ApprovalClash:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        expected_attendance:
+          type: integer
+      required:
+      - club
+      - ends_at
+      - expected_attendance
+      - id
+      - starts_at
+      - title
+    ApprovalLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        head:
+          type: string
+        amount_requested:
+          type: string
+        amount_sanctioned:
+          type: string
+          nullable: true
+      required:
+      - amount_requested
+      - amount_sanctioned
+      - head
+      - id
+    ApprovalQueue:
+      type: object
+      description: Response shape of ApprovalViewSet.queue.
+      properties:
+        stages_you_hold:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStageEnum'
+        stages_delegated_to_you:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStageEnum'
+        sla_hours:
+          type: integer
+        escalated_only:
+          type: boolean
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalRequest'
+      required:
+      - count
+      - escalated_only
+      - results
+      - sla_hours
+      - stages_delegated_to_you
+      - stages_you_hold
     ApprovalRequest:
       type: object
       properties:
@@ -1514,12 +2631,12 @@ components:
           readOnly: true
         stages: {}
         current_stage:
-          $ref: '#/components/schemas/CurrentStageEnum'
+          $ref: '#/components/schemas/ApprovalStageEnum'
         stage_label:
           type: string
           readOnly: true
         state:
-          $ref: '#/components/schemas/StateEnum'
+          $ref: '#/components/schemas/ApprovalStateEnum'
         amount_requested:
           type: string
           format: decimal
@@ -1535,31 +2652,49 @@ components:
             $ref: '#/components/schemas/ApprovalStep'
           readOnly: true
         lines:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalLine'
           readOnly: true
         clashes:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalClash'
           readOnly: true
         my_stage:
-          type: string
+          type: boolean
           readOnly: true
         requires_mfa:
-          type: string
+          type: boolean
           readOnly: true
         nil_declaration:
+          allOf:
+          - $ref: '#/components/schemas/NilDeclaration'
+          nullable: true
+          readOnly: true
+        stage_entered_at:
           type: string
+          format: date-time
+        age_hours:
+          type: number
+          format: double
+          readOnly: true
+        escalated:
+          type: boolean
           readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
       required:
+      - age_hours
       - clashes
       - club
       - club_id
       - created_at
       - current_stage
       - ends_at
+      - escalated
       - event
       - event_title
       - expected_attendance
@@ -1572,6 +2707,30 @@ components:
       - starts_at
       - steps
       - venue
+    ApprovalStageEnum:
+      enum:
+      - cultural_society
+      - dean
+      - vc
+      type: string
+      description: |-
+        * `cultural_society` - Cultural Society
+        * `dean` - Dean of Student Affairs
+        * `vc` - Vice-Chancellor
+    ApprovalStateEnum:
+      enum:
+      - pending
+      - approved
+      - returned
+      - rejected
+      - withdrawn
+      type: string
+      description: |-
+        * `pending` - Awaiting a decision
+        * `approved` - Approved
+        * `returned` - Returned for changes
+        * `rejected` - Rejected
+        * `withdrawn` - Withdrawn by the club
     ApprovalStep:
       type: object
       properties:
@@ -1580,12 +2739,12 @@ components:
           format: uuid
           readOnly: true
         stage:
-          $ref: '#/components/schemas/Stage69eEnum'
+          $ref: '#/components/schemas/ApprovalStageEnum'
         stage_label:
           type: string
           readOnly: true
         decision:
-          $ref: '#/components/schemas/ApprovalStepDecisionEnum'
+          $ref: '#/components/schemas/DecisionEnum'
         comment:
           type: string
         actor_label:
@@ -1601,6 +2760,13 @@ components:
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           nullable: true
+        on_behalf_of:
+          type: string
+          format: uuid
+          nullable: true
+        on_behalf_of_label:
+          type: string
+          maxLength: 80
         created_at:
           type: string
           format: date-time
@@ -1613,16 +2779,131 @@ components:
       - id
       - stage
       - stage_label
-    ApprovalStepDecisionEnum:
-      enum:
-      - approve
-      - return
-      - reject
-      type: string
-      description: |-
-        * `approve` - Approve
-        * `return` - Return for changes
-        * `reject` - Reject
+    ApprovalSummary:
+      type: object
+      description: The approval request opened by a submission, as the proposer sees
+        it.
+      properties:
+        id:
+          type: string
+          format: uuid
+        stages:
+          type: array
+          items:
+            type: string
+        current_stage:
+          type: string
+        requires_vc:
+          type: boolean
+        vc_reason:
+          type: string
+      required:
+      - current_stage
+      - id
+      - requires_vc
+      - stages
+      - vc_reason
+    Attendee:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        prn:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        department:
+          type: string
+          readOnly: true
+        programme:
+          type: string
+          readOnly: true
+        year:
+          type: integer
+          readOnly: true
+        source:
+          $ref: '#/components/schemas/RegistrationSourceEnum'
+        waitlisted:
+          type: boolean
+        attended:
+          type: boolean
+        checked_in_at:
+          type: string
+          format: date-time
+          nullable: true
+        station_id:
+          type: string
+          maxLength: 40
+      required:
+      - department
+      - full_name
+      - id
+      - prn
+      - programme
+      - year
+    AuditEntryOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor:
+          type: string
+        action:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        before: {}
+        after: {}
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - action
+      - actor
+      - after
+      - before
+      - created_at
+      - id
+      - reason
+      - target_id
+      - target_type
+    AuditResults:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntryOut'
+      required:
+      - results
+    AuthMode:
+      type: object
+      properties:
+        integration_mode:
+          type: string
+          description: '`local` (password login) or `platform` (SSO).'
+        sso:
+          $ref: '#/components/schemas/Sso'
+        password_login:
+          type: boolean
+        approval_chain:
+          type: array
+          items:
+            type: string
+      required:
+      - approval_chain
+      - integration_mode
+      - password_login
+      - sso
     Budget:
       type: object
       properties:
@@ -1668,13 +2949,18 @@ components:
           format: date-time
           nullable: true
         settlement_problems:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/SettlementProblem'
           readOnly: true
         thresholds:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/BudgetThresholds'
           readOnly: true
         nil_declaration:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/NilDeclaration'
+          nullable: true
           readOnly: true
         is_editable:
           type: boolean
@@ -1693,8 +2979,14 @@ components:
           type: string
           readOnly: true
           nullable: true
+        envelope:
+          allOf:
+          - $ref: '#/components/schemas/EnvelopeSummary'
+          nullable: true
+          readOnly: true
       required:
       - can_settle
+      - envelope
       - id
       - is_editable
       - is_ready_to_submit
@@ -1708,6 +3000,16 @@ components:
       - total_requested
       - total_sanctioned
       - total_spent
+    BudgetBasisEnum:
+      enum:
+      - lump_sum
+      - per_head
+      - per_day
+      type: string
+      description: |-
+        * `lump_sum` - Lump sum
+        * `per_head` - Rate x expected attendance
+        * `per_day` - Rate x days
     BudgetLine:
       type: object
       properties:
@@ -1744,7 +3046,9 @@ components:
           type: boolean
           readOnly: true
         receipts:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/Receipt'
           readOnly: true
         position:
           type: integer
@@ -1778,20 +3082,387 @@ components:
         * `settled` - Settled
         * `returned` - Returned for changes
         * `rejected` - Rejected
-    CategoryEnum:
-      enum:
-      - cultural
-      - literary
-      - technical
-      - sports
-      - social
-      type: string
+    BudgetSummary:
+      type: object
+      description: The `budget` block on an event; present only for roles with budget
+        visibility.
+      properties:
+        id:
+          type: string
+          format: uuid
+        stage:
+          $ref: '#/components/schemas/BudgetStageEnum'
+        stage_label:
+          type: string
+        total_requested:
+          type: string
+        total_sanctioned:
+          type: string
+        total_spent:
+          type: string
+      required:
+      - id
+      - stage
+      - stage_label
+      - total_requested
+      - total_sanctioned
+      - total_spent
+    BudgetTemplate:
+      type: object
+      properties:
+        name:
+          type: string
+        event_kind:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateLine'
+        contingency:
+          $ref: '#/components/schemas/Contingency'
+        total_requested:
+          type: string
+        requires_vc:
+          type: boolean
+        vc_threshold:
+          type: integer
+      required:
+      - contingency
+      - event_kind
+      - lines
+      - name
+      - requires_vc
+      - total_requested
+      - vc_threshold
+    BudgetTemplates:
+      type: object
+      properties:
+        expected_attendance:
+          type: integer
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetTemplate'
+      required:
+      - expected_attendance
+      - templates
+    BudgetThresholds:
+      type: object
+      properties:
+        receipt_threshold:
+          type: integer
+        vc_threshold:
+          type: integer
+      required:
+      - receipt_threshold
+      - vc_threshold
+    CalendarBooking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        venue:
+          type: string
+          format: uuid
+        venue_name:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/EventStatusEnum'
+        confirmed:
+          type: boolean
+        clash:
+          type: boolean
+      required:
+      - clash
+      - club
+      - confirmed
+      - ends_at
+      - id
+      - starts_at
+      - status
+      - title
+      - venue
+      - venue_name
+    CalendarClash:
+      type: object
+      properties:
+        venue:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventClash'
+      required:
+      - events
+      - venue
+    Capabilities:
+      type: object
+      description: Advisory rendering hints; every one is re-checked server-side on
+        use.
+      properties:
+        can_see_individual_records:
+          type: boolean
+        can_see_all_clubs:
+          type: boolean
+        is_student:
+          type: boolean
+        is_dean:
+          type: boolean
+        is_vice_chancellor:
+          type: boolean
+        is_cultural_society:
+          type: boolean
+        is_admin:
+          type: boolean
+        clubs:
+          type: array
+          items:
+            type: string
+            format: uuid
+        clubs_with_budget_access:
+          type: array
+          items:
+            type: string
+            format: uuid
+        clubs_can_assign_roles:
+          type: array
+          items:
+            type: string
+            format: uuid
+        clubs_can_propose:
+          type: array
+          items:
+            type: string
+            format: uuid
+        clubs_can_operate_events:
+          type: array
+          items:
+            type: string
+            format: uuid
+        clubs_can_enter_spend:
+          type: array
+          items:
+            type: string
+            format: uuid
+        clubs_door_staff:
+          type: array
+          items:
+            type: string
+            format: uuid
+        can_see_overview:
+          type: boolean
+        organiser_events:
+          type: array
+          items:
+            type: string
+            format: uuid
+        approval_stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalStageEnum'
+      required:
+      - approval_stages
+      - can_see_all_clubs
+      - can_see_individual_records
+      - can_see_overview
+      - clubs
+      - clubs_can_assign_roles
+      - clubs_can_enter_spend
+      - clubs_can_operate_events
+      - clubs_can_propose
+      - clubs_door_staff
+      - clubs_with_budget_access
+      - is_admin
+      - is_cultural_society
+      - is_dean
+      - is_student
+      - is_vice_chancellor
+      - organiser_events
+    CaptureMetrics:
+      type: object
       description: |-
-        * `cultural` - Cultural
-        * `literary` - Literary
-        * `technical` - Technical
-        * `sports` - Sports
-        * `social` - Social service
+        Door reliability for the semester, under two names (MASTER_SPEC §7.6).
+
+        Two different questions were historically answered under one key:
+
+        * `scan_success_rate` — accepted-or-spot scans / all scan attempts
+          (`ScanRecord.result IN (accepted, spot_registered)` over every ScanRecord).
+          "How many scan attempts succeeded at the door?" A station at 55% is
+          rejecting half its queue. This is what the code computed before B-11.
+
+        * `scan_capture_rate` — attended registrations with `source != manual` /
+          attended registrations. "Are they scanning, or hand-entering?" A club with a
+          persistently low ratio is marking attendance by hand (Database_And_Data_Flow
+          §5.6). This is the documents' definition.
+
+        `capture_rate` is kept as an ALIAS of `scan_capture_rate` — the documents'
+        definition, not the old code's — so an existing reader of the overview keeps
+        working and now gets the documented number. New readers should use the
+        explicit names; the alias is scheduled for removal once the React frontend
+        reads them.
+      properties:
+        scan_attempts:
+          type: integer
+          description: Every ScanRecord, failures included.
+        scans_accepted:
+          type: integer
+          description: ScanRecords with result accepted or spot_registered.
+        scan_success_rate:
+          type: number
+          format: double
+          nullable: true
+          description: scans_accepted / scan_attempts; null when nothing was scanned.
+        attended:
+          type: integer
+          description: Attended, uncancelled registrations.
+        attended_by_scan:
+          type: integer
+          description: Of those, with source != manual.
+        scan_capture_rate:
+          type: number
+          format: double
+          nullable: true
+          description: attended_by_scan / attended; null when nobody attended.
+        capture_rate:
+          type: number
+          format: double
+          nullable: true
+          description: Alias of scan_capture_rate (the documents' definition).
+      required:
+      - attended
+      - attended_by_scan
+      - capture_rate
+      - scan_attempts
+      - scan_capture_rate
+      - scan_success_rate
+      - scans_accepted
+    CaptureStats:
+      type: object
+      properties:
+        attempts:
+          type: integer
+        accepted:
+          type: integer
+        duplicates:
+          type: integer
+        unknown:
+          type: integer
+        wrong_event:
+          type: integer
+        expired:
+          type: integer
+        capture_rate:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - accepted
+      - attempts
+      - capture_rate
+      - duplicates
+      - expired
+      - unknown
+      - wrong_event
+    ChaseEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+      required:
+      - club
+      - id
+      - title
+    Claims:
+      type: object
+      description: The access token's claims, minus `typ` and `jti` (Identity §5.1).
+      properties:
+        sub:
+          type: string
+        iss:
+          type: string
+        aud:
+          type: string
+        email:
+          type: string
+          format: email
+        student_id:
+          type: string
+          format: uuid
+          nullable: true
+        prn:
+          type: string
+          nullable: true
+        display_name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        department:
+          type: string
+          nullable: true
+        programme:
+          type: string
+          nullable: true
+        year:
+          type: integer
+          nullable: true
+        mfa:
+          type: boolean
+        iat:
+          type: integer
+        exp:
+          type: integer
+        scan_event:
+          type: string
+          format: uuid
+          description: 'Present on a scan-station session only: the bound event.'
+      required:
+      - aud
+      - department
+      - display_name
+      - email
+      - exp
+      - iat
+      - iss
+      - mfa
+      - prn
+      - programme
+      - roles
+      - student_id
+      - sub
+      - year
+    Clashes:
+      type: object
+      description: Response of GET /events/{id}/clashes.
+      properties:
+        clashes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventClash'
+        free_venues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venue'
+      required:
+      - clashes
+      - free_venues
     CloseEvent:
       type: object
       properties:
@@ -1823,7 +3494,7 @@ components:
           type: string
           maxLength: 40
         category:
-          $ref: '#/components/schemas/CategoryEnum'
+          $ref: '#/components/schemas/ClubCategoryEnum'
         description:
           type: string
         instagram_handle:
@@ -1831,19 +3502,109 @@ components:
           maxLength: 64
         status:
           $ref: '#/components/schemas/ClubStatusEnum'
-        member_count:
+        join_mode:
+          $ref: '#/components/schemas/JoinModeEnum'
+        last_activity_at:
           type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        member_count:
+          type: integer
           readOnly: true
         my_role:
-          type: string
+          nullable: true
           readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/ClubRoleEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - category
       - id
+      - last_activity_at
       - member_count
       - my_role
       - name
       - slug
+    ClubCategoryEnum:
+      enum:
+      - cultural
+      - literary
+      - technical
+      - sports
+      - social
+      type: string
+      description: |-
+        * `cultural` - Cultural
+        * `literary` - Literary
+        * `technical` - Technical
+        * `sports` - Sports
+        * `social` - Social service
+    ClubMembers:
+      type: object
+      description: Response of GET /clubs/{id}/members.
+      properties:
+        club:
+          $ref: '#/components/schemas/ClubRosterRef'
+        can_assign_roles:
+          type: boolean
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Membership'
+        recent_changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleChange'
+        pending_join_requests:
+          type: integer
+          description: Only for those who can act on the queue.
+      required:
+      - can_assign_roles
+      - club
+      - recent_changes
+      - results
+    ClubRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    ClubRoleEnum:
+      enum:
+      - club_president
+      - club_vice_president
+      - club_treasurer
+      - club_secretary
+      - club_core
+      - club_member
+      type: string
+      description: |-
+        * `club_president` - President
+        * `club_vice_president` - Vice-President
+        * `club_treasurer` - Treasurer
+        * `club_secretary` - Secretary
+        * `club_core` - Core team
+        * `club_member` - Member
+    ClubRosterRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        join_mode:
+          $ref: '#/components/schemas/JoinModeEnum'
+      required:
+      - id
+      - join_mode
+      - name
     ClubStatusEnum:
       enum:
       - active
@@ -1854,21 +3615,83 @@ components:
         * `active` - Active
         * `dormant` - Dormant
         * `archived` - Archived
-    CurrentStageEnum:
-      enum:
-      - cultural_society
-      - dean
-      - vc
-      type: string
-      description: |-
-        * `cultural_society` - Cultural Society
-        * `dean` - Dean of Student Affairs
-        * `vc` - Vice-Chancellor
+    Contingency:
+      type: object
+      properties:
+        percent:
+          type: integer
+        amount:
+          type: string
+      required:
+      - amount
+      - percent
+    DeanOverview:
+      type: object
+      description: GET /reporting/reports/overview — running totals and what needs
+        chasing.
+      properties:
+        semester:
+          type: string
+        pending_approvals:
+          type: integer
+        pending_by_stage:
+          type: object
+          additionalProperties:
+            type: integer
+        escalated_approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/EscalatedApproval'
+        venue_clashes:
+          type: integer
+        clubs_active:
+          type: integer
+        clubs_total:
+          type: integer
+        clubs_inactive:
+          type: array
+          items:
+            type: string
+        dormant_clubs:
+          type: integer
+        missing_evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingEvidence'
+        events_missing_photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChaseEvent'
+        events_missing_social_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChaseEvent'
+        venue_use:
+          type: array
+          items:
+            $ref: '#/components/schemas/VenueUse'
+        capture:
+          $ref: '#/components/schemas/CaptureMetrics'
+      required:
+      - capture
+      - clubs_active
+      - clubs_inactive
+      - clubs_total
+      - dormant_clubs
+      - escalated_approvals
+      - events_missing_photos
+      - events_missing_social_links
+      - missing_evidence
+      - pending_approvals
+      - pending_by_stage
+      - semester
+      - venue_clashes
+      - venue_use
     Decide:
       type: object
       properties:
         decision:
-          $ref: '#/components/schemas/DecideDecisionEnum'
+          $ref: '#/components/schemas/DecisionEnum'
         comment:
           type: string
           default: ''
@@ -1877,16 +3700,336 @@ components:
           additionalProperties: {}
       required:
       - decision
-    DecideDecisionEnum:
+    DecisionEnum:
       enum:
       - approve
       - return
       - reject
       type: string
       description: |-
-        * `approve` - approve
-        * `return` - return
-        * `reject` - reject
+        * `approve` - Approve
+        * `return` - Return for changes
+        * `reject` - Reject
+    DecisionOut:
+      type: object
+      description: Response shape of ApprovalViewSet.decide.
+      properties:
+        step:
+          $ref: '#/components/schemas/ApprovalStep'
+        request:
+          $ref: '#/components/schemas/ApprovalRequest'
+      required:
+      - request
+      - step
+    Delegation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        stage:
+          $ref: '#/components/schemas/ApprovalStageEnum'
+        stage_label:
+          type: string
+          readOnly: true
+        principal_user:
+          type: string
+          format: uuid
+        principal_label:
+          type: string
+          readOnly: true
+        delegate_user:
+          type: string
+          format: uuid
+        delegate_label:
+          type: string
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          maxLength: 400
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_by_label:
+          type: string
+          readOnly: true
+          default: ''
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_by_label:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by_label
+      - delegate_label
+      - delegate_user
+      - ends_at
+      - id
+      - is_active
+      - principal_label
+      - principal_user
+      - stage
+      - stage_label
+      - starts_at
+      - status
+    DelegationCreate:
+      type: object
+      properties:
+        stage:
+          $ref: '#/components/schemas/ApprovalStageEnum'
+        delegate_user:
+          type: string
+          format: uuid
+        principal_user:
+          type: string
+          format: uuid
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          default: ''
+          maxLength: 400
+      required:
+      - delegate_user
+      - ends_at
+      - stage
+      - starts_at
+    DemoPersona:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        sub:
+          type: string
+        available:
+          type: boolean
+        name:
+          type: string
+          nullable: true
+      required:
+      - available
+      - key
+      - label
+      - name
+      - sub
+    DemoPersonaRef:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        sub:
+          type: string
+      required:
+      - key
+      - label
+      - sub
+    DemoPersonas:
+      type: object
+      properties:
+        demo_mode:
+          type: boolean
+        personas:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemoPersona'
+      required:
+      - demo_mode
+      - personas
+    DemoSession:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          description: Always `Bearer`.
+        expires_in:
+          type: integer
+          description: Seconds until the access token expires.
+        claims:
+          $ref: '#/components/schemas/Claims'
+        persona:
+          $ref: '#/components/schemas/DemoPersonaRef'
+      required:
+      - access_token
+      - claims
+      - expires_in
+      - persona
+      - refresh_token
+      - token_type
+    DirectoryResults:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DirectoryStudent'
+      required:
+      - results
+    DirectoryStudent:
+      type: object
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        prn:
+          type: string
+        full_name:
+          type: string
+        department:
+          type: string
+        programme:
+          type: string
+        year:
+          type: integer
+      required:
+      - department
+      - full_name
+      - prn
+      - programme
+      - student_id
+      - year
+    EnvelopeOut:
+      type: object
+      description: Shape of the `envelope` block on a budget; response-only.
+      properties:
+        year:
+          type: integer
+        amount:
+          type: string
+          nullable: true
+        sanctioned_to_date:
+          type: string
+        settled_to_date:
+          type: string
+        remaining:
+          type: string
+          nullable: true
+        club_id:
+          type: string
+          format: uuid
+        club:
+          type: string
+        set_by:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - amount
+      - club
+      - club_id
+      - remaining
+      - sanctioned_to_date
+      - set_by
+      - settled_to_date
+      - updated_at
+      - year
+    EnvelopeSet:
+      type: object
+      properties:
+        year:
+          type: integer
+          maximum: 2100
+          minimum: 2000
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - amount
+      - year
+    EnvelopeSummary:
+      type: object
+      description: Shape of the `envelope` block on a budget; response-only.
+      properties:
+        year:
+          type: integer
+        amount:
+          type: string
+          nullable: true
+        sanctioned_to_date:
+          type: string
+        settled_to_date:
+          type: string
+        remaining:
+          type: string
+          nullable: true
+      required:
+      - amount
+      - remaining
+      - sanctioned_to_date
+      - settled_to_date
+      - year
+    EscalatedApproval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        event_title:
+          type: string
+        club:
+          type: string
+        stage:
+          type: string
+        age_hours:
+          type: number
+          format: double
+          nullable: true
+        stage_entered_at:
+          type: string
+          format: date-time
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - age_hours
+      - club
+      - event_id
+      - event_title
+      - id
+      - stage
+      - stage_entered_at
+      - submitted_at
     Event:
       type: object
       properties:
@@ -1908,7 +4051,7 @@ components:
           format: uuid
           nullable: true
         kind:
-          $ref: '#/components/schemas/KindEnum'
+          $ref: '#/components/schemas/EventKindEnum'
         description:
           type: string
         venue:
@@ -1944,18 +4087,26 @@ components:
           type: integer
           readOnly: true
         social_links:
+          type: array
+          items:
+            type: string
+            format: uri
           readOnly: true
         registered:
-          type: string
+          type: integer
           readOnly: true
         attended:
-          type: string
+          type: integer
           readOnly: true
         budget:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/BudgetSummary'
+          nullable: true
           readOnly: true
         my_registration:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/MyRegistration'
+          nullable: true
           readOnly: true
         submitted_at:
           type: string
@@ -1988,6 +4139,34 @@ components:
       - title
       - venue
       - venue_name
+    EventClash:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/EventStatusEnum'
+        expected_attendance:
+          type: integer
+      required:
+      - club
+      - ends_at
+      - expected_attendance
+      - id
+      - starts_at
+      - status
+      - title
     EventCreate:
       type: object
       description: |-
@@ -2001,7 +4180,7 @@ components:
           type: string
           format: uuid
         kind:
-          $ref: '#/components/schemas/KindEnum'
+          $ref: '#/components/schemas/EventKindEnum'
         description:
           type: string
         venue:
@@ -2045,6 +4224,196 @@ components:
       - starts_at
       - title
       - venue
+    EventCreated:
+      type: object
+      description: 'Response of POST /events: the event plus what submission found
+        and opened.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        club:
+          type: string
+          format: uuid
+        club_name:
+          type: string
+          readOnly: true
+        fest:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/EventKindEnum'
+        description:
+          type: string
+        venue:
+          type: string
+          format: uuid
+        venue_name:
+          type: string
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        expected_attendance:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        status:
+          allOf:
+          - $ref: '#/components/schemas/EventStatusEnum'
+          readOnly: true
+        status_label:
+          type: string
+          readOnly: true
+        photo_count:
+          type: integer
+          readOnly: true
+        social_links:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+        registered:
+          type: integer
+          readOnly: true
+        attended:
+          type: integer
+          readOnly: true
+        budget:
+          allOf:
+          - $ref: '#/components/schemas/BudgetSummary'
+          nullable: true
+          readOnly: true
+        my_registration:
+          allOf:
+          - $ref: '#/components/schemas/MyRegistration'
+          nullable: true
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        soft_clashes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoftClash'
+          readOnly: true
+        approval:
+          allOf:
+          - $ref: '#/components/schemas/ApprovalSummary'
+          readOnly: true
+          nullable: true
+      required:
+      - approval
+      - attended
+      - budget
+      - capacity
+      - closed_at
+      - club
+      - club_name
+      - ends_at
+      - expected_attendance
+      - id
+      - my_registration
+      - photo_count
+      - registered
+      - social_links
+      - soft_clashes
+      - starts_at
+      - status
+      - status_label
+      - submitted_at
+      - title
+      - venue
+      - venue_name
+    EventKindEnum:
+      enum:
+      - performance
+      - workshop
+      - competition
+      - exhibition
+      - talk
+      type: string
+      description: |-
+        * `performance` - Performance
+        * `workshop` - Workshop
+        * `competition` - Competition
+        * `exhibition` - Exhibition
+        * `talk` - Talk
+    EventOrganiser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        event:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+          readOnly: true
+        prn:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        assigned_by_label:
+          type: string
+          readOnly: true
+        ends_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_by_label
+      - created_at
+      - ends_at
+      - event
+      - full_name
+      - id
+      - prn
+      - student
+    EventRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+      required:
+      - id
+      - title
     EventStatusEnum:
       enum:
       - draft
@@ -2069,20 +4438,260 @@ components:
         * `completed` - Completed
         * `reported` - Reported
         * `cancelled` - Cancelled
-    KindEnum:
+    FeedbackIn:
+      type: object
+      properties:
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        would_recommend:
+          type: boolean
+        comment:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - rating
+      - would_recommend
+    FeedbackOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+        would_recommend:
+          type: boolean
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - comment
+      - created_at
+      - event
+      - id
+      - rating
+      - would_recommend
+    FeedbackSummary:
+      type: object
+      description: Aggregates and anonymous comments; no ids, names or PRNs.
+      properties:
+        event:
+          $ref: '#/components/schemas/EventRef'
+        count:
+          type: integer
+        average_rating:
+          type: number
+          format: double
+          nullable: true
+        recommend_rate:
+          type: number
+          format: double
+          nullable: true
+        comments:
+          type: array
+          items:
+            type: string
+      required:
+      - average_rating
+      - comments
+      - count
+      - event
+      - recommend_rate
+    HandoverAssignment:
+      type: object
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/HandoverAssignmentRoleEnum'
+      required:
+      - role
+      - student_id
+    HandoverAssignmentRoleEnum:
       enum:
-      - performance
-      - workshop
-      - competition
-      - exhibition
-      - talk
+      - club_president
+      - club_vice_president
+      - club_treasurer
+      - club_secretary
       type: string
       description: |-
-        * `performance` - Performance
-        * `workshop` - Workshop
-        * `competition` - Competition
-        * `exhibition` - Exhibition
-        * `talk` - Talk
+        * `club_president` - club_president
+        * `club_vice_president` - club_vice_president
+        * `club_treasurer` - club_treasurer
+        * `club_secretary` - club_secretary
+    HandoverOut:
+      type: object
+      description: Response of POST /clubs/{id}/handover.
+      properties:
+        club:
+          $ref: '#/components/schemas/ClubRef'
+        effective_at:
+          type: string
+          format: date-time
+        terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficeBearerTerm'
+      required:
+      - club
+      - effective_at
+      - terms
+    HandoverRequest:
+      type: object
+      properties:
+        effective_at:
+          type: string
+          format: date-time
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/HandoverAssignment'
+      required:
+      - assignments
+      - effective_at
+    JobEnum:
+      enum:
+      - apply-due-terms
+      - escalate-sla
+      - flag-dormant
+      - purge-external
+      - rollup-scans
+      type: string
+      description: |-
+        * `apply-due-terms` - apply-due-terms
+        * `escalate-sla` - escalate-sla
+        * `flag-dormant` - flag-dormant
+        * `purge-external` - purge-external
+        * `rollup-scans` - rollup-scans
+    JobRun:
+      type: object
+      description: What `run_job` returns; `result` is the job's own counts.
+      properties:
+        job:
+          $ref: '#/components/schemas/JobEnum'
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        result:
+          type: object
+          additionalProperties: {}
+      required:
+      - finished_at
+      - job
+      - result
+      - started_at
+    JoinDecision:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 280
+    JoinModeEnum:
+      enum:
+      - open
+      - approval
+      type: string
+      description: |-
+        * `open` - Open — anyone may join
+        * `approval` - Approval — an office bearer accepts each request
+    JoinRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        club:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+          readOnly: true
+        prn:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        department:
+          type: string
+          readOnly: true
+        programme:
+          type: string
+          readOnly: true
+        year:
+          type: integer
+          readOnly: true
+        state:
+          allOf:
+          - $ref: '#/components/schemas/JoinRequestStateEnum'
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        decided_by_label:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - club
+      - created_at
+      - decided_at
+      - decided_by_label
+      - department
+      - full_name
+      - id
+      - note
+      - prn
+      - programme
+      - state
+      - student
+      - year
+    JoinRequestStateEnum:
+      enum:
+      - pending
+      - accepted
+      - declined
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `accepted` - Accepted
+        * `declined` - Declined
+    JoinRequests:
+      type: object
+      description: Response of GET /clubs/{id}/join-requests.
+      properties:
+        club:
+          $ref: '#/components/schemas/ClubRosterRef'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/JoinRequest'
+      required:
+      - club
+      - results
     Line:
       type: object
       properties:
@@ -2135,6 +4744,55 @@ components:
         station_id:
           type: string
           default: ''
+    MarkRead:
+      type: object
+      properties:
+        marked:
+          type: integer
+      required:
+      - marked
+    Me:
+      type: object
+      properties:
+        sub:
+          type: string
+        display_name:
+          type: string
+        prn:
+          type: string
+          nullable: true
+        student_id:
+          type: string
+          format: uuid
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        programme:
+          type: string
+          nullable: true
+        year:
+          type: integer
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+        mfa:
+          type: boolean
+        capabilities:
+          $ref: '#/components/schemas/Capabilities'
+      required:
+      - capabilities
+      - department
+      - display_name
+      - mfa
+      - prn
+      - programme
+      - roles
+      - student_id
+      - sub
+      - year
     Membership:
       type: object
       properties:
@@ -2164,7 +4822,7 @@ components:
           type: integer
           readOnly: true
         role:
-          $ref: '#/components/schemas/MembershipRoleEnum'
+          $ref: '#/components/schemas/ClubRoleEnum'
         role_label:
           type: string
           readOnly: true
@@ -2187,22 +4845,41 @@ components:
       - role_label
       - student
       - year
-    MembershipRoleEnum:
-      enum:
-      - club_president
-      - club_vice_president
-      - club_treasurer
-      - club_secretary
-      - club_core
-      - club_member
-      type: string
-      description: |-
-        * `club_president` - President
-        * `club_vice_president` - Vice-President
-        * `club_treasurer` - Treasurer
-        * `club_secretary` - Secretary
-        * `club_core` - Core team
-        * `club_member` - Member
+    MissingEvidence:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        missing:
+          type: array
+          items:
+            type: string
+      required:
+      - club
+      - id
+      - missing
+      - title
+    MyRegistration:
+      type: object
+      description: The caller's own live registration on an event, if any.
+      properties:
+        id:
+          type: string
+          format: uuid
+        attended:
+          type: boolean
+        pass_token:
+          type: string
+          nullable: true
+      required:
+      - attended
+      - id
+      - pass_token
     Nil:
       type: object
       properties:
@@ -2210,6 +4887,23 @@ components:
           type: string
           maxLength: 400
       required:
+      - reason
+    NilDeclaration:
+      type: object
+      properties:
+        head:
+          type: string
+        reason:
+          type: string
+        declared_by:
+          type: string
+        declared_at:
+          type: string
+          format: date-time
+      required:
+      - declared_at
+      - declared_by
+      - head
       - reason
     Notification:
       type: object
@@ -2242,6 +4936,83 @@ components:
       - id
       - kind
       - subject
+    NullEnum:
+      enum:
+      - null
+    OfficeBearerHistory:
+      type: object
+      description: Response of GET /clubs/{id}/office-bearers/history.
+      properties:
+        club:
+          $ref: '#/components/schemas/ClubRef'
+        current:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficeBearerTerm'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficeBearerTerm'
+      required:
+      - club
+      - current
+      - results
+    OfficeBearerTerm:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        club:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+          readOnly: true
+        prn:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/ClubRoleEnum'
+          readOnly: true
+        role_label:
+          type: string
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ends_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_by_label:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - club
+      - created_at
+      - created_by_label
+      - ends_at
+      - full_name
+      - id
+      - prn
+      - role
+      - role_label
+      - starts_at
+      - student
     OfflineBatch:
       type: object
       properties:
@@ -2255,6 +5026,52 @@ components:
             additionalProperties: {}
       required:
       - scans
+    OfflineSync:
+      type: object
+      properties:
+        synced:
+          type: integer
+        accepted:
+          type: integer
+        duplicates:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanOutcome'
+        counters:
+          $ref: '#/components/schemas/ScanCounters'
+      required:
+      - accepted
+      - counters
+      - duplicates
+      - results
+      - synced
+    OrganiserAssign:
+      type: object
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - student_id
+    Organisers:
+      type: object
+      description: Response of GET /events/{id}/organisers.
+      properties:
+        event:
+          $ref: '#/components/schemas/EventRef'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventOrganiser'
+      required:
+      - event
+      - results
     PaginatedApprovalRequestList:
       type: object
       required:
@@ -2324,6 +5141,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Club'
+    PaginatedDelegationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Delegation'
     PaginatedEventList:
       type: object
       required:
@@ -2416,6 +5256,62 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Venue'
+    Pass:
+      type: object
+      properties:
+        registration_id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        venue:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        attended:
+          type: boolean
+        waitlisted:
+          type: boolean
+        token:
+          type: string
+          nullable: true
+          description: null once used, revoked or waitlisted.
+        image:
+          type: string
+          nullable: true
+          description: 'QR as a data: URI.'
+      required:
+      - attended
+      - club
+      - ends_at
+      - event_id
+      - image
+      - registration_id
+      - starts_at
+      - title
+      - token
+      - venue
+      - waitlisted
+    PassReissue:
+      type: object
+      properties:
+        token:
+          type: string
+        image:
+          type: string
+          description: 'QR as a data: URI.'
+      required:
+      - image
+      - token
     PatchedClub:
       type: object
       properties:
@@ -2434,7 +5330,7 @@ components:
           type: string
           maxLength: 40
         category:
-          $ref: '#/components/schemas/CategoryEnum'
+          $ref: '#/components/schemas/ClubCategoryEnum'
         description:
           type: string
         instagram_handle:
@@ -2442,12 +5338,22 @@ components:
           maxLength: 64
         status:
           $ref: '#/components/schemas/ClubStatusEnum'
-        member_count:
+        join_mode:
+          $ref: '#/components/schemas/JoinModeEnum'
+        last_activity_at:
           type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        member_count:
+          type: integer
           readOnly: true
         my_role:
-          type: string
+          nullable: true
           readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/ClubRoleEnum'
+          - $ref: '#/components/schemas/NullEnum'
     PatchedEvent:
       type: object
       properties:
@@ -2469,7 +5375,7 @@ components:
           format: uuid
           nullable: true
         kind:
-          $ref: '#/components/schemas/KindEnum'
+          $ref: '#/components/schemas/EventKindEnum'
         description:
           type: string
         venue:
@@ -2505,18 +5411,26 @@ components:
           type: integer
           readOnly: true
         social_links:
+          type: array
+          items:
+            type: string
+            format: uri
           readOnly: true
         registered:
-          type: string
+          type: integer
           readOnly: true
         attended:
-          type: string
+          type: integer
           readOnly: true
         budget:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/BudgetSummary'
+          nullable: true
           readOnly: true
         my_registration:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/MyRegistration'
+          nullable: true
           readOnly: true
         submitted_at:
           type: string
@@ -2539,6 +5453,20 @@ components:
         variance_note:
           type: string
           maxLength: 400
+    ProfileQr:
+      type: object
+      properties:
+        token:
+          type: string
+        version:
+          type: integer
+        image:
+          type: string
+          description: 'QR as a data: URI.'
+      required:
+      - image
+      - token
+      - version
     ReassignRequest:
       type: object
       properties:
@@ -2551,6 +5479,122 @@ components:
       required:
       - reason
       - to_venue
+    Receipt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        file_name:
+          type: string
+          maxLength: 200
+        content_type:
+          type: string
+          maxLength: 80
+        byte_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        vendor:
+          type: string
+          maxLength: 120
+        document_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        superseded_by:
+          type: string
+          format: uuid
+          nullable: true
+        is_current:
+          type: boolean
+          readOnly: true
+        file_url:
+          type: string
+          readOnly: true
+      required:
+      - content_type
+      - created_at
+      - file_name
+      - file_url
+      - id
+      - is_current
+    ReceiptUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+          description: PDF or photograph.
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        document_date:
+          type: string
+          format: date
+        vendor:
+          type: string
+        supersedes:
+          type: string
+          format: uuid
+          description: Receipt this one replaces.
+      required:
+      - file
+    RecentScan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        result:
+          $ref: '#/components/schemas/ScanResultEnum'
+        result_label:
+          type: string
+        scanned_at:
+          type: string
+          format: date-time
+        station_id:
+          type: string
+        was_offline:
+          type: boolean
+        who:
+          type: string
+          nullable: true
+      required:
+      - id
+      - result
+      - result_label
+      - scanned_at
+      - station_id
+      - was_offline
+      - who
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+      - refresh_token
+    RegisterRequest:
+      type: object
+      properties:
+        event:
+          type: string
+          format: uuid
+      required:
+      - event
     Registration:
       type: object
       properties:
@@ -2565,7 +5609,9 @@ components:
           type: string
           readOnly: true
         source:
-          $ref: '#/components/schemas/SourceEnum'
+          $ref: '#/components/schemas/RegistrationSourceEnum'
+        waitlisted:
+          type: boolean
         attended:
           type: boolean
         checked_in_at:
@@ -2578,6 +5624,7 @@ components:
           nullable: true
         pass_token:
           type: string
+          nullable: true
           readOnly: true
         registered_at:
           type: string
@@ -2587,32 +5634,262 @@ components:
       - event_title
       - id
       - pass_token
+    RegistrationSourceEnum:
+      enum:
+      - pre_registered
+      - spot
+      - manual
+      - imported
+      type: string
+      description: |-
+        * `pre_registered` - Registered in advance
+        * `spot` - Walk-in, registered at the door
+        * `manual` - Entered by an organiser at the desk
+        * `imported` - Imported from a prior record
+    ReportByCategory:
+      type: object
+      properties:
+        category:
+          type: string
+        clubs_active:
+          type: integer
+          description: Clubs in the category with at least one completed event this
+            semester.
+        events_run:
+          type: integer
+        attendance:
+          type: integer
+      required:
+      - attendance
+      - category
+      - clubs_active
+      - events_run
+    ReportByClub:
+      type: object
+      properties:
+        club_id:
+          type: string
+          format: uuid
+        club:
+          type: string
+        tag:
+          type: string
+        category:
+          type: string
+        events_run:
+          type: integer
+        attendance:
+          type: integer
+      required:
+      - attendance
+      - category
+      - club
+      - club_id
+      - events_run
+      - tag
+    ReportByDepartment:
+      type: object
+      properties:
+        department:
+          type: string
+        students_reached:
+          type: integer
+        attendance:
+          type: integer
+      required:
+      - attendance
+      - department
+      - students_reached
+    ReportEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        attended:
+          type: integer
+        registered:
+          type: integer
+        photos:
+          type: integer
+        social_links:
+          type: array
+          items:
+            type: string
+        sanctioned:
+          type: string
+        spent:
+          type: string
+      required:
+      - attended
+      - club
+      - id
+      - photos
+      - registered
+      - sanctioned
+      - social_links
+      - spent
+      - starts_at
+      - title
+    ReportMoney:
+      type: object
+      properties:
+        requested:
+          type: string
+        sanctioned:
+          type: string
+        spent:
+          type: string
+      required:
+      - requested
+      - sanctioned
+      - spent
+    ReportSemester:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        starts_on:
+          type: string
+          format: date
+        ends_on:
+          type: string
+          format: date
+      required:
+      - ends_on
+      - id
+      - name
+      - starts_on
+    RoleChange:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        membership:
+          type: string
+          format: uuid
+        actor_label:
+          type: string
+          maxLength: 80
+        from_role:
+          type: string
+          maxLength: 32
+        to_role:
+          type: string
+          maxLength: 32
+        reason:
+          type: string
+          maxLength: 280
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_label
+      - created_at
+      - from_role
+      - id
+      - membership
+      - to_role
     RoleChangeRequest:
       type: object
       properties:
         role:
-          $ref: '#/components/schemas/RoleChangeRequestRoleEnum'
+          $ref: '#/components/schemas/ClubRoleEnum'
         reason:
           type: string
           maxLength: 280
       required:
       - role
-    RoleChangeRequestRoleEnum:
-      enum:
-      - club_president
-      - club_vice_president
-      - club_treasurer
-      - club_secretary
-      - club_core
-      - club_member
-      type: string
-      description: |-
-        * `club_president` - club_president
-        * `club_vice_president` - club_vice_president
-        * `club_treasurer` - club_treasurer
-        * `club_secretary` - club_secretary
-        * `club_core` - club_core
-        * `club_member` - club_member
+    Roster:
+      type: object
+      description: Response shape of EventRosterView; lives here because it nests
+        AttendeeSerializer.
+      properties:
+        event:
+          $ref: '#/components/schemas/EventRef'
+        counts:
+          $ref: '#/components/schemas/RosterCounts'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attendee'
+      required:
+      - counts
+      - event
+      - results
+    RosterCounts:
+      type: object
+      properties:
+        registered:
+          type: integer
+        waitlisted:
+          type: integer
+        attended:
+          type: integer
+      required:
+      - attended
+      - registered
+      - waitlisted
+    ScanCounters:
+      type: object
+      properties:
+        checked_in:
+          type: integer
+        registered:
+          type: integer
+        capacity:
+          type: integer
+      required:
+      - capacity
+      - checked_in
+      - registered
+    ScanOutcome:
+      type: object
+      description: One resolved scan. 200 on every branch; `accepted` says whether
+        they are in.
+      properties:
+        result:
+          $ref: '#/components/schemas/ScanResultEnum'
+        result_label:
+          type: string
+        verdict:
+          type: string
+        tone:
+          $ref: '#/components/schemas/ToneEnum'
+        accepted:
+          type: boolean
+        detail:
+          type: string
+        student:
+          allOf:
+          - $ref: '#/components/schemas/ScanStudent'
+          nullable: true
+        registration_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - accepted
+      - detail
+      - registration_id
+      - result
+      - result_label
+      - student
+      - tone
+      - verdict
     ScanRequest:
       type: object
       properties:
@@ -2626,42 +5903,320 @@ components:
           format: date-time
       required:
       - token
-    SourceEnum:
+    ScanResultEnum:
       enum:
-      - pre_registered
-      - spot
-      - manual
-      - imported
+      - accepted
+      - spot_registered
+      - duplicate
+      - wrong_event
+      - unknown_code
+      - not_registered
+      - expired
+      - cancelled
       type: string
       description: |-
-        * `pre_registered` - Registered in advance
-        * `spot` - Walk-in, registered at the door
-        * `manual` - Entered by an organiser at the desk
-        * `imported` - Imported from a prior record
-    Stage69eEnum:
+        * `accepted` - Checked in
+        * `spot_registered` - Registered at the door and checked in
+        * `duplicate` - Already checked in
+        * `wrong_event` - Pass is for another event
+        * `unknown_code` - Code not recognised
+        * `not_registered` - Not registered and cannot be
+        * `expired` - Pass expired
+        * `cancelled` - Registration was cancelled
+    ScanSession:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          description: Always `Bearer`.
+        expires_at:
+          type: integer
+          description: Unix timestamp.
+        scan_event:
+          type: string
+          format: uuid
+      required:
+      - access_token
+      - expires_at
+      - scan_event
+      - token_type
+    ScanStation:
+      type: object
+      properties:
+        event:
+          $ref: '#/components/schemas/ScanStationEvent'
+        counters:
+          $ref: '#/components/schemas/ScanCounters'
+        capture:
+          $ref: '#/components/schemas/CaptureStats'
+        recent:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentScan'
+      required:
+      - capture
+      - counters
+      - event
+      - recent
+    ScanStationEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        venue:
+          type: string
+        status:
+          $ref: '#/components/schemas/EventStatusEnum'
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+      required:
+      - club
+      - ends_at
+      - id
+      - starts_at
+      - status
+      - title
+      - venue
+    ScanStudent:
+      type: object
+      properties:
+        prn:
+          type: string
+        full_name:
+          type: string
+        department:
+          type: string
+        programme:
+          type: string
+        year:
+          type: integer
+      required:
+      - department
+      - full_name
+      - prn
+      - programme
+      - year
+    Semester:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        starts_on:
+          type: string
+          format: date
+          readOnly: true
+        ends_on:
+          type: string
+          format: date
+          readOnly: true
+        is_current:
+          type: boolean
+          readOnly: true
+      required:
+      - ends_on
+      - id
+      - is_current
+      - name
+      - starts_on
+    SemesterReport:
+      type: object
+      description: GET /reporting/reports/semester — aggregates only, no individual
+        records.
+      properties:
+        semester:
+          $ref: '#/components/schemas/ReportSemester'
+        events_run:
+          type: integer
+        total_participation:
+          type: integer
+        unique_students:
+          type: integer
+        external_participants:
+          type: integer
+          description: Counted separately from own students; never summed with them.
+        avg_attendance:
+          type: integer
+        by_club:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportByClub'
+        by_category:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportByCategory'
+        by_department:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportByDepartment'
+        money:
+          $ref: '#/components/schemas/ReportMoney'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportEvent'
+        caveats:
+          type: array
+          items:
+            type: string
+      required:
+      - avg_attendance
+      - by_category
+      - by_club
+      - by_department
+      - caveats
+      - events
+      - events_run
+      - external_participants
+      - money
+      - semester
+      - total_participation
+      - unique_students
+    Session:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          description: Always `Bearer`.
+        expires_in:
+          type: integer
+          description: Seconds until the access token expires.
+        claims:
+          $ref: '#/components/schemas/Claims'
+      required:
+      - access_token
+      - claims
+      - expires_in
+      - refresh_token
+      - token_type
+    SettlementProblem:
+      type: object
+      properties:
+        field:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+      required:
+      - code
+      - field
+      - message
+    SoftClash:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+      required:
+      - club
+      - id
+      - title
+    Sso:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        issuer:
+          type: string
+          nullable: true
+        authorize_url:
+          type: string
+          nullable: true
+        audience:
+          type: string
+      required:
+      - audience
+      - authorize_url
+      - enabled
+      - issuer
+    SubmitOut:
+      type: object
+      description: Response of POST /events/{id}/submit.
+      properties:
+        id:
+          type: string
+          format: uuid
+        stages:
+          type: array
+          items:
+            type: string
+        current_stage:
+          type: string
+        requires_vc:
+          type: boolean
+        vc_reason:
+          type: string
+        soft_clashes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoftClash'
+      required:
+      - current_stage
+      - id
+      - requires_vc
+      - soft_clashes
+      - stages
+      - vc_reason
+    TemplateLine:
+      type: object
+      properties:
+        head:
+          type: string
+        basis:
+          $ref: '#/components/schemas/BudgetBasisEnum'
+        rate:
+          type: string
+        amount:
+          type: string
+        explanation:
+          type: string
+      required:
+      - amount
+      - basis
+      - explanation
+      - head
+      - rate
+    ToneEnum:
       enum:
-      - cultural_society
-      - dean
-      - vc
+      - ok
+      - warn
+      - bad
       type: string
       description: |-
-        * `cultural_society` - Cultural Society
-        * `dean` - Dean of Student Affairs
-        * `vc` - Vice-Chancellor
-    StateEnum:
-      enum:
-      - pending
-      - approved
-      - returned
-      - rejected
-      - withdrawn
-      type: string
-      description: |-
-        * `pending` - Awaiting a decision
-        * `approved` - Approved
-        * `returned` - Returned for changes
-        * `rejected` - Rejected
-        * `withdrawn` - Withdrawn by the club
+        * `ok` - ok
+        * `warn` - warn
+        * `bad` - bad
+    UnreadCount:
+      type: object
+      properties:
+        unread:
+          type: integer
+      required:
+      - unread
     Venue:
       type: object
       properties:
@@ -2686,3 +6241,102 @@ components:
       - capacity
       - id
       - name
+    VenueCalendar:
+      type: object
+      description: Response of GET /venue-calendar.
+      properties:
+        buffer_minutes:
+          type: string
+          nullable: true
+        venues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venue'
+        bookings:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarBooking'
+        clashes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarClash'
+      required:
+      - bookings
+      - buffer_minutes
+      - clashes
+      - venues
+    VenueReassignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        event:
+          type: string
+          format: uuid
+        from_venue:
+          type: string
+          format: uuid
+        from_venue_name:
+          type: string
+          readOnly: true
+        to_venue:
+          type: string
+          format: uuid
+        to_venue_name:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          maxLength: 280
+        actor_label:
+          type: string
+          maxLength: 80
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_label
+      - created_at
+      - event
+      - from_venue
+      - from_venue_name
+      - id
+      - reason
+      - to_venue
+      - to_venue_name
+    VenueUse:
+      type: object
+      properties:
+        venue__name:
+          type: string
+        bookings:
+          type: integer
+      required:
+      - bookings
+      - venue__name
+    Wallet:
+      type: object
+      properties:
+        passes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pass'
+        profile_qr:
+          allOf:
+          - $ref: '#/components/schemas/ProfileQr'
+          nullable: true
+        note:
+          type: string
+      required:
+      - passes
+      - profile_qr
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from `POST /module/auth/login` (standalone mode) or
+        the platform's SSO (platform mode).

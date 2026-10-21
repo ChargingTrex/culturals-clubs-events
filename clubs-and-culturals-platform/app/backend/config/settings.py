@@ -151,6 +151,26 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",
+    # One component name per choice set. Without this, fields that share a name
+    # but not a set (`stage` on a budget vs. on an approval) collide and get a
+    # hashed name, and fields that share a set but not a name (`stage` vs.
+    # `current_stage`) are emitted twice under different names.
+    "ENUM_NAME_OVERRIDES": {
+        "ApprovalStageEnum": "governance.models.ApprovalStage",
+        "ApprovalStateEnum": "governance.models.ApprovalState",
+        "DecisionEnum": "governance.models.Decision",
+        "BudgetStageEnum": "budget.models.BudgetStage",
+        "BudgetBasisEnum": "budget.models.BudgetTemplateLine.Basis",
+        "EventStatusEnum": "events.models.EventStatus",
+        "EventKindEnum": "events.models.Event.Kind",
+        "ScanResultEnum": "participation.models.ScanResult",
+        "RegistrationSourceEnum": "participation.models.Registration.Source",
+        "ClubCategoryEnum": "clubs.models.Club.Category",
+        "ClubStatusEnum": "clubs.models.Club.Status",
+        "JoinModeEnum": "clubs.models.Club.JoinMode",
+        "JoinRequestStateEnum": "clubs.models.JoinRequest.State",
+        "ClubRoleEnum": "clubs.models.Membership.ROLE_CHOICES",
+    },
 }
 
 # Comma-separated origins (scheme + host, no path). Hosted frontends (Vercel,

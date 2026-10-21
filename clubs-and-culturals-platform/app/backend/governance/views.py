@@ -2,18 +2,26 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter, extend_schema, extend_schema_field, extend_schema_view,
+)
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from budget.serializers import NilDeclarationSerializer
 from common import roles as R
 from common.errors import ProblemDetail
 from governance import services
 from governance.models import (
     ApprovalRequest, ApprovalStage, ApprovalState, ApprovalStep, AuditEntry, Decision,
     Delegation, Notification,
+)
+from governance.serializers import (
+    ApprovalClashSerializer, ApprovalLineSerializer, AuditResultsSerializer, MarkReadSerializer,
+    UnreadCountSerializer,
 )
 
 
@@ -56,6 +64,7 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
                   "clashes", "my_stage", "requires_mfa", "nil_declaration",
                   "stage_entered_at", "age_hours", "escalated", "created_at")
 
+    @extend_schema_field(ApprovalLineSerializer(many=True))
     def get_lines(self, request_obj):
         budget = getattr(request_obj.event, "budget", None)
         if budget is None:
@@ -68,6 +77,7 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
             for line in budget.lines.all()
         ]
 
+    @extend_schema_field(NilDeclarationSerializer(allow_null=True))
     def get_nil_declaration(self, request_obj):
         """
         An approver must be able to tell "this costs nothing" from "nobody priced it".
@@ -84,6 +94,7 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
             "declared_at": budget.nil_declared_at,
         }
 
+    @extend_schema_field(ApprovalClashSerializer(many=True))
     def get_clashes(self, request_obj):
         """
         Surfaced on the approval card, because Event_Flows requires the clash to
@@ -99,6 +110,7 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
             for e in clashes_for(request_obj.event)
         ]
 
+    @extend_schema_field(serializers.BooleanField())
     def get_my_stage(self, request_obj):
         """
         True when the caller may decide this one now — by role or as an active
@@ -111,20 +123,50 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
                 services.held_stages(self.context["request"].auth_context))
         return request_obj.current_stage in held
 
+    @extend_schema_field(serializers.BooleanField())
     def get_requires_mfa(self, request_obj):
         return services.requires_mfa(request_obj, request_obj.current_stage)
 
 
+class ApprovalQueueSerializer(serializers.Serializer):
+    """Response shape of ApprovalViewSet.queue."""
+
+    stages_you_hold = serializers.ListField(
+        child=serializers.ChoiceField(choices=ApprovalStage.choices))
+    stages_delegated_to_you = serializers.ListField(
+        child=serializers.ChoiceField(choices=ApprovalStage.choices))
+    sla_hours = serializers.IntegerField()
+    escalated_only = serializers.BooleanField()
+    count = serializers.IntegerField()
+    results = ApprovalRequestSerializer(many=True)
+
+
 class DecideSerializer(serializers.Serializer):
-    decision = serializers.ChoiceField(choices=[c[0] for c in Decision.choices])
+    decision = serializers.ChoiceField(choices=Decision.choices)
     comment = serializers.CharField(required=False, allow_blank=True, default="")
     # {budget_line_id: amount}. Dean stage only; a later gate approves or returns
     # the amount the Dean set rather than re-cutting it.
     sanctioned = serializers.DictField(required=False, default=dict)
 
 
+class DecisionOutSerializer(serializers.Serializer):
+    """Response shape of ApprovalViewSet.decide."""
+
+    step = ApprovalStepSerializer()
+    request = ApprovalRequestSerializer()
+
+
+@extend_schema_view(list=extend_schema(parameters=[
+    OpenApiParameter("state", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                     enum=ApprovalState.values),
+    OpenApiParameter("stage", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                     enum=ApprovalStage.values, description="Current stage."),
+]))
 class ApprovalViewSet(viewsets.GenericViewSet):
     serializer_class = ApprovalRequestSerializer
+    # Schema hint only: drf-spectacular types the `id` path parameter from the
+    # model. Every request goes through get_queryset(), which scopes it.
+    queryset = ApprovalRequest.objects.none()
 
     def get_queryset(self):
         """
@@ -169,7 +211,12 @@ class ApprovalViewSet(viewsets.GenericViewSet):
                                 detail="No such approval request, or it is not visible to you.")
         return Response(ApprovalRequestSerializer(obj, context={"request": request}).data)
 
-    @extend_schema(summary="Your approval queue — only the stages you hold, oldest first")
+    @extend_schema(
+        parameters=[OpenApiParameter("escalated", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                                     description="Only items past the SLA.")],
+        responses=ApprovalQueueSerializer,
+        summary="Your approval queue — only the stages you hold, oldest first",
+    )
     @action(detail=False, methods=["get"])
     def queue(self, request):
         ctx = request.auth_context
@@ -190,7 +237,8 @@ class ApprovalViewSet(viewsets.GenericViewSet):
                 context={"request": request, "_held_stages": set(held)}).data,
         })
 
-    @extend_schema(request=DecideSerializer, summary="Approve, return or reject")
+    @extend_schema(request=DecideSerializer, responses=DecisionOutSerializer,
+                   summary="Approve, return or reject")
     @action(detail=True, methods=["post"])
     def decide(self, request, pk=None):
         obj = self.get_queryset().filter(pk=pk).first()
@@ -255,7 +303,7 @@ class DelegationSerializer(serializers.ModelSerializer):
 
 
 class DelegationCreateSerializer(serializers.Serializer):
-    stage = serializers.ChoiceField(choices=[c[0] for c in ApprovalStage.choices])
+    stage = serializers.ChoiceField(choices=ApprovalStage.choices)
     delegate_user = serializers.UUIDField()
     # Admin only; a role holder always delegates on their own behalf.
     principal_user = serializers.UUIDField(required=False, allow_null=True)
@@ -264,6 +312,11 @@ class DelegationCreateSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, max_length=400, default="")
 
 
+@extend_schema_view(list=extend_schema(parameters=[
+    OpenApiParameter("stage", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=ApprovalStage.values),
+    OpenApiParameter("active", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                     description="Only delegations in force now."),
+]))
 class DelegationViewSet(viewsets.GenericViewSet):
     """
     Cover for an approval gate (MASTER_SPEC §11.3, PRD §5.13).
@@ -274,6 +327,9 @@ class DelegationViewSet(viewsets.GenericViewSet):
     """
 
     serializer_class = DelegationSerializer
+    # Schema hint only: drf-spectacular types the `id` path parameter from the
+    # model. Every request goes through get_queryset(), which scopes it.
+    queryset = Delegation.objects.none()
 
     def get_queryset(self):
         qs = services.delegations_visible_to(self.request.auth_context)
@@ -295,7 +351,8 @@ class DelegationViewSet(viewsets.GenericViewSet):
                                 detail="No such delegation, or it is not visible to you.")
         return Response(DelegationSerializer(obj).data)
 
-    @extend_schema(request=DelegationCreateSerializer, summary="Delegate a stage you hold")
+    @extend_schema(request=DelegationCreateSerializer, responses={201: DelegationSerializer},
+                   summary="Delegate a stage you hold")
     def create(self, request):
         from identity.models import User
 
@@ -329,7 +386,7 @@ class DelegationViewSet(viewsets.GenericViewSet):
         )
         return Response(DelegationSerializer(delegation).data, status=status.HTTP_201_CREATED)
 
-    @extend_schema(summary="End a delegation now")
+    @extend_schema(request=None, responses=DelegationSerializer, summary="End a delegation now")
     @action(detail=True, methods=["post"])
     def revoke(self, request, pk=None):
         obj = self.get_queryset().filter(pk=pk).first()
@@ -354,6 +411,9 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = ("id", "subject", "body", "kind", "link", "read_at", "created_at")
 
 
+@extend_schema_view(list=extend_schema(parameters=[
+    OpenApiParameter("unread", OpenApiTypes.BOOL, OpenApiParameter.QUERY, description="Unread only."),
+]))
 class NotificationViewSet(viewsets.GenericViewSet):
     """
     In-app notifications for the caller only. Email copies go out through the same
@@ -372,12 +432,12 @@ class NotificationViewSet(viewsets.GenericViewSet):
         page = self.paginate_queryset(qs)
         return self.get_paginated_response(NotificationSerializer(page, many=True).data)
 
-    @extend_schema(summary="Unread count for the bell")
+    @extend_schema(responses=UnreadCountSerializer, summary="Unread count for the bell")
     @action(detail=False, methods=["get"], url_path="unread-count")
     def unread_count(self, request):
         return Response({"unread": self.get_queryset().filter(read_at__isnull=True).count()})
 
-    @extend_schema(summary="Mark all as read")
+    @extend_schema(request=None, responses=MarkReadSerializer, summary="Mark all as read")
     @action(detail=False, methods=["post"], url_path="mark-read")
     def mark_read(self, request):
         updated = self.get_queryset().filter(read_at__isnull=True).update(
@@ -391,6 +451,15 @@ class AuditView(APIView):
     to it except the adapter, and nothing anywhere updates or deletes an entry.
     """
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("target_id", OpenApiTypes.STR, OpenApiParameter.QUERY),
+            OpenApiParameter("action", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                             description="Exact action name, e.g. `event.created`."),
+        ],
+        responses=AuditResultsSerializer,
+        summary="Audit trail, newest 200 (Dean, admin, Vice-Chancellor)",
+    )
     def get(self, request):
         ctx = request.auth_context
         if not ctx.has_any(R.DEAN, R.ADMIN, R.VICE_CHANCELLOR):

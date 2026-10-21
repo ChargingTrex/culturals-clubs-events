@@ -17,6 +17,7 @@ from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from clubs.models import Club
 from common import roles as R
 from events.models import Event, EventOrganiser, EventStatus
 from governance.models import AuditEntry
@@ -425,3 +426,44 @@ class OrganiserGrantWindowTests(TestCase):
         self.client.raise_request_exception = False
         response = self.client.delete(f"/api/v1/events/{self.event.id}/organisers/not-a-uuid")
         self.assertEqual(response.status_code, 404)
+
+
+class EventCategoryFilterTests(TestCase):
+    """B-16: `?category=` is the club's category, applied server-side so it holds across pages."""
+
+    def setUp(self):
+        self.client = APIClient()
+        f.semester()
+        hall = f.venue("Seminar Hall A", 150)
+        swara = f.club("Swara", category=Club.Category.CULTURAL)
+        self.robo = f.club("Robo", category=Club.Category.TECHNICAL)
+        for i in range(3):
+            f.event(self.robo, hall, title=f"Robo {i}", days=10 + i, status=EventStatus.PUBLISHED)
+        for i in range(2):
+            f.event(swara, hall, title=f"Swara {i}", days=20 + i, status=EventStatus.PUBLISHED)
+        f.student("stu@college.edu", prn="23CS1001")
+        f.as_user(self.client, "stu@college.edu")
+
+    def test_the_filter_holds_across_pages(self):
+        seen, pages = [], 0
+        url = "/api/v1/events?category=technical&page_size=2"
+        while url:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["count"], 3)
+            seen += response.data["results"]
+            url = response.data["next"]
+            pages += 1
+        self.assertEqual(pages, 2)
+        self.assertEqual(len(seen), 3)
+        self.assertEqual({str(e["club"]) for e in seen}, {str(self.robo.id)})
+
+    def test_an_unknown_category_is_an_empty_page_not_422(self):
+        response = self.client.get("/api/v1/events?category=astrology")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 0)
+        self.assertEqual(response.data["results"], [])
+
+    def test_without_the_filter_every_published_event_is_listed(self):
+        response = self.client.get("/api/v1/events")
+        self.assertEqual(response.data["count"], 5)

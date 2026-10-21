@@ -5,7 +5,8 @@ Door access is enforced by IsEventOrganiser (permissions.py), which also refuses
 scan-station token bound to a different event — binding that does not restrict is
 decoration.
 """
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_field
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -19,6 +20,12 @@ from integrations.registry import audit_sink
 from participation import services
 from participation.models import Registration, ScanRecord, ScanResult
 from participation.permissions import IsEventOrganiser
+from participation.serializers import (
+    OfflineSyncSerializer, PassReissueSerializer, ProfileQrSerializer, RegisterRequestSerializer,
+    RosterCountsSerializer, ScanOutcomeSerializer, ScanSessionSerializer, ScanStationSerializer,
+    WalletSerializer,
+)
+from common.serializers import EventRefSerializer
 from qrkit import qr as qrimage
 
 
@@ -34,6 +41,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fields = ("id", "event", "event_title", "source", "waitlisted", "attended",
                   "checked_in_at", "cancelled_at", "pass_token", "registered_at")
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_pass_token(self, registration):
         """
         A pass token is a working credential, so it goes only to the person it
@@ -58,6 +66,14 @@ class AttendeeSerializer(serializers.ModelSerializer):
         model = Registration
         fields = ("id", "prn", "full_name", "department", "programme", "year", "source",
                   "waitlisted", "attended", "checked_in_at", "station_id")
+
+
+class RosterSerializer(serializers.Serializer):
+    """Response shape of EventRosterView; lives here because it nests AttendeeSerializer."""
+
+    event = EventRefSerializer()
+    counts = RosterCountsSerializer()
+    results = AttendeeSerializer(many=True)
 
 
 class ScanRequestSerializer(serializers.Serializer):
@@ -111,6 +127,9 @@ def _get_event_or_404(event_id):
 # --------------------------------------------------------------------------
 class RegistrationViewSet(viewsets.GenericViewSet):
     serializer_class = RegistrationSerializer
+    # Schema hint only: drf-spectacular types the `id` path parameter from the
+    # model. Every request goes through get_queryset(), which scopes it.
+    queryset = Registration.objects.none()
 
     def get_queryset(self):
         """A student's own registrations only. Nothing else (AGENT_PROMPT §6)."""
@@ -126,7 +145,8 @@ class RegistrationViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(
             RegistrationSerializer(page, many=True, context={"request": request}).data)
 
-    @extend_schema(summary="Register for a published event")
+    @extend_schema(request=RegisterRequestSerializer, responses={201: RegistrationSerializer},
+                   summary="Register for a published event")
     def create(self, request):
         ctx = request.auth_context
         if not ctx.student_id:
@@ -141,7 +161,7 @@ class RegistrationViewSet(viewsets.GenericViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @extend_schema(summary="Cancel your own registration")
+    @extend_schema(request=None, responses={204: None}, summary="Cancel your own registration")
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         registration = self.get_queryset().filter(pk=pk).first()
@@ -151,7 +171,8 @@ class RegistrationViewSet(viewsets.GenericViewSet):
         services.cancel_registration(registration)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(summary="Reissue your pass, revoking the old one")
+    @extend_schema(request=None, responses=PassReissueSerializer,
+                   summary="Reissue your pass, revoking the old one")
     @action(detail=True, methods=["post"], url_path="reissue-pass")
     def reissue_pass(self, request, pk=None):
         registration = self.get_queryset().filter(pk=pk).first()
@@ -169,6 +190,8 @@ class MyPassesView(APIView):
     A waitlisted registration is listed with `waitlisted: true` and no pass.
     """
 
+    @extend_schema(responses=WalletSerializer,
+                   summary="Your passes and profile QR (students only)")
     def get(self, request):
         ctx = request.auth_context
         if not ctx.student_id:
@@ -207,7 +230,8 @@ class MyPassesView(APIView):
                      "A photograph of it reveals nothing about you."),
         })
 
-    @extend_schema(summary="Reissue the profile QR (lost phone)")
+    @extend_schema(request=None, responses=ProfileQrSerializer,
+                   summary="Reissue the profile QR (lost phone)")
     def post(self, request):
         ctx = request.auth_context
         if not ctx.student_id:
@@ -234,7 +258,8 @@ class ScanStationView(APIView):
 
     permission_classes = APIView.permission_classes + [IsEventOrganiser]
 
-    @extend_schema(summary="Station state: counters, capture rate, recent scans")
+    @extend_schema(responses=ScanStationSerializer,
+                   summary="Station state: counters, capture rate, recent scans")
     def get(self, request, event_id):
         event = _get_event_or_404(event_id)
         recent = event.scan_records.select_related("registration__student")[:12]
@@ -256,7 +281,8 @@ class ScanStationView(APIView):
             ],
         })
 
-    @extend_schema(request=ScanRequestSerializer, summary="Resolve one presented code")
+    @extend_schema(request=ScanRequestSerializer, responses=ScanOutcomeSerializer,
+                   summary="Resolve one presented code")
     def post(self, request, event_id):
         event = _get_event_or_404(event_id)
         data = ScanRequestSerializer(data=request.data)
@@ -277,7 +303,8 @@ class OfflineSyncView(APIView):
 
     permission_classes = APIView.permission_classes + [IsEventOrganiser]
 
-    @extend_schema(request=OfflineBatchSerializer, summary="Replay queued offline scans")
+    @extend_schema(request=OfflineBatchSerializer, responses=OfflineSyncSerializer,
+                   summary="Replay queued offline scans")
     def post(self, request, event_id):
         event = _get_event_or_404(event_id)
         data = OfflineBatchSerializer(data=request.data)
@@ -300,7 +327,8 @@ class OfflineSyncView(APIView):
 class ManualCheckInView(APIView):
     permission_classes = APIView.permission_classes + [IsEventOrganiser]
 
-    @extend_schema(request=ManualCheckInSerializer, summary="Check in by PRN lookup")
+    @extend_schema(request=ManualCheckInSerializer, responses=ScanOutcomeSerializer,
+                   summary="Check in by PRN lookup")
     def post(self, request, event_id):
         event = _get_event_or_404(event_id)
         data = ManualCheckInSerializer(data=request.data)
@@ -333,6 +361,12 @@ class EventRosterView(APIView):
     itself disclosure (API_Standards §3.3).
     """
 
+    @extend_schema(
+        parameters=[OpenApiParameter("attended", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                                     description="Only those checked in (or only those not).")],
+        responses=RosterSerializer,
+        summary="Attendee list for one event (organisers, door staff, Dean)",
+    )
     def get(self, request, event_id):
         ctx = request.auth_context
         event = _get_event_or_404(event_id)
@@ -374,7 +408,8 @@ class ScanSessionView(APIView):
 
     permission_classes = APIView.permission_classes + [IsEventOrganiser]
 
-    @extend_schema(summary="Issue a scan-station session bound to one event")
+    @extend_schema(request=None, responses=ScanSessionSerializer,
+                   summary="Issue a scan-station session bound to one event")
     def post(self, request, event_id):
         event = _get_event_or_404(event_id)
         from identity.tokens import scan_station_token

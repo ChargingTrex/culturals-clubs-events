@@ -11,5 +11,12 @@
   },
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/v1/jobs/apply-due-terms", "schedule": "5 0 * * *" },
+    { "path": "/api/v1/jobs/rollup-scans", "schedule": "0 3 * * *" },
+    { "path": "/api/v1/jobs/purge-external", "schedule": "10 3 * * *" },
+    { "path": "/api/v1/jobs/flag-dormant", "schedule": "20 3 * * *" },
+    { "path": "/api/v1/jobs/escalate-sla", "schedule": "0 * * * *" }
   ]
 }

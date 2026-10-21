@@ -10,6 +10,9 @@ import { makeMe, makeSession } from './capabilities';
 
 const B = API_BASE;
 
+/** The generated types mark server-computed fields readonly; the mock keeps its own counters. */
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
 interface Registration {
   id: string;
   event: string;
@@ -24,7 +27,7 @@ export interface MockState {
   validRefresh: Set<string>;
   refreshCalls: number;
   roles: string[];
-  events: EventOut[];
+  events: Mutable<EventOut>[];
   clubs: ClubOut[];
   full: Set<string>;
   registrations: Registration[];
@@ -42,6 +45,7 @@ export const CLUBS: ClubOut[] = [
     description: '',
     instagram_handle: '',
     status: 'active',
+    last_activity_at: '2026-10-01T09:00:00Z',
     member_count: 12,
     my_role: null,
   },
@@ -54,6 +58,7 @@ export const CLUBS: ClubOut[] = [
     description: '',
     instagram_handle: '',
     status: 'active',
+    last_activity_at: '2026-10-05T09:00:00Z',
     member_count: 30,
     my_role: null,
   },
@@ -325,6 +330,7 @@ export const handlers = [
         starts_at: event.starts_at,
         ends_at: event.ends_at,
         attended: r.attended,
+        waitlisted: false,
         token: r.pass_token,
         image: r.pass_token ? 'data:image/png;base64,server' : null,
       };
