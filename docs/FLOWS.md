@@ -438,7 +438,7 @@ flowchart TD
   B -->|platform| D[Portal SSO JWT<br/>validated against JWKS<br/>no user lookup]
   C --> E{Staff role?<br/>dean, vc, cultural_society, admin}
   E -->|yes| F{MFA code present?}
-  F -->|no| X[403 AUTH_MFA_REQUIRED]
+  F -->|no| X[401 AUTH_MFA_REQUIRED]
   F -->|yes| G[claims: sub, roles global + scoped,<br/>mfa=true, 15-min access, refresh]
   E -->|no| G
   D --> G

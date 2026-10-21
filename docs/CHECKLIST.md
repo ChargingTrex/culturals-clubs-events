@@ -32,20 +32,21 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | B-06 | 5.13, §11.3 | Delegation: `Delegation(from_role, to_user, starts_at, ends_at, reason)`; `assert_can_decide` honours it; step records delegate + principal | MISSING | W3 | verified | delegate approves inside window; refused outside; self-approval still refused |
 | B-07 | 5.11, 6.3 | SLA: `age_hours` on queue items, `APPROVAL_SLA_HOURS`, `escalated` flag on Dean overview | MISSING | W3 | verified | item older than SLA shows escalated |
 | B-08 | 5.7.3, 5.19.5 | Annual envelope: `Club.annual_envelope`, utilisation = Σ sanctioned this year, on budget list and club profile | MISSING | W3 | verified | utilisation sums only sanctioned/settled; member cannot see it |
-| B-09 | – | OpenAPI hygiene: response serializers for ad-hoc views, `ENUM_NAME_OVERRIDES`; `spectacular` 0 errors | 92 errors | W4 | todo (after wave-1 merge) | `manage.py spectacular --fail-on-warn` exits 0 |
+| B-09 | – | OpenAPI hygiene: `@extend_schema(responses=…)` on MeView, LoginView, RefreshView, ModeView, MyPassesView, reissue_pass, feedback and jobs views; `@extend_schema_field` on every SerializerMethodField (EventSerializer registered/attended/budget/my_registration/social_links, ClubSerializer member_count/my_role); `ENUM_NAME_OVERRIDES`; `spectacular --fail-on-warn` clean so the frontend can delete `src/shared/api/types.ts` overrides | 92 errors | W4 | todo (after wave-1 merge) | `manage.py spectacular --fail-on-warn` exits 0 |
 | B-10 | 6.1, 10.2 | `jobs/` app: token-guarded `POST /api/v1/jobs/{dormancy,purge-external,rollup-scans,escalate-sla}`; CSV export of the semester report | MISSING | W4 | verified | no token → 401; CSV has the same totals as JSON |
 | B-11 | §7.6 | Two capture metrics under distinct names on the overview | DEVIATES | W4 | verified | both present, documented |
 | B-12 | 5.5, 5.16.3 | Registration confirmation: in-app + email with the pass on register and on waitlist promotion; registered students notified on publication and venue move | MISSING | W1 | verified | notification rows exist for the student after register; email backend receives one message |
 | B-13 | 5.19.4 | Serve receipt files: `GET /budget/budgets/{id}/lines/{line_id}/receipts/{receipt_id}/file` via `FileStore.url_for`, BUDGET_VIEWERS + approvers only | MISSING | W3 | verified | member 404; treasurer gets the bytes; superseded receipt still retrievable |
 | B-14 | 8 auditability | Audit entry on every roster read (`EventRosterView`, `GET /clubs/{id}/members`) as the docstring promises | MISSING | W1 | verified | reading a roster writes an AuditEntry naming the reader |
 | B-15 | §8 Postgres | `select_for_update` + `select_related` over a nullable FK fails on Postgres (10 tests): lock the row only (`of=("self",)`) and fetch related rows after | BUG | W1 | verified-sqlite-only | suite green on Postgres in CI; remove `continue-on-error` |
+| B-16 | 5.5 | `GET /events?category=` server-side filter (W5 narrows client-side today) | MISSING | W2 | todo | filter returns only that category across pages |
 
 ## C. Wave 2 — React frontend and hosting
 
 | Id | Feature | Owner | Status | Acceptance |
 |---|---|---|---|---|
-| F-01 | Vite+TS+Tailwind+TanStack scaffold, OpenAPI-generated client, auth + MFA + refresh, role-scoped nav | W5 | todo | every persona sees only its pages (port of `tests/smoke.mjs`) |
-| F-02 | Student screens: events, event page, register/cancel/waitlist, passes, profile QR | W5 | todo | Playwright: register → pass visible |
+| F-01 | Vite+TS+Tailwind+TanStack scaffold, OpenAPI-generated client, auth + MFA + refresh, role-scoped nav | W5 | verified | every persona sees only its pages (port of `tests/smoke.mjs`) |
+| F-02 | Student screens: events, event page, register/cancel/waitlist, passes, profile QR | W5 | verified | Playwright: register → pass visible |
 | F-03 | Organiser scan station: camera read, seven verdicts, offline queue, PRN lookup, roster | W5 | todo | Playwright: scan pass → checked in; same again → duplicate |
 | F-04 | Club screens: new event, budget, events, roster/roles, join requests, handover | W6 | todo | Playwright: treasurer prices and submits |
 | F-05 | Staff screens: three queues, line sanction, venues + reassign, overview, report | W6 | todo | Playwright: Society → Dean → VC on a >50k event |
