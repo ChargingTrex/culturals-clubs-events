@@ -125,7 +125,8 @@ Out of scope until decided (MASTER_SPEC §11): third gate for fests, venue prece
 | Strength (QA) | Review + targeted tests: concurrent registration at capacity, two offline stations same student, replay idempotency, sanction above request, self-approval with dual roles, VC sweep for PRN/name | Findings in `docs/qa/` |
 | Performance | k6 against the hosted backend: 200 registrations in 10 s; 5 stations × 1 scan/s | NFR §8 |
 
-## 6. Immediate actions (this session)
-1. `git init` + baseline commit so parallel edits are recoverable.
-2. Launch Wave 1 workers W1–W4 and W7 (CI + Vercel config) in parallel; QA after the first merges.
-3. ORCH verifies each item against `CHECKLIST.md`; QA writes `docs/qa/wave-1.md`.
+## 6. Immediate actions (this session) — done
+1. `git init` + baseline commit `b1433bf`; wave-0 commit `5366858`.
+2. Wave 1 workers W1–W4, W7 and the frontend scaffold W5 ran in worktrees; all merged after verification.
+3. QA reviewed each merge (`docs/qa/wave-1-w*.md`); every rework re-verified; main green at 402 tests.
+4. Next: wave-1b hygiene (B-09, B-16, B-17, H-03), then Wave 2 (F-03 scan station, F-04 club screens, F-05 staff screens, H-01 hosting with the user's accounts).
