@@ -13,6 +13,7 @@ from common import roles as R
 from common.errors import ProblemDetail
 from events.models import Event
 from feedback import services
+from feedback.serializers import FeedbackOutSerializer, FeedbackSummarySerializer
 from identity.models import Student
 
 
@@ -32,7 +33,8 @@ def _get_event_or_404(event_id):
 
 
 class EventFeedbackView(APIView):
-    @extend_schema(request=FeedbackInSerializer, summary="Leave feedback on an attended event")
+    @extend_schema(request=FeedbackInSerializer, responses={201: FeedbackOutSerializer},
+                   summary="Leave feedback on an attended event")
     def post(self, request, event_id):
         ctx = request.auth_context
         event = _get_event_or_404(event_id)
@@ -58,7 +60,8 @@ _OFFICERS = tuple(dict.fromkeys(R.EVENT_OPERATORS + R.BUDGET_VIEWERS))
 
 
 class FeedbackSummaryView(APIView):
-    @extend_schema(summary="Aggregate feedback for one event — no identities")
+    @extend_schema(responses=FeedbackSummarySerializer,
+                   summary="Aggregate feedback for one event — no identities")
     def get(self, request, event_id):
         ctx = request.auth_context
         event = _get_event_or_404(event_id)

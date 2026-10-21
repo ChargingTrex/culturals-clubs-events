@@ -4,7 +4,8 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, ProtectedError
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -12,13 +13,15 @@ from rest_framework.views import APIView
 
 from budget.models import BudgetTemplate
 from budget.services import create_lines, ensure_budget, seed_from_template
+from clubs.models import Club
 from common import roles as R
 from common.errors import Conflict, ProblemDetail
 from events.models import SLOT_HOLDING, Event, EventOrganiser, EventStatus, Venue
 from events.serializers import (
-    CloseEventSerializer, EventCreateSerializer, EventOrganiserSerializer, EventSerializer,
-    OrganiserAssignSerializer, ReassignRequestSerializer, VenueReassignmentSerializer,
-    VenueSerializer,
+    ClashesSerializer, CloseEventSerializer, EventCreatedSerializer, EventCreateSerializer,
+    EventOrganiserSerializer, EventSerializer, OrganiserAssignSerializer, OrganisersSerializer,
+    ReassignRequestSerializer, SubmitOutSerializer, VenueCalendarSerializer,
+    VenueReassignmentSerializer, VenueSerializer,
 )
 from events.services import (
     all_clashes, assert_bookable, clashes_for, close_event, free_venues_for, reassign_venue,
@@ -52,8 +55,23 @@ def _soft_clash_payload(soft):
     return [{"id": str(e.id), "title": e.title, "club": e.club.name} for e in soft]
 
 
+@extend_schema_view(list=extend_schema(parameters=[
+    OpenApiParameter("club", OpenApiTypes.UUID, OpenApiParameter.QUERY),
+    OpenApiParameter("category", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                     enum=Club.Category.values,
+                     description="Events of clubs in this category. An unknown value matches nothing."),
+    OpenApiParameter("status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                     description="Comma-separated event statuses."),
+    OpenApiParameter("starts_at_after", OpenApiTypes.DATETIME, OpenApiParameter.QUERY),
+    OpenApiParameter("starts_at_before", OpenApiTypes.DATETIME, OpenApiParameter.QUERY),
+    OpenApiParameter("ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                     description="Model field to order by (default `starts_at`)."),
+]))
 class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
+    # Schema hint only: drf-spectacular types the `id` path parameter from the
+    # model. Every request goes through get_queryset(), which scopes it.
+    queryset = Event.objects.none()
 
     def get_serializer_class(self):
         return EventCreateSerializer if self.action == "create" else EventSerializer
@@ -99,6 +117,11 @@ class EventViewSet(viewsets.ModelViewSet):
         params = self.request.query_params
         if club := params.get("club"):
             qs = qs.filter(club_id=club)
+        if category := params.get("category"):
+            # Category is the club's, so this joins through it (B-16). An unknown
+            # value is an empty page, not a 422: a filter that matches nothing
+            # is a valid answer, and the client's list of categories is advisory.
+            qs = qs.filter(club__category=category)
         if state := params.get("status"):
             qs = qs.filter(status__in=state.split(","))
         if after := params.get("starts_at_after"):
@@ -109,7 +132,7 @@ class EventViewSet(viewsets.ModelViewSet):
         return qs.order_by(ordering).distinct()
 
     # ---- creation ------------------------------------------------------
-    @extend_schema(request=EventCreateSerializer, responses=EventSerializer,
+    @extend_schema(request=EventCreateSerializer, responses={201: EventCreatedSerializer},
                    summary="Propose an event and send it for approval")
     def create(self, request, *args, **kwargs):
         data = EventCreateSerializer(data=request.data)
@@ -233,7 +256,8 @@ class EventViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     # ---- actions -------------------------------------------------------
-    @extend_schema(summary="Submit or resubmit a proposal for approval")
+    @extend_schema(request=None, responses=SubmitOutSerializer,
+                   summary="Submit or resubmit a proposal for approval")
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
         event = self.get_object()
@@ -259,7 +283,8 @@ class EventViewSet(viewsets.ModelViewSet):
                          "vc_reason": approval.vc_reason,
                          "soft_clashes": _soft_clash_payload(soft)})
 
-    @extend_schema(request=CloseEventSerializer, summary="Close an event with its evidence")
+    @extend_schema(request=CloseEventSerializer, responses=EventSerializer,
+                   summary="Close an event with its evidence")
     @action(detail=True, methods=["post"])
     def close(self, request, pk=None):
         event = self.get_object()
@@ -280,7 +305,8 @@ class EventViewSet(viewsets.ModelViewSet):
                                    "attended": event.attended_count()})
         return Response(EventSerializer(event, context={"request": request}).data)
 
-    @extend_schema(summary="Mark an event live so the scan station can open")
+    @extend_schema(request=None, responses=EventSerializer,
+                   summary="Mark an event live so the scan station can open")
     @action(detail=True, methods=["post"], url_path="go-live")
     def go_live(self, request, pk=None):
         event = self.get_object()
@@ -297,7 +323,8 @@ class EventViewSet(viewsets.ModelViewSet):
         event.save(update_fields=["status", "updated_at"])
         return Response(EventSerializer(event, context={"request": request}).data)
 
-    @extend_schema(summary="Clashes and free alternatives for this event")
+    @extend_schema(responses=ClashesSerializer,
+                   summary="Clashes and free alternatives for this event")
     @action(detail=True, methods=["get"])
     def clashes(self, request, pk=None):
         event = self.get_object()
@@ -311,7 +338,7 @@ class EventViewSet(viewsets.ModelViewSet):
             "free_venues": VenueSerializer(free_venues_for(event), many=True).data,
         })
 
-    @extend_schema(request=ReassignRequestSerializer,
+    @extend_schema(request=ReassignRequestSerializer, responses=VenueReassignmentSerializer,
                    summary="Move an event to another venue (Dean only)")
     @action(detail=True, methods=["post"])
     def reassign(self, request, pk=None):
@@ -352,8 +379,11 @@ class EventViewSet(viewsets.ModelViewSet):
                 detail="Only the President or Vice-President of this club may name organisers.",
             )
 
-    @extend_schema(request=OrganiserAssignSerializer, responses=EventOrganiserSerializer,
-                   summary="Organisers of this event; POST names one (President/VP only)")
+    @extend_schema(methods=["GET"], responses=OrganisersSerializer,
+                   summary="Organisers of this event")
+    @extend_schema(methods=["POST"], request=OrganiserAssignSerializer,
+                   responses={201: EventOrganiserSerializer},
+                   summary="Name an organiser (President/VP only)")
     @action(detail=True, methods=["get", "post"], url_path="organisers")
     def organisers(self, request, pk=None):
         event = self.get_object()
@@ -412,7 +442,9 @@ class EventViewSet(viewsets.ModelViewSet):
                                    "ends_at": ends_at.isoformat()})
         return Response(EventOrganiserSerializer(grant).data, status=status.HTTP_201_CREATED)
 
-    @extend_schema(summary="Withdraw an organiser grant (President/VP only)")
+    @extend_schema(parameters=[OpenApiParameter("student_id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
+                   responses={204: None},
+                   summary="Withdraw an organiser grant (President/VP only)")
     @action(detail=True, methods=["delete"], url_path=rf"organisers/(?P<student_id>{UUID_RE})")
     def remove_organiser(self, request, pk=None, student_id=None):
         event = self.get_object()
@@ -442,6 +474,12 @@ class VenueCalendarView(APIView):
     for Friday evening, and a pending proposal is not public information.
     """
 
+    @extend_schema(
+        parameters=[OpenApiParameter("date", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                                     description="Bookings starting on this day only.")],
+        responses=VenueCalendarSerializer,
+        summary="Master venue calendar with clashes flagged (staff only)",
+    )
     def get(self, request):
         ctx = request.auth_context
         if not ctx.can_see_all_clubs():

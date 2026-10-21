@@ -9,7 +9,8 @@ which of the two it is looking at, so one build serves both.
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -19,6 +20,10 @@ from common import roles as R
 from common.errors import ProblemDetail
 from identity import tokens
 from identity.models import LOGIN_ALLOWED, Status, User
+from identity.serializers import (
+    AuthModeSerializer, DemoPersonasSerializer, DemoSessionSerializer, DirectoryResultsSerializer,
+    MeSerializer, RefreshRequestSerializer, SemesterSerializer, SessionSerializer,
+)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -48,7 +53,7 @@ def _session_payload(user, *, mfa):
 class ModeView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(summary="Which login flow this deployment uses")
+    @extend_schema(responses=AuthModeSerializer, summary="Which login flow this deployment uses")
     def get(self, request):
         platform = settings.INTEGRATION_MODE == "platform"
         return Response({
@@ -70,7 +75,8 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    @extend_schema(request=LoginSerializer, summary="Password login (standalone mode)")
+    @extend_schema(request=LoginSerializer, responses=SessionSerializer,
+                   summary="Password login (standalone mode)")
     def post(self, request):
         if settings.INTEGRATION_MODE != "local":
             raise ProblemDetail(
@@ -126,7 +132,8 @@ class RefreshView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    @extend_schema(summary="Exchange a refresh token, rotating it")
+    @extend_schema(request=RefreshRequestSerializer, responses=SessionSerializer,
+                   summary="Exchange a refresh token, rotating it")
     def post(self, request):
         raw = (request.data or {}).get("refresh_token", "")
         if not raw:
@@ -144,7 +151,8 @@ class RefreshView(APIView):
 
 
 class LogoutView(APIView):
-    @extend_schema(summary="Revoke the refresh token; the access token expires naturally")
+    @extend_schema(request=None, responses={204: None},
+                   summary="Revoke the refresh token; the access token expires naturally")
     def post(self, request):
         record = request.user.record
         if record is not None:
@@ -153,7 +161,7 @@ class LogoutView(APIView):
 
 
 class MeView(APIView):
-    @extend_schema(summary="The caller's claims, as the frontend sees them")
+    @extend_schema(responses=MeSerializer, summary="The caller's claims, as the frontend sees them")
     def get(self, request):
         ctx = request.auth_context
         return Response({
@@ -199,7 +207,8 @@ def _capabilities(ctx):
 
 
 class SemesterView(APIView):
-    @extend_schema(summary="Academic calendar (platform-owned; read only)")
+    @extend_schema(responses=SemesterSerializer(many=True),
+                   summary="Academic calendar (platform-owned; read only)")
     def get(self, request):
         from identity.models import Semester
 
@@ -219,7 +228,12 @@ class StudentLookupView(APIView):
     organiser scope, and returns the minimum a desk needs to identify someone.
     """
 
-    @extend_schema(summary="Find a student by PRN or name (desk lookup)")
+    @extend_schema(
+        parameters=[OpenApiParameter("q", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                                     description="PRN or part of a name.")],
+        responses=DirectoryResultsSerializer,
+        summary="Find a student by PRN or name (desk lookup)",
+    )
     def get(self, request):
         ctx = request.auth_context
         # A PRN/name directory is individual student data, so the Vice-Chancellor
@@ -309,7 +323,7 @@ class DemoPersonasView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    @extend_schema(summary="Demo personas (DEMO_MODE only)")
+    @extend_schema(responses=DemoPersonasSerializer, summary="Demo personas (DEMO_MODE only)")
     def get(self, request):
         if not settings.DEMO_MODE:
             raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
@@ -335,7 +349,8 @@ class DemoLoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    @extend_schema(summary="Passwordless login for a demo persona (DEMO_MODE only)")
+    @extend_schema(request=None, responses=DemoSessionSerializer,
+                   summary="Passwordless login for a demo persona (DEMO_MODE only)")
     def post(self, request, persona):
         if not settings.DEMO_MODE:
             raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,

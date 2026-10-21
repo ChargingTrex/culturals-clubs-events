@@ -16,4 +16,7 @@ app.conf.beat_schedule = {
     "purge-external-nightly": {"task": "jobs.purge_external", "schedule": crontab(hour=3, minute=15)},
     "flag-dormant-nightly": {"task": "jobs.flag_dormant", "schedule": crontab(hour=3, minute=30)},
     "escalate-sla-hourly": {"task": "jobs.escalate_sla", "schedule": crontab(minute=0)},
+    # Just after midnight, so a handover dated "from the 1st" is on the roster
+    # when the club wakes up.
+    "apply-due-terms-nightly": {"task": "jobs.apply_due_terms", "schedule": crontab(hour=0, minute=5)},
 }

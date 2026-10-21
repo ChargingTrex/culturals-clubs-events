@@ -103,21 +103,26 @@ Framework Preset Vite, env `VITE_API_BASE=https://<backend-project>.vercel.app/a
 Then add its domain (and each preview domain you use) to the backend's
 `CORS_ALLOWED_ORIGINS` and redeploy the backend.
 
-## 7. Vercel Cron for the jobs endpoints (after B-10)
+## 7. Vercel Cron for the jobs endpoints (H-03)
 
-Once `jobs/` exposes `POST /api/v1/jobs/<name>` guarded by `JOBS_TOKEN`, add to
-`vercel.json` (Hobby plan: once a day per cron, so one job per entry):
+`app/backend/vercel.json` carries a `crons` block (times are UTC):
 
-```json
-"crons": [
-  { "path": "/api/v1/jobs/dormancy", "schedule": "0 2 * * *" },
-  { "path": "/api/v1/jobs/retention", "schedule": "30 2 * * *" }
-]
-```
+| path | schedule |
+|---|---|
+| `/api/v1/jobs/apply-due-terms` | `5 0 * * *` (daily 00:05) |
+| `/api/v1/jobs/rollup-scans` | `0 3 * * *` (daily 03:00) |
+| `/api/v1/jobs/purge-external` | `10 3 * * *` (daily 03:10) |
+| `/api/v1/jobs/flag-dormant` | `20 3 * * *` (daily 03:20) |
+| `/api/v1/jobs/escalate-sla` | `0 * * * *` (hourly) |
 
-Vercel Cron sends GET with `Authorization: Bearer $CRON_SECRET`; the jobs
-endpoints must accept that (or a tiny GET wrapper) and `JOBS_TOKEN` must equal
-`CRON_SECRET` in the Vercel env.
+Vercel Cron issues GET with `Authorization: Bearer $CRON_SECRET`, which is why
+`GET /api/v1/jobs/<name>` exists beside the POST form. **`JOBS_TOKEN` must equal
+Vercel's `CRON_SECRET`** in the project env, and must be at least 32 characters:
+a shorter or missing token makes every trigger answer 503 (`JOBS_DISABLED`), so a
+misconfigured host runs nothing rather than running jobs for anyone.
+
+The Hobby plan runs each cron at most once a day; `escalate-sla` hourly needs
+Pro, and on Hobby it degrades to a daily check without any change here.
 
 ## 8. Known limits of this test host
 

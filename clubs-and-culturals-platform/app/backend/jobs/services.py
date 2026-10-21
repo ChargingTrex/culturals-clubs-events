@@ -192,6 +192,28 @@ def escalate_sla(*, now=None):
             "notifications_sent": sent, "failed": failed}
 
 
+def apply_due_terms(*, now=None):
+    """
+    B-17: bring every club's Membership rows in line with its office-bearer
+    terms, so a dated handover that has come due shows on the roster and in the
+    one-president constraint. Same loop as `manage.py apply_due_terms`, minus
+    the per-row PRNs that command prints: a job result is readable by the VC.
+    """
+    from clubs.models import Club
+    from clubs.services import apply_due_terms as _apply_due_terms
+
+    now = now or timezone.now()
+    updated = clubs_changed = 0
+    for club in Club.objects.exclude(status=Club.Status.ARCHIVED):
+        changed = _apply_due_terms(club, now)
+        if changed:
+            clubs_changed += 1
+            updated += len(changed)
+    log.info("apply-due-terms: %d membership row(s) updated across %d club(s)", updated, clubs_changed)
+    return {"memberships_updated": updated, "clubs_changed": clubs_changed,
+            "as_of": now.isoformat()}
+
+
 def _escalation_recipients(stage, deans, stage_role, active_delegations):
     """Stage holders ∪ active delegates for the stage ∪ the Dean, each once."""
     from identity.models import User
@@ -233,6 +255,7 @@ JOBS = {
     "purge-external": purge_external,
     "flag-dormant": flag_dormant,
     "escalate-sla": escalate_sla,
+    "apply-due-terms": apply_due_terms,
 }
 
 

@@ -12,6 +12,7 @@ import logging
 
 from django.conf import settings
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -23,6 +24,15 @@ log = logging.getLogger(__name__)
 # A shorter secret is treated as no secret (QA F8): the triggers are
 # unauthenticated and unthrottled, so the token must be what stops a guess.
 MIN_TOKEN_LENGTH = 32
+
+
+class JobRunSerializer(serializers.Serializer):
+    """What `run_job` returns; `result` is the job's own counts."""
+
+    job = serializers.ChoiceField(choices=sorted(JOBS))
+    started_at = serializers.DateTimeField()
+    finished_at = serializers.DateTimeField()
+    result = serializers.DictField()
 
 
 def _require_job_token(request, name):
@@ -69,7 +79,7 @@ class JobTriggerView(APIView):
         parameters=[OpenApiParameter("name", OpenApiTypes.STR, OpenApiParameter.PATH,
                                      enum=sorted(JOBS), description="Job name")],
         request=None,
-        responses={200: OpenApiTypes.OBJECT},
+        responses=JobRunSerializer,
     )
     def post(self, request, name):
         _require_job_token(request, name)
@@ -79,7 +89,7 @@ class JobTriggerView(APIView):
         summary="Trigger a scheduled job — GET form, because Vercel Cron only issues GET",
         parameters=[OpenApiParameter("name", OpenApiTypes.STR, OpenApiParameter.PATH,
                                      enum=sorted(JOBS), description="Job name")],
-        responses={200: OpenApiTypes.OBJECT},
+        responses=JobRunSerializer,
     )
     def get(self, request, name):
         # Vercel Cron sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is
