@@ -12,6 +12,9 @@ import { EventsPage } from './student/EventsPage';
 import { PassesPage } from './student/PassesPage';
 import { ProfilePage } from './student/ProfilePage';
 import { SignInPage } from './student/SignInPage';
+import * as organiser from './organiser/screens';
+import * as club from './club/screens';
+import * as staff from './staff/screens';
 
 function page(path: string): PageDef {
   const def = pageForPath(path);
@@ -19,13 +22,18 @@ function page(path: string): PageDef {
   return def;
 }
 
-const STUDENT_SCREENS: Array<[PageDef, React.ReactElement]> = [
+const SCREENS: Array<[PageDef, React.ReactElement]> = [
   [page('/events'), <EventsPage key="events" />],
   [page('/passes'), <PassesPage key="passes" />],
   [page('/profile'), <ProfilePage key="profile" />],
+  ...[...organiser.SCREENS, ...club.SCREENS, ...staff.SCREENS].map(
+    ([path, element]): [PageDef, React.ReactElement] => [page(path), element],
+  ),
 ];
 
-const BUILT = new Set(STUDENT_SCREENS.map(([def]) => def.path));
+const EXTRA = [...organiser.EXTRA, ...club.EXTRA, ...staff.EXTRA];
+
+const BUILT = new Set(SCREENS.map(([def]) => def.path));
 
 /** Routes only — tests mount this inside a MemoryRouter. */
 export function AppRoutes() {
@@ -40,7 +48,7 @@ export function AppRoutes() {
         }
       >
         <Route index element={<HomeRedirect />} />
-        {STUDENT_SCREENS.map(([def, element]) => (
+        {SCREENS.map(([def, element]) => (
           <Route
             key={def.path}
             path={def.path}
@@ -52,6 +60,9 @@ export function AppRoutes() {
           />
         ))}
         <Route path="/events/:id" element={<EventDetailPage />} />
+        {EXTRA.map(([path, element]) => (
+          <Route key={path} path={path} element={element} />
+        ))}
         {PAGES.filter((def) => !BUILT.has(def.path)).map((def) => (
           <Route
             key={def.path}
