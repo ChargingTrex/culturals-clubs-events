@@ -1821,9 +1821,10 @@ export interface components {
          *     * `technical` - Technical
          *     * `sports` - Sports
          *     * `social` - Social service
+         *     * `committee` - Committee
          * @enum {string}
          */
-        ClubCategoryEnum: "cultural" | "literary" | "technical" | "sports" | "social";
+        ClubCategoryEnum: "cultural" | "literary" | "technical" | "sports" | "social" | "committee";
         /** @description Response of GET /clubs/{id}/members. */
         ClubMembers: {
             club: components["schemas"]["ClubRosterRef"];
@@ -2275,6 +2276,7 @@ export interface components {
             readonly department: string;
             readonly programme: string;
             readonly year: number;
+            /** @default pending */
             readonly state: components["schemas"]["JoinRequestStateEnum"];
             readonly note: string;
             readonly decided_by_label: string;
@@ -3700,7 +3702,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Events of clubs in this category. An unknown value matches nothing. */
-                category?: "cultural" | "literary" | "social" | "sports" | "technical";
+                category?: "committee" | "cultural" | "literary" | "social" | "sports" | "technical";
                 club?: string;
                 /** @description Model field to order by (default `starts_at`). */
                 ordering?: string;

@@ -12,6 +12,10 @@ class Club(UUIDModel):
         TECHNICAL = "technical", "Technical"
         SPORTS = "sports", "Sports"
         SOCIAL = "social", "Social service"
+        # A standing university-wide body (Cultural Society, Student Government), not an
+        # interest club. Not cultural/literary, so its events go straight to the Dean and
+        # the Cultural Society never approves its own proposals.
+        COMMITTEE = "committee", "Committee"
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"

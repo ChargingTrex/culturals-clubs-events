@@ -264,20 +264,20 @@ DEMO_PERSONAS = {
         "find": lambda: _first_student_without_club_role(),
     },
     "organiser": {
-        "label": "Organiser", "sub": "President, Lens — runs the live event",
-        "find": lambda: _club_officer("Lens", R.CLUB_PRESIDENT),
+        "label": "Organiser", "sub": "President, Photography Club — runs the live event",
+        "find": lambda: _club_officer("Photography Club", R.CLUB_PRESIDENT),
     },
     "president": {
-        "label": "President", "sub": "President, Swara",
-        "find": lambda: _club_officer("Swara", R.CLUB_PRESIDENT),
+        "label": "President", "sub": "President, Music Club",
+        "find": lambda: _club_officer("Music Club", R.CLUB_PRESIDENT),
     },
     "treasurer": {
-        "label": "Treasurer", "sub": "Treasurer, Swara",
-        "find": lambda: _club_officer("Swara", R.CLUB_TREASURER),
+        "label": "Treasurer", "sub": "Treasurer, Music Club",
+        "find": lambda: _club_officer("Music Club", R.CLUB_TREASURER),
     },
     "member": {
-        "label": "Club member", "sub": "Member, Swara — no budget access",
-        "find": lambda: _club_officer("Swara", R.CLUB_MEMBER),
+        "label": "Club member", "sub": "Member, Music Club — no budget access",
+        "find": lambda: _club_officer("Music Club", R.CLUB_MEMBER),
     },
     "society": {
         "label": "Cultural Society", "sub": "Cultural secretary — approval gate 1",

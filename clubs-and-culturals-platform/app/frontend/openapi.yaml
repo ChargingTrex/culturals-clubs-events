@@ -853,6 +853,7 @@ paths:
         schema:
           type: string
           enum:
+          - committee
           - cultural
           - literary
           - social
@@ -3533,6 +3534,7 @@ components:
       - technical
       - sports
       - social
+      - committee
       type: string
       description: |-
         * `cultural` - Cultural
@@ -3540,6 +3542,7 @@ components:
         * `technical` - Technical
         * `sports` - Sports
         * `social` - Social service
+        * `committee` - Committee
     ClubMembers:
       type: object
       description: Response of GET /clubs/{id}/members.
@@ -4640,6 +4643,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/JoinRequestStateEnum'
           readOnly: true
+          default: pending
         note:
           type: string
           readOnly: true

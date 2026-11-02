@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from budget.models import BudgetTemplate, BudgetTemplateLine
 from budget.services import seed_from_template
@@ -37,13 +38,44 @@ LAST = ["Krishnan", "Iyer", "R", "Subramanian", "Nair", "S", "Raghavan", "Menon"
 DEPTS = [("CSE", "BTech-CSE"), ("ECE", "BTech-ECE"), ("BBA", "BBA"),
          ("ARTS", "BA-English"), ("MECH", "BTech-MECH"), ("LAW", "BA-LLB")]
 
+# Sai University's 21 clubs, from the SAIU wiki (chargingtrex.github.io/collage-wiki-SAIU/clubs).
+# The first five carry the demo's members, events and budgets; keep them first and in
+# this order, because officers are dealt from the student list in club order.
 CLUBS = [
-    ("Swara", "Music", Club.Category.CULTURAL, "@swara.saiu"),
-    ("Natya", "Dance", Club.Category.CULTURAL, "@natya.saiu"),
-    ("Kalam", "Literary", Club.Category.LITERARY, "@kalam.saiu"),
-    ("Lens", "Photography", Club.Category.CULTURAL, "@lens.saiu"),
-    ("Drishti", "Theatre", Club.Category.CULTURAL, "@drishti.saiu"),
+    ("Music Club", "Music", Club.Category.CULTURAL, "Harmonizing voices, bands, and acoustic instruments."),
+    ("Dance Club", "Dance", Club.Category.CULTURAL, "Expressing rhythm, grace, and movement."),
+    ("Literary Club", "Literary", Club.Category.LITERARY, "Celebrating the written and spoken word."),
+    ("Photography Club", "Photography", Club.Category.CULTURAL, "Capturing moments through the lens."),
+    ("Theatre Club", "Theatre", Club.Category.CULTURAL, "Bringing compelling stories to life on stage."),
+    ("Art Club", "Visual arts", Club.Category.CULTURAL, "Unleashing creativity through visual arts."),
+    ("Gardening Club", "Gardening", Club.Category.SOCIAL, "Cultivating green spaces across campus."),
+    ("Astronomy Club", "Astronomy", Club.Category.TECHNICAL, "Exploring the cosmos & stargazing nights."),
+    ("Gaming Club", "Gaming", Club.Category.SPORTS, "Casual, competitive, and esports community."),
+    ("Oratory Club", "Public speaking", Club.Category.LITERARY, "Mastering public speaking, debate, and rhetoric."),
+    ("Entrepreneurship Club", "Startups", Club.Category.TECHNICAL, "Fostering startup culture and business innovation."),
+    ("Fashion Club", "Fashion", Club.Category.CULTURAL, "Setting trends, design, and celebrating style."),
+    ("Science Society", "Science", Club.Category.TECHNICAL, "Advancing scientific curiosity and research."),
+    ("Film Society", "Film", Club.Category.CULTURAL, "Appreciating, analyzing, and creating cinema."),
+    ("Turingites", "Computer science", Club.Category.TECHNICAL, "Computer Science Society — coding, algorithms, hackathons."),
+    ("Animal Welfare Society", "Animal welfare", Club.Category.SOCIAL, "Advocating, feeding, and caring for campus animals."),
+    ("Martial Arts Club", "Martial arts", Club.Category.SPORTS, "Building discipline, fitness, and self-defense."),
+    ("FOSS Club", "Open source", Club.Category.TECHNICAL, "Promoting Free and Open Source Software."),
+    ("Chess Club", "Chess", Club.Category.SPORTS, "Strategy, tactics, and the quiet art of checkmate."),
+    ("Pugwash Society", "Science policy", Club.Category.LITERARY, "Debating science, policy, and the world's hardest questions."),
+    ("Sports Society", "Sports", Club.Category.SPORTS, "Home to the University Premier League — and everything played to win."),
 ]
+# The two standing committees, from the SAIU wiki (…/collage-wiki-SAIU/committees).
+# Held as clubs with the committee category so they get rosters, events and budgets.
+COMMITTEES = [
+    ("Cultural Society", "Committee", Club.Category.COMMITTEE,
+     "Runs cultural events and performances across campus, and reviews proposals for new "
+     "clubs in the Arts, Culture & Performing Arts category."),
+    ("Student Government", "Committee", Club.Category.COMMITTEE,
+     "The elected body representing the student community, running university-wide "
+     "initiatives and events on behalf of students at large."),
+]
+CLUBS += COMMITTEES
+DEMO_CLUBS = 5  # the clubs above that get full rosters, events and budgets
 VENUES = [("Main Auditorium", 600), ("Open Air Theatre", 1000), ("Seminar Hall A", 150),
           ("Seminar Hall B", 120), ("Amphitheatre", 300), ("Music Room", 40)]
 
@@ -106,9 +138,9 @@ class Command(BaseCommand):
 
         venues = {name: Venue.objects.create(name=name, capacity=cap) for name, cap in VENUES}
         clubs = {
-            name: Club.objects.create(name=name, slug=name.lower(), tag=tag, category=cat,
-                                      instagram_handle=ig)
-            for name, tag, cat, ig in CLUBS
+            name: Club.objects.create(name=name, slug=slugify(name), tag=tag, category=cat,
+                                      description=description)
+            for name, tag, cat, description in CLUBS
         }
 
         for tname, lines in TEMPLATES.items():
@@ -147,8 +179,8 @@ class Command(BaseCommand):
         office = [R.CLUB_PRESIDENT, R.CLUB_VICE_PRESIDENT, R.CLUB_TREASURER, R.CLUB_SECRETARY]
         cursor = 0
         club_officers = {}
-        for club in clubs.values():
-            size = 8 if club.name != "Swara" else 14
+        for club in list(clubs.values())[:DEMO_CLUBS]:
+            size = 8 if club.name != "Music Club" else 14
             people = students[cursor:cursor + size]
             cursor += size
             for index, student in enumerate(people):
@@ -160,6 +192,25 @@ class Command(BaseCommand):
                 "treasurer": people[2], "secretary": people[3],
             }
 
+        # The other clubs and committees start with a President and Vice-President each, drawn from
+        # students added here so the demo clubs' rosters and logins stay as they were.
+        for offset, club in enumerate(list(clubs.values())[DEMO_CLUBS:]):
+            for k, role in enumerate((R.CLUB_PRESIDENT, R.CLUB_VICE_PRESIDENT)):
+                i = 64 + offset * 2 + k
+                dept, programme = DEPTS[rng.randrange(len(DEPTS))]
+                year = rng.randint(1, 4)
+                name = f"{FIRST[i % len(FIRST)]} {LAST[rng.randrange(len(LAST))]}"
+                prn = f"{26 - year}{dept[:2]}{1001 + i}"
+                user = User.objects.create_user(
+                    email=f"{prn.lower()}@college.edu", password=PASSWORD, full_name=name,
+                    display_name=name.split()[0], global_roles=[R.STUDENT],
+                )
+                student = Student.objects.create(
+                    user=user, prn=prn, full_name=name, department=dept, programme=programme,
+                    year_of_study=year,
+                )
+                Membership.objects.create(club=club, student=student, role=role)
+
         # ---- events ---------------------------------------------------
         def at(days_from_today, hour, minute=0):
             local = datetime.combine(today + timedelta(days=days_from_today),
@@ -168,19 +219,19 @@ class Command(BaseCommand):
 
         specs = [
             # title, club, offset, start, end, venue, template, expected, status
-            ("Swara Unplugged", "Swara", -17, 18, 20, "Amphitheatre", "Performance", 120, "reported"),
-            ("Natya Showcase", "Natya", -10, 17, 20, "Main Auditorium", "Performance", 250, "reported"),
-            ("Kalam Poetry Slam", "Kalam", -7, 16, 18, "Seminar Hall B", "Competition", 60, "reported"),
-            ("Lens Frames Exhibition", "Lens", -24, 10, 16, "Seminar Hall A", "Exhibition", 80, "reported"),
-            ("Lens Heritage Photowalk", "Lens", 0, 16, 18, "Open Air Theatre", "Workshop", 45, "live"),
-            ("Kalam Lit Quiz", "Kalam", 8, 15, 17, "Seminar Hall B", "Competition", 70, "published"),
-            ("Drishti Street Play", "Drishti", 10, 17, 19, "Amphitheatre", "Performance", 150, "submitted"),
-            ("Swara Open Mic", "Swara", 16, 16, 18, "Seminar Hall A", "Performance", 90, "submitted"),
-            # Deliberate clash with Swara Open Mic: same venue, overlapping window.
+            ("Unplugged Evening", "Music Club", -17, 18, 20, "Amphitheatre", "Performance", 120, "reported"),
+            ("Dance Showcase", "Dance Club", -10, 17, 20, "Main Auditorium", "Performance", 250, "reported"),
+            ("Annual Poetry Slam", "Literary Club", -7, 16, 18, "Seminar Hall B", "Competition", 60, "reported"),
+            ("Frames Photo Exhibition", "Photography Club", -24, 10, 16, "Seminar Hall A", "Exhibition", 80, "reported"),
+            ("Heritage Photowalk", "Photography Club", 0, 16, 18, "Open Air Theatre", "Workshop", 45, "live"),
+            ("Literary Quiz", "Literary Club", 8, 15, 17, "Seminar Hall B", "Competition", 70, "published"),
+            ("Street Play", "Theatre Club", 10, 17, 19, "Amphitheatre", "Performance", 150, "submitted"),
+            ("Open Mic Night", "Music Club", 16, 16, 18, "Seminar Hall A", "Performance", 90, "submitted"),
+            # Deliberate clash with Open Mic Night: same venue, overlapping window.
             # The Dean's calendar is meant to have something to resolve.
-            ("Natya Contemporary Workshop", "Natya", 16, 17, 19, "Seminar Hall A", "Workshop", 60, "submitted"),
+            ("Contemporary Dance Workshop", "Dance Club", 16, 17, 19, "Seminar Hall A", "Workshop", 60, "submitted"),
             # Above the VC threshold, so it routes Society -> Dean -> VC.
-            ("Culturals Night 2026", "Swara", 25, 17, 22, "Open Air Theatre", "Performance", 700, "submitted"),
+            ("Culturals Night 2026", "Music Club", 25, 17, 22, "Open Air Theatre", "Performance", 700, "submitted"),
         ]
 
         events = {}
@@ -226,9 +277,9 @@ class Command(BaseCommand):
 
         # ---- attendance, with deliberate overlap ----------------------
         attendance_plan = {
-            "Swara Unplugged": (46, 38), "Natya Showcase": (58, 49),
-            "Kalam Poetry Slam": (30, 25), "Lens Frames Exhibition": (34, 29),
-            "Lens Heritage Photowalk": (38, 6), "Kalam Lit Quiz": (26, 0),
+            "Unplugged Evening": (46, 38), "Dance Showcase": (58, 49),
+            "Annual Poetry Slam": (30, 25), "Frames Photo Exhibition": (34, 29),
+            "Heritage Photowalk": (38, 6), "Literary Quiz": (26, 0),
         }
         pool = students[:56]
         for title, (registered_n, attended_n) in attendance_plan.items():
@@ -262,8 +313,8 @@ class Command(BaseCommand):
         # ---- close the past events, with evidence ---------------------
         from events.services import close_event
 
-        for title in ("Swara Unplugged", "Natya Showcase", "Kalam Poetry Slam",
-                      "Lens Frames Exhibition"):
+        for title in ("Unplugged Evening", "Dance Showcase", "Annual Poetry Slam",
+                      "Frames Photo Exhibition"):
             event, _, club_name = events[title]
             event.refresh_from_db()
             if event.status in (EventStatus.PUBLISHED, EventStatus.LIVE):
@@ -274,7 +325,7 @@ class Command(BaseCommand):
         # ---- settle one budget so the report shows spend --------------
         from budget.services import settle
 
-        unplugged, _, _ = events["Swara Unplugged"]
+        unplugged, _, _ = events["Unplugged Evening"]
         unplugged.refresh_from_db()
         budget = unplugged.budget
         from budget.services import attach_receipt
@@ -293,18 +344,18 @@ class Command(BaseCommand):
                     content_type="application/pdf", amount=line.amount_spent,
                 )
         try:
-            settle(budget, actor=ctx_for(club_officers["Swara"]["treasurer"].user))
+            settle(budget, actor=ctx_for(club_officers["Music Club"]["treasurer"].user))
         except Exception as exc:                                  # noqa: BLE001
             self.stdout.write(self.style.WARNING(f"  budget not settled: {exc}"))
 
-        swara = club_officers["Swara"]
-        lens = club_officers["Lens"]
+        music = club_officers["Music Club"]
+        photo = club_officers["Photography Club"]
         self.stdout.write(self.style.SUCCESS("Seeded. Password for every account: " + PASSWORD))
         self.stdout.write("")
         self.stdout.write("  Student            " + students[40].user.email)
-        self.stdout.write("  Swara president    " + swara["president"].user.email)
-        self.stdout.write("  Swara treasurer    " + swara["treasurer"].user.email)
-        self.stdout.write("  Lens president     " + lens["president"].user.email + "   (runs the live event)")
+        self.stdout.write("  Music Club president      " + music["president"].user.email)
+        self.stdout.write("  Music Club treasurer      " + music["treasurer"].user.email)
+        self.stdout.write("  Photography Club pres.    " + photo["president"].user.email + "   (runs the live event)")
         self.stdout.write("  Cultural Society   cultural.secretary@college.edu")
         self.stdout.write("  Dean               dean@college.edu")
         self.stdout.write("  Vice-Chancellor    vc@college.edu")
