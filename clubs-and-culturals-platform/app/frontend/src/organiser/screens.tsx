@@ -5,6 +5,7 @@
  * EXTRA:   [route path, element] — detail routes not in the sidebar (the API still refuses).
  */
 import type { Screen } from '../shared/nav/screens';
+import { ScanPage } from './ScanPage';
 
-export const SCREENS: Screen[] = [];
+export const SCREENS: Screen[] = [['/scan', <ScanPage key="scan" />]];
 export const EXTRA: Screen[] = [];
