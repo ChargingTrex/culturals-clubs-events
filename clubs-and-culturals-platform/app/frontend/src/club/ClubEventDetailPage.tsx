@@ -58,7 +58,7 @@ function ApprovalTrail({ eventId }: { eventId: string }) {
                       {s.stage_label} · {s.actor_label}
                       {s.on_behalf_of_label ? ` for ${s.on_behalf_of_label}` : ''}
                     </span>
-                    {s.amount_sanctioned ? (
+                    {Number(s.amount_sanctioned) > 0 ? (
                       <span className="text-muted">sanctioned {inr(s.amount_sanctioned)}</span>
                     ) : null}
                     <span className="text-[0.8rem] text-muted">{fmtDate(s.created_at)}</span>

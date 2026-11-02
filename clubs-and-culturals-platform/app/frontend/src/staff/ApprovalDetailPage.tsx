@@ -47,7 +47,7 @@ function Trail({ steps }: { steps: ApprovalStep[] }) {
             <strong>{s.stage_label}</strong>
             <Pill tone={DECISION[s.decision].tone}>{DECISION[s.decision].label}</Pill>
             {s.mfa_verified ? <Pill tone="ok">MFA</Pill> : null}
-            {s.amount_sanctioned ? (
+            {Number(s.amount_sanctioned) > 0 ? (
               <span className="text-[0.85rem]">sanctioned {inr(s.amount_sanctioned)}</span>
             ) : null}
           </div>
