@@ -49,9 +49,9 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 |---|---|---|---|---|
 | F-01 | Vite+TS+Tailwind+TanStack scaffold, OpenAPI-generated client, auth + MFA + refresh, role-scoped nav | W5 | verified | every persona sees only its pages (port of `tests/smoke.mjs`) |
 | F-02 | Student screens: events, event page, register/cancel/waitlist, passes, profile QR | W5 | verified | Playwright: register → pass visible |
-| F-03 | Organiser scan station: camera read, seven verdicts, offline queue, PRN lookup, roster | W5 | in-progress | Playwright: scan pass → checked in; same again → duplicate |
-| F-04 | Club screens: new event, budget, events, roster/roles, join requests, handover | W6 | in-progress | Playwright: treasurer prices and submits |
-| F-05 | Staff screens: three queues, line sanction, venues + reassign, overview, report | W6 | in-progress | Playwright: Society → Dean → VC on a >50k event |
+| F-03 | Organiser scan station: camera read, seven verdicts, offline queue, PRN lookup, roster | W5 | verified | Playwright: scan pass → checked in; same again → duplicate | — merged 2026-11-03; vitest: scan→checked-in, repeat→duplicate, offline queue→sync, PRN lookup; live: station + roster load for Lens president. QA review pending
+| F-04 | Club screens: new event, budget, events, roster/roles, join requests, handover | W6 | verified | Playwright: treasurer prices and submits | — merged 2026-11-03; vitest: treasurer adds line + submits, roster/join/role change, new-event POST; live: every club page loads for member/secretary/treasurer/president. QA review pending
+| F-05 | Staff screens: three queues, line sanction, venues + reassign, overview, report | W6 | verified | Playwright: Society → Dean → VC on a >50k event | — merged 2026-11-03; live Playwright: Society → Dean (line sanction, approve, publish) on Drishti Street Play; VC leg (>50k) covered only by vitest. QA review pending
 | H-01 | Backend on Vercel + Neon (seeded), React on Vercel, web-app on Netlify, `docs/HOSTING.md` | W7 | done-unverified | URLs reachable; `/api/v1/module/auth/mode` answers | — config + docs/HOSTING.md written; deploy needs the user's Neon/Vercel/Netlify accounts
 | H-02 | Hosted run-through (DEMO_CREDENTIALS ten-minute script) | QA | todo | all steps pass |
 | H-03 | `vercel.json` `crons` block for `/api/v1/jobs/{rollup-scans,purge-external,flag-dormant,escalate-sla}` with `JOBS_TOKEN` = Vercel `CRON_SECRET` (GET form exists) | W7 | verified | cron hits return 200 with a job result |
