@@ -55,6 +55,8 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | H-01 | Backend on Vercel + Neon (seeded), React on Vercel, web-app on Netlify, `docs/HOSTING.md` | W7 | done-unverified | URLs reachable; `/api/v1/module/auth/mode` answers | — config + docs/HOSTING.md written; deploy needs the user's Neon/Vercel/Netlify accounts
 | H-02 | Hosted run-through (DEMO_CREDENTIALS ten-minute script) | QA | todo | all steps pass |
 | H-03 | `vercel.json` `crons` block for `/api/v1/jobs/{rollup-scans,purge-external,flag-dormant,escalate-sla}` with `JOBS_TOKEN` = Vercel `CRON_SECRET` (GET form exists) | W7 | verified | cron hits return 200 with a job result |
+| M-01 | Motion system from `docs/MOTION.html` §7: tokens, state layers, component motion, SPA page transitions (View Transitions), reduce-motion | W-B | in-progress | Vitest: toast exit, first-load stagger, nav classifier; screenshots |
+| T-01 | Robot Framework e2e in `app/e2e/`: API suites 01–07 and Browser UI suites 10–14 covering the ten-minute run-through for every role | W-C | in-progress | `robot` green against seeded local servers |
 
 ## D. Later waves (not yet assigned)
 
