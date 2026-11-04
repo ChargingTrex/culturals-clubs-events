@@ -181,6 +181,54 @@
   --blur-material: 20px;
 }
 
+/* Culturals — motion tokens (Section 7). Paste next to the colour tokens. */
+/* prettier-ignore */
+:root {
+  --dur-xs: 100ms;   /* state layers, hover, press-in, icon swaps */
+  --dur-sm: 150ms;   /* colour changes, chips, toggles, fade-outs, in-page crossfades */
+  --dur-md: 250ms;   /* small things arriving: toasts, menus, dialogs, list rows, scrims */
+  --dur-lg: 350ms;   /* things crossing the screen: page push, sheets, container transform */
+  --dur-xl: 500ms;   /* rare reveals: certificate seal */
+  --dur-spring: 400ms;
+  --dur-spring-bouncy: 650ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-spring: linear(0, 0.019, 0.068, 0.137, 0.217, 0.303, 0.389, 0.473, 0.551, 0.623, 0.688, 0.746, 0.796, 0.839, 0.876, 0.906, 0.932, 0.952, 0.968, 0.981, 0.991, 0.998, 1.003, 1.007, 1.009, 1.01, 1.011, 1.011, 1.011, 1.01, 1.009, 1.008, 1.007, 1.006, 1.005, 1.005, 1.004, 1.003, 1.003, 1);
+  --ease-spring-bouncy: linear(0, 0.029, 0.103, 0.207, 0.327, 0.452, 0.575, 0.689, 0.79, 0.876, 0.946, 1.001, 1.042, 1.069, 1.086, 1.094, 1.094, 1.089, 1.081, 1.07, 1.059, 1.047, 1.036, 1.025, 1.016, 1.009, 1.003, 0.998, 0.995, 0.993, 0.991, 0.991, 0.991, 0.992, 0.993, 0.994, 0.995, 0.996, 0.997, 1);
+  --loop-pulse: 1600ms;
+  --loop-scan: 2200ms;
+  --loop-shimmer: 1400ms;
+  --loop-sheen: 3200ms;
+  --stagger: 30ms;
+  --press-scale: 0.97;
+  --wash-hover: 8%;
+  --wash-selected: 12%;
+  --wash-drag: 16%;
+  --wash-flash: 24%;
+
+  /* Timings the §7.7 reference table names but §7.8 has no token for.
+     Kept here so no component carries a literal duration. */
+  --toast-hold: 3400ms;
+  --skeleton-delay: 300ms;
+  --fade-through-out: 90ms;
+  --fade-through-in: 210ms;
+  --flash-ok: 400ms;
+  --flash-warn: 300ms;
+  --flash-bad: 600ms;
+  --edit-flash: 900ms;
+  --flash-peak: 0.32; /* scan flash opacity inside the viewfinder */
+}
+
+/* Status chips blend their hue through Oklab (§7.8 "Colour blends in Oklab"). */
+@property --mix {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
 /* Fonts, radii, spacing unit and type scale: these names are also Tailwind's own
    theme keys, so they are defined here, once, and Tailwind writes them to :root
    (static = always) and builds utilities from them (font-sans, rounded-lg, p-4,
@@ -191,6 +239,10 @@
   --text-*: initial;
   --radius-*: initial;
   --shadow-*: initial;
+
+  /* Tailwind's transition-* utilities time themselves from the motion tokens. */
+  --default-transition-duration: var(--dur-sm);
+  --default-transition-timing-function: var(--ease-standard);
 
   /* ---------- Fonts ---------- */
   --font-sans:

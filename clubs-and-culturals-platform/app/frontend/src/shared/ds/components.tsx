@@ -6,11 +6,16 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
+  useRef,
   useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
+  type PointerEvent,
   type ReactNode,
+  type RefObject,
 } from 'react';
+import { motionMs } from '../ui/motion';
 import {
   CHIP_STATUS,
   POSITIONS,
@@ -102,9 +107,21 @@ export function Button({
 
 /* ---------- IconButton ---------- */
 function Badge({ value }: { value?: number | boolean }) {
+  const el = useRef<HTMLSpanElement>(null);
+  const prev = useRef(value);
+  // A count that goes up while visible bumps (§7.4); going down just changes.
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = value;
+    const node = el.current;
+    if (!node || typeof value !== 'number' || typeof was !== 'number' || value <= was) return;
+    node.classList.remove('cc-badge--bump');
+    void node.offsetWidth; // restart the animation when it bumps twice in a row
+    node.classList.add('cc-badge--bump');
+  }, [value]);
   if (value == null || value === false || value === 0) return null;
   return (
-    <span className={cx('cc-badge', 'label-sm', value === true && 'cc-badge--dot')}>
+    <span ref={el} className={cx('cc-badge', 'label-sm', value === true && 'cc-badge--dot')}>
       {value === true ? null : value > 99 ? '99+' : value}
     </span>
   );
@@ -191,8 +208,24 @@ export function Chip({
   children: ReactNode;
   className?: string;
 }) {
+  const el = useRef<HTMLSpanElement>(null);
+  const prev = useRef(tone);
+  // On a tone change, data-from names the old tone for motion.css to blend from.
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = tone;
+    const node = el.current;
+    if (was === tone || !node) return;
+    delete node.dataset.from;
+    void node.offsetWidth;
+    node.dataset.from = was;
+  }, [tone]);
   return (
-    <span className={cx('cc-chip', `cc-chip--${tone}`, 'label-md', className)} title={title}>
+    <span
+      ref={el}
+      className={cx('cc-chip', `cc-chip--${tone}`, 'label-md', className)}
+      title={title}
+    >
       {live ? (
         <span className="cc-live-dot" aria-hidden="true" />
       ) : icon ? (
@@ -595,6 +628,32 @@ export function TextField({
 type Option = string | { value: string; label: ReactNode; count?: number };
 const norm = (o: Option) => (typeof o === 'string' ? { value: o, label: o as ReactNode } : o);
 
+/**
+ * Places a sliding thumb (.cc-seg-thumb / .cc-tabs-ind) under the selected
+ * element by writing --x/--w on the group; the first placement is instant.
+ * shortcut: measured on selection only, not on resize; add a ResizeObserver if a thumb drifts.
+ */
+function useThumb(ref: RefObject<HTMLElement>, selected: string, thumb: string, value: string) {
+  const placed = useRef(false);
+  useLayoutEffect(() => {
+    const group = ref.current;
+    const el = group?.querySelector<HTMLElement>(selected);
+    const t = group?.querySelector<HTMLElement>(thumb);
+    if (!group || !el || !t) return;
+    let x = 0;
+    for (let n: HTMLElement | null = el; n && n !== group; n = n.offsetParent as HTMLElement | null)
+      x += n.offsetLeft;
+    if (!placed.current) t.style.transition = 'none';
+    group.style.setProperty('--x', `${x}px`);
+    group.style.setProperty('--w', `${el.offsetWidth}px`);
+    if (!placed.current) {
+      void t.offsetWidth;
+      t.style.transition = '';
+      placed.current = true;
+    }
+  }, [ref, selected, thumb, value]);
+}
+
 function useControlled<T>(value: T | undefined, initial: T, onChange?: (v: T) => void) {
   const [own, setOwn] = useState<T>(initial);
   const current = value !== undefined ? value : own;
@@ -624,12 +683,16 @@ export function SegmentedControl({
 }) {
   const opts = options.map(norm);
   const [val, pick] = useControlled(value, defaultValue ?? opts[0]?.value ?? '', onChange);
+  const group = useRef<HTMLDivElement>(null);
+  useThumb(group, '.cc-seg-btn[aria-checked="true"]', '.cc-seg-thumb', val);
   return (
     <div
+      ref={group}
       className={cx('cc-seg', block && 'cc-seg--block', className)}
       role="radiogroup"
       aria-label={label}
     >
+      <span className="cc-seg-thumb" aria-hidden="true" />
       {opts.map((o) => {
         const on = o.value === val;
         return (
@@ -672,12 +735,16 @@ export function Tabs({
 }) {
   const opts = items.map(norm);
   const [val, pick] = useControlled(value, defaultValue ?? opts[0]?.value ?? '', onChange);
+  const group = useRef<HTMLDivElement>(null);
+  useThumb(group, '.cc-tab--on .cc-tab-inner', '.cc-tabs-ind', val);
   return (
     <div
+      ref={group}
       className={cx('cc-tabs', block && 'cc-tabs--block', className)}
       role="tablist"
       aria-label={label}
     >
+      <span className="cc-tabs-ind" aria-hidden="true" />
       {opts.map((o) => {
         const on = o.value === val;
         return (
@@ -848,30 +915,88 @@ export function BottomSheet({
   onClose?: () => void;
   className?: string;
 }) {
+  // Closing plays the exit (motion.css) for --dur-md, then tells the owner.
+  const [closing, setClosing] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; h: number } | null>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+  const close = onClose ? () => setClosing(true) : undefined;
+  useEffect(() => {
+    if (!closing) return;
+    const t = setTimeout(() => closeRef.current?.(), motionMs('--dur-md', 250));
+    return () => clearTimeout(t);
+  }, [closing]);
   useEffect(() => {
     if (!onClose) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setClosing(true);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+  // Focus returns to whatever opened the sheet (§7.5 "Focus").
+  useEffect(() => {
+    const opener = document.activeElement;
+    return () => {
+      if (opener instanceof HTMLElement) opener.focus();
+    };
+  }, []);
+
+  // Drag follows the finger; let go past 30% of the height and it closes.
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (!close || !panel.current || e.button !== 0) return;
+    drag.current = { y0: e.clientY, h: panel.current.offsetHeight };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    panel.current?.style.setProperty('--drag-y', `${Math.max(0, e.clientY - drag.current.y0)}px`);
+  };
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    setDragging(false);
+    if (Math.max(0, e.clientY - d.y0) > d.h * 0.3) close?.();
+    else panel.current?.style.setProperty('--drag-y', '0px');
+  };
+
   return (
-    <div className="cc-sheet-layer">
-      <div className="cc-scrim" onClick={onClose} />
+    <div
+      className={cx(
+        'cc-sheet-layer',
+        closing && 'cc-sheet-layer--out',
+        dragging && 'cc-sheet-layer--drag',
+      )}
+    >
+      <div className="cc-scrim" onClick={close} />
       <div
+        ref={panel}
         className={cx('cc-sheet-panel', className)}
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <span className="cc-sheet-grabber" aria-hidden="true" />
-        {title || onClose ? (
-          <div className="cc-sheet-head">
-            <h2 className="title-lg">{title}</h2>
-            {onClose ? (
-              <IconButton icon="x" label="Close" size="sm" variant="tonal" onClick={onClose} />
-            ) : null}
-          </div>
-        ) : null}
+        <div
+          className="cc-sheet-handle"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        >
+          <span className="cc-sheet-grabber" aria-hidden="true" />
+          {title || onClose ? (
+            <div className="cc-sheet-head">
+              <h2 className="title-lg">{title}</h2>
+              {close ? (
+                <IconButton icon="x" label="Close" size="sm" variant="tonal" onClick={close} />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <div className="cc-sheet-body">{children}</div>
       </div>
     </div>

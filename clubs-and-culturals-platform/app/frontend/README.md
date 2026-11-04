@@ -133,6 +133,33 @@ Playwright starts `npm run dev` itself; `E2E_PORT=5199` moves it off :5173 (the 
 allow that origin in `CORS_ALLOWED_ORIGINS`). Chromium:
 `npx playwright install chromium`. Not part of CI yet.
 
+## Motion
+
+Section 7 of the design system (`docs/MOTION.html` at the repo root) is implemented token-first:
+
+- **Tokens** live in `src/shared/ds/tokens.css` (`--dur-*`, `--ease-*` incl. the two `linear()`
+  springs, `--loop-*`, `--stagger`, `--press-scale`, `--wash-*`, plus the few timings §7.7 names
+  that §7.8 has no token for: `--toast-hold`, `--skeleton-delay`, `--flash-*`, `--edit-flash`).
+  Tailwind's `transition-*` utilities read `--dur-sm` / `--ease-standard`. Nothing animates with a
+  literal time; JS timers read the same tokens through `motionMs()` (`src/shared/ui/motion.ts`).
+- **Component and page motion** is `src/shared/ds/motion.css` (components layer, after
+  `domain.css`): state layers and press, segmented thumb, tab indicator, nav pill, sheet, toast,
+  badge bump, list stagger, skeleton, loops, pass sheen, approval connector, scan flash, chip hue
+  blend, edit flash, page transitions, and one reduce-motion block (also honoured for an explicit
+  `<html data-motion="reduced">`, set with `setMotion()`).
+- **Classifying a navigation**: `navKind(from, to, barPaths, back)` in `motion.ts` returns `tab`
+  (both paths in the nav bar: fade through), `push` (into a child such as `/events/:id`), `pop`
+  (back to the parent, or a backwards history traversal), `crossfade` (sign in/out, theme) or
+  `none` (same path). `usePageTransitions()` in `transitions.ts`, mounted once by `AppShell`, runs
+  every link click and history traversal inside `document.startViewTransition` with that kind on
+  `<html data-vt>`; the nav bar and the top bar's row are named so they never move, and focus
+  moves to the new page's `h1`. Use `transition(kind, update)` for a programmatic navigation
+  that should animate (sign-out does). Browsers without the API just navigate.
+- **Staggering a list on its first load**: `const enter = useFirstLoad(Boolean(data))` and put it on
+  the list element (`className={cx('cc-listgroup-items', enter)}`). Rows rise 8 px, `--stagger`
+  apart, capped at the sixth row, on the first load only; later swaps (filter, sort, refresh)
+  get no stagger — give the new content `cc-swap` for the 150 ms crossfade.
+
 ## Deploy
 
 `vercel.json` builds with `npm run build`, serves `dist/`, and rewrites every non-asset path

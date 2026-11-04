@@ -7,11 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Icon } from '../ds';
+import { Icon, cx } from '../ds';
+import { motionMs } from './motion';
 
 interface Toast {
   id: number;
   text: string;
+  /** Playing its exit (motion.css .cc-toast--out) before removal. */
+  out?: boolean;
 }
 
 interface ToastApi {
@@ -24,10 +27,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
 
+  // Rise, hold for --toast-hold, then fade for --dur-sm before leaving the DOM.
   const show = useCallback((text: string) => {
     const id = nextId.current++;
     setToasts((list) => [...list, { id, text }]);
-    setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 3400);
+    setTimeout(
+      () => {
+        setToasts((list) => list.map((t) => (t.id === id ? { ...t, out: true } : t)));
+        setTimeout(
+          () => setToasts((list) => list.filter((t) => t.id !== id)),
+          motionMs('--dur-sm', 150),
+        );
+      },
+      motionMs('--toast-hold', 3400),
+    );
   }, []);
 
   const value = useMemo(() => ({ show }), [show]);
@@ -43,7 +56,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className="flex items-center gap-2.5 rounded-md border border-line bg-surface-raised px-4 py-3 text-body-md text-ink shadow-elevation-3"
+            data-state={t.out ? 'exiting' : 'shown'}
+            className={cx(
+              'cc-toast flex items-center gap-2.5 rounded-md border border-line bg-surface-raised px-4 py-3 text-body-md text-ink shadow-elevation-3',
+              t.out && 'cc-toast--out',
+            )}
           >
             <Icon name="check" size={18} className="shrink-0 text-success" />
             {t.text}

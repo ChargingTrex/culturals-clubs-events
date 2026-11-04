@@ -54,7 +54,7 @@
   min-width: 0;
   background: var(--chart-bar);
   border-radius: 0 4px 4px 0;
-  transition: background 0.12s;
+  transition: background-color var(--dur-xs) var(--ease-standard);
 }
 .cc-hbar-row:hover .cc-hbar,
 .cc-hbar-row:focus-visible .cc-hbar {

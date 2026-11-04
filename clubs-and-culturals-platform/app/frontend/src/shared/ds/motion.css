@@ -1,0 +1,654 @@
+/* Culturals design system — motion (Section 7). The spec, with every example
+   live, is docs/MOTION.html at the repo root. Every duration and curve here is
+   a token from tokens.css; no rule carries a literal time.
+
+   1. State layers and press      2. Components in motion (§7.4, in table order)
+   3. Transitions between pages   4. Reduce motion (§7.6) */
+
+/* ========== 1. State layers (§7.3): in over --dur-xs, out over --dur-sm ========== */
+.cc-nav-item::before,
+.cc-nav-ind::before {
+  transition: opacity var(--dur-sm) var(--ease-standard);
+}
+.cc-btn:hover::before,
+.cc-btn:active::before,
+.cc-ibtn:hover::before,
+.cc-ibtn:active::before,
+.cc-nav-item:hover::before,
+.cc-nav-item:active::before,
+.cc-nav-dest:hover .cc-nav-ind::before,
+.cc-nav-dest:active .cc-nav-ind::before {
+  transition-duration: var(--dur-xs);
+}
+.cc-nav-item:active::before,
+.cc-nav-dest:active .cc-nav-ind::before {
+  opacity: var(--state-pressed);
+}
+.cc-list-row--button {
+  transition:
+    background-color var(--dur-sm) var(--ease-standard),
+    transform var(--dur-spring) var(--ease-spring);
+}
+.cc-list-row--button:hover {
+  transition-duration: var(--dur-xs);
+}
+.cc-list-row--button:active {
+  background: color-mix(in oklab, currentColor var(--wash-selected), var(--surface));
+}
+.cc-seg-btn,
+.cc-tab,
+.cc-nav-dest {
+  transition: color var(--dur-sm) var(--ease-standard);
+}
+
+/* Press (§7.4): shrink to --press-scale in --dur-xs, release on the spring. */
+.cc-btn,
+.cc-ibtn,
+.cc-nav-item {
+  transition: transform var(--dur-spring) var(--ease-spring);
+}
+.cc-nav-ind {
+  transition:
+    background-color var(--dur-sm) var(--ease-standard),
+    color var(--dur-sm) var(--ease-standard),
+    transform var(--dur-spring) var(--ease-spring);
+}
+.cc-btn:active:not(:disabled, [aria-disabled='true']),
+.cc-ibtn:active:not(:disabled),
+.cc-nav-item:active,
+.cc-list-row--button:active,
+.cc-nav-dest:active .cc-nav-ind {
+  transform: scale(var(--press-scale));
+  transition-duration: var(--dur-xs);
+  transition-timing-function: var(--ease-standard);
+}
+
+/* ========== 2. Components in motion (§7.4) ========== */
+
+/* Segmented control: one raised thumb travels on the spring; --x/--w are
+   measured by the component. The checked button goes flat under it. */
+.cc-seg {
+  position: relative;
+  isolation: isolate;
+}
+.cc-seg-btn {
+  position: relative;
+  z-index: 1;
+}
+.cc-seg-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  width: var(--w, 0px);
+  border-radius: calc(var(--radius-md) - 2px);
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+  transform: translateX(var(--x, 0px));
+  transition:
+    transform var(--dur-spring) var(--ease-spring),
+    width var(--dur-spring) var(--ease-spring);
+  pointer-events: none;
+}
+.cc-seg:has(.cc-seg-thumb) .cc-seg-btn[aria-checked='true'] {
+  background: transparent;
+  box-shadow: none;
+}
+.cc-seg:has(.cc-seg-thumb) .cc-seg-btn[aria-checked='true']:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+/* Tabs: the 3 px indicator slides and resizes under the label, standard curve. */
+.cc-tabs {
+  position: relative;
+}
+.cc-tabs-ind {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: var(--w, 0px);
+  border-radius: 3px 3px 0 0;
+  background: var(--primary);
+  transform: translateX(var(--x, 0px));
+  transition:
+    transform var(--dur-md) var(--ease-standard),
+    width var(--dur-md) var(--ease-standard);
+  pointer-events: none;
+}
+.cc-tabs:has(.cc-tabs-ind) .cc-tab--on .cc-tab-inner::after {
+  display: none;
+}
+
+/* Nav bar: the pill opens outward from the icon on the spring (no fill mode,
+   so the focus ring's shadow isn't clipped once it has settled). */
+.cc-nav-dest[aria-current='page'] .cc-nav-ind,
+.cc-nav-dest--active .cc-nav-ind {
+  animation: cc-pill var(--dur-spring) var(--ease-spring);
+}
+@keyframes cc-pill {
+  from {
+    clip-path: inset(0 30% round var(--radius-full));
+  }
+  to {
+    clip-path: inset(0 0 round var(--radius-full));
+  }
+}
+
+/* Bottom sheet: up in --dur-lg emphasized-decelerate, down in --dur-md
+   emphasized-accelerate; the scrim fades to its .45 in --dur-md. A drag sets
+   --drag-y on the panel; letting go short of 30% springs it back. */
+.cc-scrim {
+  animation: cc-fade-in var(--dur-md) var(--ease-standard) both;
+}
+.cc-sheet-panel {
+  transform: translateY(var(--drag-y, 0px));
+  transition: transform var(--dur-spring) var(--ease-spring);
+  animation: cc-sheet-in var(--dur-lg) var(--ease-emphasized-decelerate);
+}
+.cc-sheet-layer--drag .cc-sheet-panel {
+  transition: none;
+}
+.cc-sheet-layer--out .cc-scrim {
+  animation: cc-fade-out var(--dur-md) var(--ease-standard) forwards;
+}
+.cc-sheet-layer--out .cc-sheet-panel {
+  animation: cc-sheet-out var(--dur-md) var(--ease-emphasized-accelerate) forwards;
+}
+.cc-sheet-handle {
+  cursor: grab;
+  touch-action: none;
+}
+@keyframes cc-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes cc-sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Toast: rise 16 px in --dur-md decelerate, hold (--toast-hold, timed by
+   Toast.tsx), out in --dur-sm accelerate. */
+.cc-toast {
+  animation: cc-toast-in var(--dur-md) var(--ease-decelerate) both;
+}
+.cc-toast--out {
+  animation: cc-toast-out var(--dur-sm) var(--ease-accelerate) forwards;
+}
+@keyframes cc-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes cc-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Badge: a count that goes up jumps to 135% and settles on the bouncy spring. */
+.cc-badge--bump {
+  animation: cc-bump var(--dur-spring-bouncy) var(--ease-spring-bouncy);
+}
+@keyframes cc-bump {
+  from {
+    transform: scale(1.35);
+  }
+}
+
+/* List entry: on a list's FIRST load (useFirstLoad → .cc-enter) rows rise 8 px,
+   --stagger apart, the delay capped at the sixth row. Later swaps use .cc-swap. */
+.cc-enter > * {
+  animation: cc-rise-in var(--dur-md) var(--ease-decelerate) both;
+}
+.cc-enter > :nth-child(2) {
+  animation-delay: var(--stagger);
+}
+.cc-enter > :nth-child(3) {
+  animation-delay: calc(2 * var(--stagger));
+}
+.cc-enter > :nth-child(4) {
+  animation-delay: calc(3 * var(--stagger));
+}
+.cc-enter > :nth-child(5) {
+  animation-delay: calc(4 * var(--stagger));
+}
+.cc-enter > :nth-child(n + 6) {
+  animation-delay: calc(5 * var(--stagger));
+}
+.cc-swap {
+  animation: cc-fade-in var(--dur-sm) var(--ease-standard) both;
+}
+@keyframes cc-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Loading: nothing for --skeleton-delay, then skeleton rows with the slow shimmer. */
+.cc-skel {
+  display: grid;
+  gap: var(--space-3);
+  opacity: 0;
+  animation: cc-skel-in var(--dur-sm) var(--ease-standard) var(--skeleton-delay) forwards;
+}
+@keyframes cc-skel-in {
+  to {
+    opacity: 1;
+  }
+}
+.cc-skel-row {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+}
+.cc-skel-row > div {
+  display: grid;
+  gap: var(--space-2);
+}
+.cc-skel-line {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    90deg,
+    var(--neutral-soft) 0 35%,
+    color-mix(in oklab, var(--neutral-soft), var(--surface) 70%) 50%,
+    var(--neutral-soft) 65% 100%
+  );
+  background-size: 300% 100%;
+  animation: cc-shimmer var(--loop-shimmer) linear infinite;
+}
+.cc-skel-row > .cc-skel-line:first-child {
+  height: 40px;
+  border-radius: var(--radius-md);
+}
+@keyframes cc-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Pass sheen: a band of the club's hue crosses the pass header every --loop-sheen. */
+.cc-pass-top {
+  position: relative;
+  overflow: hidden;
+}
+.cc-pass-top::after {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    color-mix(in oklab, var(--cc-accent) 30%, transparent) 48%,
+    color-mix(in oklab, white 55%, transparent) 50%,
+    color-mix(in oklab, var(--cc-accent) 30%, transparent) 52%,
+    transparent 58%
+  );
+  transform: translateX(-60%);
+  animation: cc-sheen var(--loop-sheen) var(--ease-standard) infinite;
+  pointer-events: none;
+}
+@keyframes cc-sheen {
+  0% {
+    transform: translateX(-60%);
+  }
+  45%,
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+/* QR reissue: the old code fades out, the new one fades in after it. */
+.cc-qr-out {
+  animation: cc-fade-out var(--dur-md) linear forwards;
+}
+.cc-qr-in {
+  animation: cc-fade-in var(--dur-md) linear var(--dur-md) both;
+}
+
+/* Approval chain: the connector fills green left to right in --dur-lg, then the
+   next dot takes its colour (--dur-sm, after --dur-md). */
+.cc-flow-step + .cc-flow-step::before {
+  background: linear-gradient(90deg, var(--success) 50%, var(--line-strong) 50%) right / 200% 100%
+    no-repeat;
+  transition: background-position var(--dur-lg) var(--ease-standard);
+}
+.cc-flow-step + .cc-flow-step--reached::before {
+  background-position: left;
+}
+.cc-flow--vertical .cc-flow-step:not(:last-child)::after {
+  background: linear-gradient(180deg, var(--success) 50%, var(--line-strong) 50%) bottom / 100% 200%
+    no-repeat;
+  transition: background-position var(--dur-lg) var(--ease-standard);
+}
+.cc-flow--vertical .cc-flow-step--done:not(:last-child)::after {
+  background-position: top;
+}
+.cc-flow-dot {
+  transition:
+    background-color var(--dur-sm) var(--ease-standard) var(--dur-md),
+    border-color var(--dur-sm) var(--ease-standard) var(--dur-md),
+    color var(--dur-sm) var(--ease-standard) var(--dur-md),
+    box-shadow var(--dur-sm) var(--ease-standard) var(--dur-md);
+}
+
+/* Scan result: the viewfinder flashes the result's hue — one pulse for ok, two
+   for warn, a held flash for bad — and the verdict rises on the spring. */
+.cc-vf-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+.cc-vf-flash--ok {
+  background: var(--success);
+  animation: cc-flash var(--flash-ok) linear;
+}
+.cc-vf-flash--warn {
+  background: var(--warning);
+  animation: cc-flash var(--flash-warn) linear 2;
+}
+.cc-vf-flash--bad {
+  background: var(--danger);
+  animation: cc-flash-hold calc(var(--flash-bad) / 0.6) linear;
+}
+@keyframes cc-flash {
+  25% {
+    opacity: var(--flash-peak);
+  }
+}
+@keyframes cc-flash-hold {
+  15%,
+  60% {
+    opacity: var(--flash-peak);
+  }
+}
+.cc-rise {
+  animation: cc-rise var(--dur-spring) var(--ease-spring) both;
+}
+@keyframes cc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+/* Status chip: a tone change blends hue and wash through Oklab (--mix is a
+   registered property, tokens.css) and the new icon pops on the bouncy spring.
+   Chip sets data-from to the previous tone for one render. */
+.cc-chip--draft {
+  --to-c: var(--ink-muted);
+  --to-soft: var(--neutral-soft);
+}
+.cc-chip--pending {
+  --to-c: var(--warning);
+  --to-soft: var(--warning-soft);
+}
+.cc-chip--in-review {
+  --to-c: var(--on-primary-soft);
+  --to-soft: var(--status-info-soft);
+}
+.cc-chip--approved {
+  --to-c: var(--success);
+  --to-soft: var(--success-soft);
+}
+.cc-chip--rejected {
+  --to-c: var(--danger);
+  --to-soft: var(--danger-soft);
+}
+.cc-chip--neutral {
+  --to-c: var(--ink);
+  --to-soft: var(--neutral-soft);
+}
+.cc-chip[data-from='draft'] {
+  --from-c: var(--ink-muted);
+  --from-soft: var(--neutral-soft);
+}
+.cc-chip[data-from='pending'] {
+  --from-c: var(--warning);
+  --from-soft: var(--warning-soft);
+}
+.cc-chip[data-from='in-review'] {
+  --from-c: var(--on-primary-soft);
+  --from-soft: var(--status-info-soft);
+}
+.cc-chip[data-from='approved'] {
+  --from-c: var(--success);
+  --from-soft: var(--success-soft);
+}
+.cc-chip[data-from='rejected'] {
+  --from-c: var(--danger);
+  --from-soft: var(--danger-soft);
+}
+.cc-chip[data-from='neutral'] {
+  --from-c: var(--ink);
+  --from-soft: var(--neutral-soft);
+}
+.cc-chip[data-from] {
+  color: color-mix(in oklab, var(--to-c) var(--mix), var(--from-c));
+  background: color-mix(in oklab, var(--to-soft) var(--mix), var(--from-soft));
+  animation: cc-mix var(--dur-sm) var(--ease-standard) forwards;
+}
+.cc-chip[data-from] .cc-icon {
+  animation: cc-pop var(--dur-spring-bouncy) var(--ease-spring-bouncy) both;
+}
+@keyframes cc-mix {
+  from {
+    --mix: 0%;
+  }
+  to {
+    --mix: 100%;
+  }
+}
+@keyframes cc-pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+/* Edit lands: a cell edited while the sheet is on screen flashes the editor's
+   colour at --wash-flash and settles on its kept wash. BudgetSheet adds
+   .cc-cell--flash only to cells that were not edited when it mounted. */
+.cc-sheet td.cc-cell--flash.cc-cell--edited-admin {
+  --edit-c: var(--edit-admin);
+  --edit-soft: var(--edit-admin-soft);
+  animation: cc-edit-flash var(--edit-flash) var(--ease-decelerate) both;
+}
+.cc-sheet td.cc-cell--flash.cc-cell--edited-management {
+  --edit-c: var(--edit-mgmt);
+  --edit-soft: var(--edit-mgmt-soft);
+  animation: cc-edit-flash var(--edit-flash) var(--ease-decelerate) both;
+}
+@keyframes cc-edit-flash {
+  from {
+    background-color: color-mix(in oklab, var(--edit-c) var(--wash-flash), var(--surface));
+  }
+  to {
+    background-color: var(--edit-soft);
+  }
+}
+
+@keyframes cc-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cc-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ========== 3. Transitions between pages (§7.5) ==========
+   The shell runs each navigation inside document.startViewTransition and puts
+   the kind — tab | push | pop | crossfade (motion.ts navKind) — on
+   <html data-vt>. The nav bar and the top bar's row are named so they never
+   move; everything else is the root snapshot. */
+.cc-nav,
+.cc-sidebar {
+  view-transition-name: tabbar;
+}
+.cc-vt-appbar {
+  view-transition-name: appbar;
+}
+::view-transition-group(tabbar),
+::view-transition-group(appbar) {
+  animation: none;
+}
+
+/* Peers in the nav bar: fade through */
+html[data-vt='tab']::view-transition-old(root) {
+  animation: var(--fade-through-out) var(--ease-accelerate) both cc-fade-out;
+}
+html[data-vt='tab']::view-transition-new(root) {
+  animation: var(--fade-through-in) var(--ease-emphasized-decelerate) var(--fade-through-out) both
+    cc-fade-scale-in;
+}
+
+/* Parent to child, and back */
+html[data-vt='push']::view-transition-old(root) {
+  animation: var(--dur-lg) var(--ease-emphasized-decelerate) both cc-drift-left;
+}
+html[data-vt='push']::view-transition-new(root) {
+  animation: var(--dur-lg) var(--ease-emphasized-decelerate) both cc-from-right;
+}
+html[data-vt='pop']::view-transition-old(root) {
+  animation: var(--dur-lg) var(--ease-emphasized-decelerate) both cc-to-right;
+  z-index: 1;
+}
+html[data-vt='pop']::view-transition-new(root) {
+  animation: var(--dur-lg) var(--ease-emphasized-decelerate) both cc-drift-back;
+}
+
+/* Change of context (sign out, theme): crossfade, no direction */
+html[data-vt='crossfade']::view-transition-old(root) {
+  animation: var(--dur-md) var(--ease-standard) both cc-fade-out;
+}
+html[data-vt='crossfade']::view-transition-new(root) {
+  animation: var(--dur-md) var(--ease-standard) both cc-fade-in;
+}
+
+@keyframes cc-fade-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes cc-from-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes cc-to-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes cc-drift-left {
+  to {
+    transform: translateX(-25%);
+    filter: brightness(0.92);
+  }
+}
+@keyframes cc-drift-back {
+  from {
+    transform: translateX(-25%);
+    filter: brightness(0.92);
+  }
+}
+
+/* ========== 4. Reduce motion (§7.6) ==========
+   Slides and springs become --dur-sm crossfades, loops stop, hue flashes stay
+   as a single fade. Written once for the device setting and once for an
+   explicit <html data-motion="reduced"> (motion.ts setMotion). */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) {
+    &::view-transition-old(root) {
+      animation: var(--dur-sm) var(--ease-standard) both cc-fade-out;
+    }
+    &::view-transition-new(root) {
+      animation: var(--dur-sm) var(--ease-standard) both cc-fade-in;
+    }
+    & :is(.cc-btn, .cc-ibtn, .cc-nav-item, .cc-list-row--button):active,
+    & .cc-nav-dest:active .cc-nav-ind {
+      transform: none;
+    }
+    & :is(.cc-seg-thumb, .cc-tabs-ind, .cc-switch-thumb, .cc-sheet-panel) {
+      transition: none;
+    }
+    & :is(.cc-nav-dest[aria-current='page'], .cc-nav-dest--active) .cc-nav-ind,
+    & :is(.cc-badge--bump, .cc-chip[data-from] .cc-icon, .cc-rise, .cc-toast, .cc-sheet-panel) {
+      animation-name: cc-fade-in;
+      animation-duration: var(--dur-sm);
+      animation-timing-function: var(--ease-standard);
+    }
+    & :is(.cc-toast--out, .cc-sheet-layer--out .cc-sheet-panel) {
+      animation-name: cc-fade-out;
+    }
+    & .cc-enter > * {
+      animation-name: cc-fade-in;
+      animation-delay: 0s;
+    }
+    & :is(.cc-live-dot, .cc-vf-line, .cc-skel-line),
+    & .cc-pass-top::after {
+      animation: none;
+    }
+    & .cc-vf-line {
+      transform: translateY(50%);
+    }
+    & .cc-vf-flash--warn {
+      animation-iteration-count: 1;
+    }
+  }
+}
+html[data-motion='reduced'] {
+  &::view-transition-old(root) {
+    animation: var(--dur-sm) var(--ease-standard) both cc-fade-out;
+  }
+  &::view-transition-new(root) {
+    animation: var(--dur-sm) var(--ease-standard) both cc-fade-in;
+  }
+  & :is(.cc-btn, .cc-ibtn, .cc-nav-item, .cc-list-row--button):active,
+  & .cc-nav-dest:active .cc-nav-ind {
+    transform: none;
+  }
+  & :is(.cc-seg-thumb, .cc-tabs-ind, .cc-switch-thumb, .cc-sheet-panel) {
+    transition: none;
+  }
+  & :is(.cc-nav-dest[aria-current='page'], .cc-nav-dest--active) .cc-nav-ind,
+  & :is(.cc-badge--bump, .cc-chip[data-from] .cc-icon, .cc-rise, .cc-toast, .cc-sheet-panel) {
+    animation-name: cc-fade-in;
+    animation-duration: var(--dur-sm);
+    animation-timing-function: var(--ease-standard);
+  }
+  & :is(.cc-toast--out, .cc-sheet-layer--out .cc-sheet-panel) {
+    animation-name: cc-fade-out;
+  }
+  & .cc-enter > * {
+    animation-name: cc-fade-in;
+    animation-delay: 0s;
+  }
+  & :is(.cc-live-dot, .cc-vf-line, .cc-skel-line),
+  & .cc-pass-top::after {
+    animation: none;
+  }
+  & .cc-vf-line {
+    transform: translateY(50%);
+  }
+  & .cc-vf-flash--warn {
+    animation-iteration-count: 1;
+  }
+}

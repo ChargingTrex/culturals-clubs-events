@@ -9,6 +9,7 @@
 @import './shared/ds/tokens.css';
 @import './shared/ds/components.css' layer(components);
 @import './shared/ds/domain.css' layer(components);
+@import './shared/ds/motion.css' layer(components);
 @import './shared/ds/charts.css' layer(components);
 
 /* Page-wide element styles. In the base layer so components and utilities win. */

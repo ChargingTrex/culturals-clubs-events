@@ -7,6 +7,7 @@
  * attribute; every colour still comes from tokens.css.
  */
 import { useSyncExternalStore } from 'react';
+import { transition } from './transitions';
 
 export type Theme = 'system' | 'light' | 'dark';
 export const THEMES: Theme[] = ['system', 'light', 'dark'];
@@ -41,7 +42,7 @@ export function setTheme(theme: Theme) {
   } catch {
     /* private mode: still apply for this page */
   }
-  apply(theme);
+  transition('crossfade', () => apply(theme)); // §7.3: one --dur-md crossfade of the page
   window.dispatchEvent(new Event(EVENT));
 }
 

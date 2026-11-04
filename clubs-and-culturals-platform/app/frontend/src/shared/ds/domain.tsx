@@ -3,7 +3,7 @@
  * approvals, scan results, attendance and dashboard stats. Ported from the
  * design system's component bundle; styles in domain.css.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { cx } from './classes';
 import { Avatar, ClubIcon, Icon, StatusChip, Switch } from './components';
 import { POSITIONS, formatINR, type Accent, type Position } from './config';
@@ -395,6 +395,14 @@ export function BudgetSheet({
         ? 'mono-md'
         : 'body-md';
   const footKeys = new Set([...totals, ...Object.keys(totalValues)]);
+  // Cells already edited when the sheet mounted with data don't flash; an edit
+  // that lands while it is on screen does (motion.css .cc-cell--flash).
+  // shortcut: a sheet mounted empty never flashes; key it on the budget id if a page mounts it before data.
+  const [seen] = useState(() =>
+    rows.length
+      ? new Set(rows.flatMap((r, i) => Object.keys(r.edits ?? {}).map((k) => `${r.id ?? i}:${k}`)))
+      : null,
+  );
   return (
     <section className={cx('cc-card', 'cc-sheet-wrap', className)}>
       {title || legend || actions ? (
@@ -462,6 +470,7 @@ export function BudgetSheet({
                         c.align === 'right' && 'cc-al-right',
                         c.wrap && 'cc-cell--wrap',
                         ed && `cc-cell--edited-${ed.role}`,
+                        ed && seen && !seen.has(`${r.id ?? i}:${c.key}`) && 'cc-cell--flash',
                         over && 'cc-cell--over',
                       )}
                     >
@@ -687,16 +696,26 @@ export function Viewfinder({
   children,
   hint,
   scanning = true,
+  flash,
+  flashKey,
   className,
 }: {
   children?: ReactNode;
   hint?: ReactNode;
   scanning?: boolean;
+  /** Flash the frame with a result's hue (§7.3): once for ok, twice for warn, held for bad. */
+  flash?: ScanOutcome | 'ok' | 'warn' | 'bad' | null;
+  /** Changes with every result so the same tone flashes again. */
+  flashKey?: string | number;
   className?: string;
 }) {
+  const tone = flash && flash in SCAN ? SCAN[flash as ScanOutcome].tone : flash;
   return (
     <div className={cx('cc-vf', className)}>
       {children}
+      {tone && tone !== 'idle' ? (
+        <i key={flashKey} className={`cc-vf-flash cc-vf-flash--${tone}`} aria-hidden="true" />
+      ) : null}
       <div className="cc-vf-frame" aria-hidden="true">
         <i className="cc-vf-c cc-vf-c--tl" />
         <i className="cc-vf-c cc-vf-c--tr" />

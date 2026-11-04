@@ -22,7 +22,11 @@ export function Verdict({ last }: { last: LastScan | null }) {
   if (last.kind === 'queued') {
     return (
       <div key={last.at} data-testid="verdict" data-result="queued">
-        <div className="cc-scan cc-scan--warn cc-scan--big" role="status" aria-live="assertive">
+        <div
+          className="cc-scan cc-scan--warn cc-scan--big cc-rise"
+          role="status"
+          aria-live="assertive"
+        >
           <span className="cc-scan-icon">
             <Icon name="upload" size={30} />
           </span>
@@ -48,6 +52,7 @@ export function Verdict({ last }: { last: LastScan | null }) {
           result={o.result}
           label={o.verdict}
           big
+          className="cc-rise"
           who={s ? <b className="title-md text-ink">{s.full_name}</b> : undefined}
         >
           {s ? (
