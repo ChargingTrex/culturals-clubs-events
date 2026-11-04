@@ -12,34 +12,34 @@ Test Tags         ui
 Student
     [Tags]    smoke
     Sign In As    ${STUDENT_EMAIL}
-    Wait For Heading    What's on
-    Pages Should Be    What's on    My passes    Profile QR
+    Wait For Heading    Feed
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs
     Snapshot    10-student-nav
 
 Club member
     Sign In As    ${MEMBER_EMAIL}
-    Wait For Heading    What's on
-    Pages Should Be    What's on    My passes    Profile QR    Club events    Members & roles
+    Wait For Heading    Feed
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    Members & roles
 
 Secretary
     Sign In As    ${SECRETARY_EMAIL}
-    Wait For Heading    What's on
-    Pages Should Be    What's on    My passes    Profile QR    Club events    New event    Members & roles    Scan station
+    Wait For Heading    Feed
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Members & roles    Scan station
 
 Treasurer
     Sign In As    ${TREASURER_EMAIL}
-    Wait For Heading    What's on
-    Pages Should Be    What's on    My passes    Profile QR    Club events    New event    Budget    Members & roles
+    Wait For Heading    Feed
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles
 
 President
     Sign In As    ${PRESIDENT_EMAIL}
-    Wait For Heading    What's on
-    Pages Should Be    What's on    My passes    Profile QR    Club events    New event    Budget    Members & roles    Scan station
+    Wait For Heading    Feed
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles    Scan station
 
 Organiser of the live event
     Sign In As    ${LENS_PRESIDENT_EMAIL}
-    Wait For Heading    What's on
-    Pages Should Be    What's on    My passes    Profile QR    Club events    New event    Budget    Members & roles    Scan station
+    Wait For Heading    Feed
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles    Scan station
 
 Cultural Society
     Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}

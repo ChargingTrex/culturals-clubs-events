@@ -12,9 +12,11 @@ What's on, register, hold the pass, reissue the profile QR, sign out
     [Tags]    smoke
     Open App    width=${390}    height=${844}
     Sign In As    ${STUDENT_EMAIL}
-    Wait For Heading    What's on
+    Wait For Heading    Feed
     ${pages}=    Offered Pages    nav-bottom
-    Lists Should Be Equal    ${pages}    ${{ ["What's on", 'My passes', 'Profile QR'] }}
+    Lists Should Be Equal    ${pages}    ${{ ['Feed', "What's on", 'My passes', 'Profile QR', 'Clubs'] }}
+    Click Link    What's on
+    Wait For Heading    What's on
     Wait For Elements State    [data-testid="event-row"] >> nth=0    visible
     Click Link    ${PUBLISHED_EVENT}
     Wait For Heading    ${PUBLISHED_EVENT}

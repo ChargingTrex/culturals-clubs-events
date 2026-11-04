@@ -13,7 +13,7 @@ Test Tags         ui
 Treasurer: New event priced later, two budget entries, send for approval
     [Tags]    smoke
     Sign In As    ${TREASURER_EMAIL}
-    Wait For Heading    What's on
+    Wait For Heading    Feed
     Click Link    New event
     Wait For Heading    New event
     Fill Field    Title    E2E UI Monsoon Set
@@ -36,7 +36,7 @@ Treasurer: New event priced later, two budget entries, send for approval
 
 President changes a member's role, and puts it back
     Sign In As    ${PRESIDENT_EMAIL}
-    Wait For Heading    What's on
+    Wait For Heading    Feed
     Click Link    Members & roles
     Wait For Heading    Music Club members
     Select Option    Role for ${member_name}    Core team
@@ -48,7 +48,7 @@ Treasurer is not offered the role control
     [Documentation]    Finding: the roster hides the control from anyone who may not assign roles, so the API's
     ...    CLUBS_ROLE_ASSIGN_DENIED message can never be shown on screen — the refusal is enforced by absence.
     Sign In As    ${TREASURER_EMAIL}
-    Wait For Heading    What's on
+    Wait For Heading    Feed
     Click Link    Members & roles
     Wait For Heading    Music Club members
     Wait For Elements State    [data-testid="member-row"] >> nth=0    visible

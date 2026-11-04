@@ -12,7 +12,7 @@ Checked in, duplicate, not recognised
     [Tags]    smoke
     Open App
     Sign In As    ${LENS_PRESIDENT_EMAIL}
-    Wait For Heading    What's on
+    Wait For Heading    Feed
     Click Link    Scan station
     Wait For Heading    Scan station
     ${door}=    Get Element By    Label    Event at this door
