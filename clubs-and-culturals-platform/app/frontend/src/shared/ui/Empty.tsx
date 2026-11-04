@@ -12,10 +12,19 @@ export function Empty({ children, action }: { children: ReactNode; action?: Reac
   );
 }
 
+/** Nothing for --skeleton-delay, then shimmering skeleton rows (motion.css .cc-skel). */
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
-    <p role="status" className="body-md p-11 text-center text-ink-muted">
-      {label}
-    </p>
+    <div role="status" aria-label={label} className="cc-skel p-4">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="cc-skel-row">
+          <i className="cc-skel-line" />
+          <div>
+            <i className="cc-skel-line w-3/5" />
+            <i className="cc-skel-line w-2/5" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

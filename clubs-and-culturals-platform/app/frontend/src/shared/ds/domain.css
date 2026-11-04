@@ -497,9 +497,6 @@
   border-radius: var(--radius-full);
   background: var(--line-strong);
 }
-.cc-flow-step--reached::before {
-  background: var(--success) !important;
-}
 .cc-flow-dot {
   display: grid;
   place-items: center;
@@ -812,26 +809,37 @@
   border-width: 0 5px 5px 0;
   border-bottom-right-radius: var(--radius-lg);
 }
+/* The line rides the top edge of an 80%-tall carrier: translateY(100%) of the
+   carrier takes it from 10% to 90% of the frame without touching layout. */
 .cc-vf-line {
   position: absolute;
   left: 8%;
   right: 8%;
   top: 10%;
+  height: 80%;
+  pointer-events: none;
+  animation: cc-scanline var(--loop-scan) ease-in-out infinite alternate;
+}
+.cc-vf-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
   height: 2px;
   border-radius: var(--radius-full);
   background: var(--on-viewfinder);
   opacity: 0.85;
-  animation: cc-scanline 2.2s ease-in-out infinite alternate;
 }
 @keyframes cc-scanline {
   to {
-    top: 90%;
+    transform: translateY(100%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .cc-vf-line {
     animation: none;
-    top: 50%;
+    transform: translateY(50%);
   }
 }
 .cc-vf-hint {

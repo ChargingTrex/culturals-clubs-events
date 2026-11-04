@@ -295,6 +295,8 @@ function Station({ event }: { event: EventOut }) {
             <Viewfinder
               className="aspect-[4/3]"
               scanning={cameraOn}
+              flash={last ? (last.kind === 'outcome' ? last.outcome.result : 'warn') : null}
+              flashKey={last?.at}
               hint={
                 scan.isPending
                   ? 'Checking…'

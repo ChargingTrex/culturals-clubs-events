@@ -1,15 +1,17 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { logout, useSession } from '../auth/store';
 import { useCapabilities } from '../auth/useCapabilities';
 import { Avatar, Icon, topPosition } from '../ds';
 import { roleLabel } from '../format';
+import { allowedPages } from '../nav/pages';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Loading } from './Empty';
 import { Nav, SignOutButton } from './Nav';
 import { ProblemView } from './ProblemView';
 import { ThemeToggle } from './ThemeToggle';
+import { transition, usePageTransitions } from './transitions';
 
 function greeting(now = new Date()): string {
   const h = now.getHours();
@@ -62,10 +64,17 @@ export function AppShell() {
   const location = useLocation();
   const queryClient = useQueryClient();
 
+  // Pages in the nav bar are peers (fade through); the rest push and pop (§7.5).
+  const barPaths = useMemo(
+    () => (capabilities ? allowedPages(capabilities).map((p) => p.path) : []),
+    [capabilities],
+  );
+  usePageTransitions(barPaths);
+
   const signOut = async () => {
     await logout();
     queryClient.clear();
-    navigate('/signin', { replace: true });
+    transition('crossfade', () => navigate('/signin', { replace: true }));
   };
 
   const roles = me?.roles ?? session?.claims.roles ?? [];
@@ -113,7 +122,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Phone top bar: wordmark, then who is signed in. */}
         <header className="cc-bar cc-bar--small md:hidden">
-          <div className="cc-bar-row">
+          <div className="cc-bar-row cc-vt-appbar">
             <strong className="title-md text-navy">Culturals</strong>
             <div className="ml-auto flex min-w-0 items-center gap-2">
               <ThemeToggle />
@@ -124,7 +133,7 @@ export function AppShell() {
 
         {/* Desktop top bar (design system: small app bar with search and the person). */}
         <header className="cc-bar cc-bar--small hidden lg:block" data-testid="desktop-bar">
-          <div className="cc-bar-row mx-auto w-full max-w-[1280px] gap-6 px-8">
+          <div className="cc-bar-row cc-vt-appbar mx-auto w-full max-w-[1280px] gap-6 px-8">
             <div className="min-w-0 shrink-0">
               <div className="title-sm truncate">
                 {greeting()}
