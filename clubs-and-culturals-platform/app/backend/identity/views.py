@@ -22,7 +22,8 @@ from identity import tokens
 from identity.models import LOGIN_ALLOWED, Status, User
 from identity.serializers import (
     AuthModeSerializer, DemoPersonasSerializer, DemoSessionSerializer, DirectoryResultsSerializer,
-    MeSerializer, RefreshRequestSerializer, SemesterSerializer, SessionSerializer,
+    MeSerializer, PreferencesPatchSerializer, PreferencesSerializer, RefreshRequestSerializer,
+    SemesterSerializer, SessionSerializer,
 )
 
 
@@ -177,7 +178,35 @@ class MeView(APIView):
             "programme": ctx.programme, "year": ctx.year, "roles": list(ctx.roles),
             "mfa": ctx.mfa,
             "capabilities": _capabilities(ctx),
+            "preferences": _preferences(request.user.record),
         })
+
+
+def _preferences(user):
+    stored = (user.preferences if user is not None else None) or {}
+    return {"personalised_feed": bool(stored.get("personalised_feed", False))}
+
+
+class PreferencesView(APIView):
+    """The caller's own preferences only: there is no path that names another user."""
+
+    @extend_schema(responses=PreferencesSerializer, summary="The caller's preferences")
+    def get(self, request):
+        return Response(_preferences(request.user.record))
+
+    @extend_schema(request=PreferencesPatchSerializer, responses=PreferencesSerializer,
+                   summary="Change one or more preferences; unknown keys are refused")
+    def patch(self, request):
+        data = PreferencesPatchSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        user = request.user.record
+        if user is None:
+            raise ProblemDetail(code="AUTH_NO_LOCAL_USER", title="No local account",
+                                status_code=422,
+                                detail="Preferences need a local user record; this token has none.")
+        user.preferences = {**(user.preferences or {}), **data.validated_data}
+        user.save(update_fields=["preferences", "updated_at"])
+        return Response(_preferences(user))
 
 
 def _capabilities(ctx):
@@ -210,7 +239,19 @@ def _capabilities(ctx):
         "can_see_overview": ctx.has_any(R.DEAN, R.ADMIN, R.CULTURAL_SOCIETY),
         "organiser_events": sorted(ctx.organiser_events()),
         "approval_stages": [s for s, role in R.STAGE_ROLE.items() if ctx.has_any(role)],
+        # Counted from the rows, not the token, so "2 of 3" is right the moment
+        # a join or leave lands rather than at the next refresh.
+        "my_clubs_count": _active_membership_count(ctx.student_id),
+        "max_club_memberships": settings.MAX_CLUB_MEMBERSHIPS,
     }
+
+
+def _active_membership_count(student_id):
+    from clubs.models import Membership
+
+    if not student_id:
+        return 0
+    return Membership.objects.filter(student_id=student_id, ended_at__isnull=True).count()
 
 
 class SemesterView(APIView):

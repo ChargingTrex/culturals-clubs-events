@@ -422,6 +422,7 @@ erDiagram
 | mfa_enabled | bool | no | default false | |
 | status | char(16) | no | `Status`: provisional, active, on_leave, graduated, withdrawn, suspended; default active | `can_login` = `is_active and status in (active, on_leave, graduated)` |
 | is_staff / is_active | bool | no | defaults false / true | Django admin flags |
+| preferences | JSON object | no | default `{}` | F-08.2: the user's own UI preferences; only `personalised_feed` (bool) is accepted by `PATCH /module/auth/preferences`, absent = false |
 | password, last_login, is_superuser, groups, user_permissions | | | | inherited from Django |
 
 **Student** (`identity_student`, ordering `prn`)
@@ -902,10 +903,15 @@ Source: `common/roles.py`; mirrored verbatim in `web-app/src/roles.js`.
     "clubs_can_enter_spend": [], "clubs_door_staff": [],
     "can_see_overview": false,
     "organiser_events": ["<event uuid>"],
-    "approval_stages": ["cultural_society", "dean", "vc"]
-  }
+    "approval_stages": ["cultural_society", "dean", "vc"],
+    "my_clubs_count": 2,
+    "max_club_memberships": 3
+  },
+  "preferences": {"personalised_feed": false}
 }
 ```
+
+`my_clubs_count` is counted from the active `Membership` rows at request time (not the token), `max_club_memberships` echoes `settings.MAX_CLUB_MEMBERSHIPS` (default 3); the UI shows "2 of 3". `preferences` is the same object `GET /module/auth/preferences` returns.
 
 All `clubs_*` lists are sorted club ids derived from the corresponding capability set; `can_see_overview` = dean | admin | cultural_society; `approval_stages` lists the `STAGE_ROLE` keys whose role the caller holds **by role only** — stages held through a delegation are not in this payload (read `stages_delegated_to_you` on `GET /governance/approvals/queue`). Advisory only: every capability is re-checked server-side.
 
@@ -923,7 +929,7 @@ Shape aliases used below:
 - **ApprovalOut** (`ApprovalRequestSerializer`): `id, event, event_title, club, club_id, venue, starts_at, ends_at, expected_attendance, stages, current_stage, stage_label, state, amount_requested, requires_vc, vc_reason, steps[StepOut], lines[{id, head, amount_requested, amount_sanctioned}], clashes[{id, title, club, starts_at, ends_at, expected_attendance}], my_stage, requires_mfa, nil_declaration, stage_entered_at, age_hours, escalated, created_at`. `my_stage` is true when the caller holds `current_stage` by role **or active delegation**; `requires_mfa` reflects the amount/VC rule only (a delegate additionally always needs MFA). **StepOut**: `id, stage, stage_label, decision, comment, actor_label, actor_role, mfa_verified, amount_sanctioned, on_behalf_of (user id|null), on_behalf_of_label, created_at`.
 - **DelegationOut** (`DelegationSerializer`): `id, stage, stage_label, principal_user, principal_label, delegate_user, delegate_label, starts_at, ends_at, reason, created_by, created_by_label, revoked_at, revoked_by_label, status (scheduled|active|expired|revoked), is_active, created_at`.
 - **MembershipOut**: `id, club, student, prn, full_name, department, programme, year, role, role_label, joined_at, ended_at`. **RoleChangeOut**: `id, membership, actor_label, from_role, to_role, reason, created_at`.
-- **ClubOut**: `id, name, slug, tag, category, description, instagram_handle, status, join_mode, last_activity_at, member_count, my_role` (`join_mode` writable; `last_activity_at` read-only). `my_role` comes from the token, i.e. the term-derived role.
+- **ClubOut**: `id, name, slug, tag, category, description, instagram_handle, status, join_mode, last_activity_at, member_count, my_role, my_join_request_state` (`join_mode` writable; `last_activity_at` read-only). `my_role` comes from the token, i.e. the term-derived role. `my_join_request_state` is `pending` while the caller's own join request waits, else `null` (F-06.1 "Requested" badge; a student cannot read the queue).
 - **JoinRequestOut**: `id, club, student, prn, full_name, department, programme, year, state, note, decided_by_label, decided_at, created_at`. **TermOut** (`OfficeBearerTermSerializer`): `id, club, student, prn, full_name, role, role_label, starts_at, ends_at, created_by_label, created_at`. **OrganiserOut** (`EventOrganiserSerializer`): `id, event, student, prn, full_name, assigned_by_label, ends_at, created_at`.
 - **VenueOut**: `id, name, capacity, location, active`.
 - **RegistrationOut**: `id, event, event_title, source, waitlisted, attended, checked_in_at, cancelled_at, pass_token, registered_at` (`pass_token` null unless the caller owns it, and always null while `waitlisted`).
@@ -940,7 +946,9 @@ Shape aliases used below:
 | POST | `/module/auth/login` | anyone (local mode only) | `email, password, mfa_code?` | Session | `AUTH_SSO_REQUIRED` 400, `AUTH_INVALID_CREDENTIALS` 401, `AUTH_MFA_REQUIRED` 401 (errors on `mfa_code`), `AUTH_ACCOUNT_NOT_ACTIVE` 403 |
 | POST | `/module/auth/refresh` | anyone | `refresh_token` | Session (rotated) | `AUTH_INVALID_CREDENTIALS` 401 (unknown, replayed, expired, revoked, account cannot log in) |
 | POST | `/module/auth/logout` | authenticated | — | 204 | — |
-| GET | `/module/auth/me` | authenticated | — | see §5 | — |
+| GET | `/module/auth/me` | authenticated | — | see §5 (incl. `capabilities.my_clubs_count`, `capabilities.max_club_memberships`, `preferences`) | — |
+| GET | `/module/auth/preferences` | authenticated | — | `{personalised_feed}` — the caller's own; absent key = `false` | — |
+| PATCH | `/module/auth/preferences` | authenticated | `personalised_feed? (bool)` — any other key is refused | `{personalised_feed}` (merged) | `VALIDATION_FAILED` 422 (unknown key, errors on that field), `AUTH_NO_LOCAL_USER` 422 (platform-mode token with no local User) |
 | GET | `/module/directory/students?q=` | dean, admin, holders of `event_organiser:*`, or any `DOOR_STAFF` club role | — | `results[{student_id, prn, full_name, department, programme, year}]` | `DIRECTORY_NOT_PERMITTED` 403 |
 | GET | `/module/semesters` | authenticated | — | `[{id, name, starts_on, ends_on, is_current}]` (unpaginated) | — |
 | GET | `/module/auth/demo/personas` | anyone — **DEMO_MODE only** | — | `demo_mode, personas[{key, label, sub, available, name}]` | `NOT_FOUND` 404 when off |
@@ -960,19 +968,20 @@ Persona keys: `student, organiser, president, treasurer, member, society, dean, 
 | PUT / PATCH | `/clubs/{id}` | dean, admin | same writable fields + `join_mode` | ClubOut; switching `approval` → `open` accepts every pending join request (each audited `club.join_accepted`, applicant notified) | `CLUBS_NOT_PERMITTED` 403 |
 | DELETE | `/clubs/{id}` | dean, admin | — | 204; sets `status=archived` | `CLUBS_NOT_PERMITTED` 403 |
 | GET | `/clubs/{id}/members` | dean, admin, or any club role in that club | — | `club{id, name, join_mode}, can_assign_roles, results[MembershipOut], recent_changes[RoleChangeOut] (10), pending_join_requests (int — only for President/VP or dean/admin)`; writes audit `club.roster.read` | `NOT_FOUND` 404 (deliberately not 403) |
-| POST | `/clubs/{id}/join` | student (`student_id` claim with a local `Student` row) | — | open club: MembershipOut **201** (role `club_member`, audit `club.joined`); approval club: JoinRequestOut **202** (audit `club.join_requested`, current President/VP notified) | `CLUBS_STUDENTS_ONLY` 403, `CLUBS_NOT_A_STUDENT` 422 (platform-mode token with no local Student), `CLUBS_ARCHIVED` 409, `CLUBS_ALREADY_MEMBER` 409, `CLUBS_JOIN_PENDING` 409 (dormant clubs accept joins) |
+| POST | `/clubs/{id}/join` | student (`student_id` claim with a local `Student` row) | — | open club: MembershipOut **201** (role `club_member`, audit `club.joined`); approval club: JoinRequestOut **202** (audit `club.join_requested`, current President/VP notified) | `CLUBS_STUDENTS_ONLY` 403, `CLUBS_NOT_A_STUDENT` 422 (platform-mode token with no local Student), `CLUBS_ARCHIVED` 409, `CLUBS_ALREADY_MEMBER` 409, `CLUBS_JOIN_PENDING` 409 (dormant clubs accept joins), `CLUBS_MEMBERSHIP_LIMIT` 409 (already holds `MAX_CLUB_MEMBERSHIPS` active memberships — refused for open joins and for new join requests alike; checked under a lock on the Student row) |
+| POST | `/clubs/{id}/leave` | the member themself | — | **204**; sets `ended_at` on the active membership, audit `club.left`; nothing else is touched (no activity bump, no notification) | `NOT_FOUND` 404 (not an active member), `CLUBS_OFFICE_BEARER_CANNOT_LEAVE` 409 (effective role is President/VP/Treasurer/Secretary — hand over first) |
 | GET | `/clubs/{id}/join-requests?state=pending\|accepted\|declined\|all` | president or vice_president of the club | — | `club{id, name, join_mode}, results[JoinRequestOut]` (default `pending`) | `NOT_FOUND` 404 (no connection to the club), `CLUBS_ROLE_ASSIGN_DENIED` 403 (other club role, **and dean/admin** — B-18 open) |
-| POST | `/clubs/{id}/join-requests/{request_id}/accept` | president or vice_president | `note? (≤280)` | JoinRequestOut (state accepted; membership created, or the existing one reused with note "Already a member"); applicant notified `club.join_accepted`; audit `club.join_accepted` | `NOT_FOUND` 404 (club, or request id not a UUID / not on this club), `CLUBS_ROLE_ASSIGN_DENIED` 403, `CLUBS_JOIN_ALREADY_DECIDED` 409 |
+| POST | `/clubs/{id}/join-requests/{request_id}/accept` | president or vice_president | `note? (≤280)` | JoinRequestOut (state accepted; membership created, or the existing one reused with note "Already a member"); applicant notified `club.join_accepted`; audit `club.join_accepted` | `NOT_FOUND` 404 (club, or request id not a UUID / not on this club), `CLUBS_ROLE_ASSIGN_DENIED` 403, `CLUBS_JOIN_ALREADY_DECIDED` 409, `CLUBS_MEMBERSHIP_LIMIT` 409 (the applicant is already at the cap: the request **stays pending** and the officer sees the refusal; `approval → open` switches skip such requests instead of failing) |
 | POST | `/clubs/{id}/join-requests/{request_id}/decline` | president or vice_president | `note? (≤280)` | JoinRequestOut (state declined); applicant notified `club.join_declined` | as accept |
 | POST | `/memberships/{id}/role` | president or vice_president of the membership's club | `role (club role), reason? (≤280)` | MembershipOut; also closes the pair's current `OfficeBearerTerm`s and opens one for an office role; touches club activity | `NOT_FOUND` 404 (not visible), `CLUBS_ROLE_ASSIGN_DENIED` 403, `CLUBS_PRESIDENT_EXISTS` 409, `VALIDATION_FAILED` |
 | POST | `/clubs/{id}/handover` | president or vice_president | `effective_at (datetime), assignments[{student_id, role ∈ president\|vice_president\|treasurer\|secretary}]` | **201** `club{id, name}, effective_at, terms[TermOut]`. One transaction under a club row lock: every term for a named office or named student that is still open at `effective_at` is closed at `effective_at` (office holders with no term get a backfilled one), new terms open at `effective_at`, a `RoleChange` per assignment; if `effective_at <= now` the Membership rows are rewritten at once (`apply_due_terms`), otherwise the token changes on the date and the rows wait (B-17). Audit `club.handover`; incoming and outgoing bearers notified `club.handover` on commit | `NOT_FOUND` 404, `CLUBS_ROLE_ASSIGN_DENIED` 403 (incl. dean/admin — B-18 open), `CLUBS_HANDOVER_EMPTY` 422, `CLUBS_HANDOVER_DUPLICATE_ROLE` 422, `CLUBS_HANDOVER_DUPLICATE_STUDENT` 422, `CLUBS_HANDOVER_NOT_A_MEMBER` 422 (errors `assignments`/`NOT_A_MEMBER`), `CLUBS_HANDOVER_BACKDATED` 422 (an affected term started at or after `effective_at`; errors `effective_at`/`BEFORE_CURRENT_TERM`), `VALIDATION_FAILED` |
 | GET | `/clubs/{id}/office-bearers/history` | dean, admin, or president/VP/treasurer/secretary of the club | — | `club{id, name}, current[TermOut], results[TermOut]` (newest first) | `NOT_FOUND` 404 (deliberately not 403) |
 
-There is still no list/retrieve/create/delete for memberships (only the `role` action) and no endpoint to end a membership; `join` is the only way a membership is created through the API. `GET /clubs` has no filter parameters (B-16's `?category=` is open).
+There is still no list/retrieve/create/delete for memberships (only the `role` action); `join` is the only way a membership is created through the API and `leave` the only way a student ends their own. `GET /clubs` has no filter parameters (B-16's `?category=` is open).
 
 ### events (`/api/v1/…`)
 
-Visibility (`EventViewSet.get_queryset`): staff (`can_see_all_clubs`) see all; others see `PUBLIC_STATUSES` plus their own clubs' events plus organiser-scoped events — except for `DELETE`, where the queryset is the caller's own clubs only (a student or another club's officer gets 404 for a published event). Filters: `club`, `status` (comma list), `starts_at_after`, `starts_at_before`, `ordering` (default `starts_at`). No `category` filter (B-16 open).
+Visibility (`EventViewSet.get_queryset`): staff (`can_see_all_clubs`) see all; others see `PUBLIC_STATUSES` plus their own clubs' events plus organiser-scoped events — except for `DELETE`, where the queryset is the caller's own clubs only (a student or another club's officer gets 404 for a published event). Filters: `club`, `category`, `status` (comma list), `starts_at_after`, `starts_at_before`, `mine=true` (F-07: only clubs where the caller holds an active membership — read from the rows, so a club joined a moment ago already counts; a staff caller has none), `search=` (icontains on title or club name), `ordering` (default `starts_at`; `feed` = the caller's clubs' events first, then the rest, each by `starts_at`).
 
 | method | path | who may call | request body | response | error codes |
 |---|---|---|---|---|---|

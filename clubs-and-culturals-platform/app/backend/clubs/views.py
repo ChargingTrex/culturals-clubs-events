@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -148,6 +149,7 @@ class ClubViewSet(viewsets.ModelViewSet):
         if club.join_mode == Club.JoinMode.OPEN:
             try:
                 with transaction.atomic():
+                    self._assert_below_cap(ctx.student_id)
                     membership = Membership.objects.create(
                         club=club, student_id=ctx.student_id, role=R.CLUB_MEMBER)
             except IntegrityError:
@@ -162,6 +164,8 @@ class ClubViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                # A request that could never be accepted must not sit in the queue.
+                self._assert_below_cap(ctx.student_id)
                 join_request = JoinRequest.objects.create(club=club, student_id=ctx.student_id)
         except IntegrityError:
             raise Conflict(code="CLUBS_JOIN_PENDING", title="Request already pending",
@@ -173,6 +177,36 @@ class ClubViewSet(viewsets.ModelViewSet):
             "Accept or decline the request from the club roster.", "club.join_requested")
         return Response(JoinRequestSerializer(join_request).data,
                         status=status.HTTP_202_ACCEPTED)
+
+    def _assert_below_cap(self, student_id):
+        if services.at_membership_cap(student_id):
+            limit = settings.MAX_CLUB_MEMBERSHIPS
+            raise Conflict(code="CLUBS_MEMBERSHIP_LIMIT", title="Club limit reached",
+                           detail=f"You can be a member of up to {limit} clubs. "
+                                  "Leave one to join another.")
+
+    @extend_schema(request=None, responses={204: None},
+                   summary="Leave a club (the member themself; office bearers hand over first)")
+    @action(detail=True, methods=["post"])
+    def leave(self, request, pk=None):
+        club = self.get_object()
+        ctx = request.auth_context
+        membership = club.memberships.filter(
+            student_id=ctx.student_id or None, ended_at__isnull=True).first()
+        if membership is None:
+            raise _not_found(f"You are not a member of {club.name}.")
+        role = services.effective_role(membership)
+        if role in services.OFFICE_BEARER_ROLES:
+            raise Conflict(
+                code="CLUBS_OFFICE_BEARER_CANNOT_LEAVE", title="Office bearers cannot leave",
+                detail=(f"You are {Membership(role=role).get_role_display()} of {club.name}. "
+                        "Hand the office over before leaving."),
+            )
+        membership.ended_at = timezone.now()
+        membership.save(update_fields=["ended_at", "updated_at"])
+        audit_sink().record(actor=ctx, action="club.left", target=membership,
+                            before={"role": membership.role}, after={"club": club.name})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(
         parameters=[OpenApiParameter("state", OpenApiTypes.STR, OpenApiParameter.QUERY,

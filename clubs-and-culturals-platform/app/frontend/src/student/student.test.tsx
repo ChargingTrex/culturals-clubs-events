@@ -179,17 +179,17 @@ describe('sign-in', () => {
 });
 
 describe('navigation and guards', () => {
-  it('offers a student exactly three pages', async () => {
+  it('offers a student exactly five pages', async () => {
     renderAt('/events', { roles: ['student'] });
     const nav = await screen.findByTestId('nav-sidebar');
     expect(
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(["What's on", 'My passes', 'Profile QR']);
+    ).toEqual(['Feed', "What's on", 'My passes', 'Profile QR', 'Clubs']);
   });
 
-  it('offers a president eight pages on phones: four on the bottom bar, four under More', async () => {
+  it('offers a president ten pages on phones: four on the bottom bar, six under More', async () => {
     const user = userEvent.setup();
     renderAt('/events', { roles: [...PERSONAS.president] });
     const nav = await screen.findByTestId('nav-bottom');
@@ -197,7 +197,7 @@ describe('navigation and guards', () => {
     expect(within(nav).getAllByRole('link')).toHaveLength(4);
     await user.click(within(nav).getByRole('button', { name: 'More' }));
     const more = await screen.findByTestId('nav-more');
-    expect(within(more).getAllByRole('link')).toHaveLength(4);
+    expect(within(more).getAllByRole('link')).toHaveLength(6);
   });
 
   it("renders the API's own refusal when a student opens a staff page", async () => {
@@ -220,7 +220,7 @@ describe('pilot accounts (demo server)', () => {
     expect(screen.getByLabelText('Institutional email')).toHaveValue('25la1001@college.edu');
     expect(screen.getByLabelText('Password')).toHaveValue('culturals-demo');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await screen.findByRole('heading', { name: "What's on" });
+    await screen.findByRole('heading', { name: 'Feed' });
   });
 
   it('a staff account reveals the code field, and the real second-factor check still applies', async () => {

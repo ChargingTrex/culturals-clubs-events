@@ -41,11 +41,20 @@ export interface PageDef {
   probe: string;
   /** Design-system icon shown beside the title in the sidebar and bottom bar. */
   icon: IconName;
-  /** Which checklist row builds the screen. Only F-02 is in this slice. */
-  slice: 'F-02' | 'F-03' | 'F-04' | 'F-05';
+  /** Which checklist row builds the screen. */
+  slice: 'F-02' | 'F-03' | 'F-04' | 'F-05' | 'F-06' | 'F-07';
 }
 
 export const PAGES: readonly PageDef[] = [
+  {
+    path: '/feed',
+    icon: 'home',
+    title: 'Feed',
+    group: 'Student',
+    need: 'is_student',
+    probe: '/events?ordering=feed&page_size=1',
+    slice: 'F-07',
+  },
   {
     path: '/events',
     icon: 'calendar',
@@ -72,6 +81,15 @@ export const PAGES: readonly PageDef[] = [
     need: 'is_student',
     probe: '/participation/my-passes',
     slice: 'F-02',
+  },
+  {
+    path: '/clubs',
+    icon: 'clubs',
+    title: 'Clubs',
+    group: 'Student',
+    need: 'is_student',
+    probe: '/clubs?page_size=1',
+    slice: 'F-06',
   },
   {
     path: '/club/events',

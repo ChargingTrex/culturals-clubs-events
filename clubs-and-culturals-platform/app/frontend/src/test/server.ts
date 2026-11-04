@@ -8,6 +8,9 @@ import { API_BASE } from '../shared/api/client';
 import type { ClubOut, EventOut, PassOut, Session, Wallet } from '../shared/api/types';
 import { makeMe, makeSession } from './capabilities';
 
+const OFFICES = ['club_president', 'club_vice_president', 'club_treasurer', 'club_secretary'];
+const MAX_CLUBS = 3;
+
 const B = API_BASE;
 
 /** The generated types mark server-computed fields readonly; the mock keeps its own counters. */
@@ -33,6 +36,9 @@ export interface MockState {
   registrations: Registration[];
   profile: { token: string; version: number };
   nextId: number;
+  /** Club ids with the caller's join request pending. */
+  pendingJoins: Set<string>;
+  preferences: { personalised_feed: boolean };
 }
 
 export const CLUBS: ClubOut[] = [
@@ -45,9 +51,11 @@ export const CLUBS: ClubOut[] = [
     description: '',
     instagram_handle: '',
     status: 'active',
+    join_mode: 'open',
     last_activity_at: '2026-10-01T09:00:00Z',
     member_count: 12,
     my_role: null,
+    my_join_request_state: null,
   },
   {
     id: 'club-byte',
@@ -58,11 +66,19 @@ export const CLUBS: ClubOut[] = [
     description: '',
     instagram_handle: '',
     status: 'active',
+    join_mode: 'approval',
     last_activity_at: '2026-10-05T09:00:00Z',
     member_count: 30,
     my_role: null,
+    my_join_request_state: null,
   },
 ];
+
+/** The caller's club role in `club`, from the mock's role list (as the token would carry it). */
+function myRole(club: string): string | null {
+  return state.roles.find((r) => r.endsWith(`:${club}`))?.split(':')[0] ?? null;
+}
+const clubIds = () => state.roles.filter((r) => r.includes(':')).map((r) => r.split(':')[1]);
 
 const baseEvent = (over: Partial<EventOut>): EventOut => ({
   id: 'e1',
@@ -115,6 +131,8 @@ export function freshState(): MockState {
     registrations: [],
     profile: { token: 'profile-token-v1', version: 1 },
     nextId: 1,
+    pendingJoins: new Set(),
+    preferences: { personalised_feed: false },
   };
 }
 
@@ -271,8 +289,28 @@ export const handlers = [
 
   http.get(
     `${B}/module/auth/me`,
-    ({ request }) => authorised(request) ?? HttpResponse.json(makeMe(state.roles)),
+    ({ request }) =>
+      authorised(request) ?? HttpResponse.json(makeMe(state.roles, state.preferences)),
   ),
+
+  http.get(
+    `${B}/module/auth/preferences`,
+    ({ request }) => authorised(request) ?? HttpResponse.json(state.preferences),
+  ),
+
+  http.patch(`${B}/module/auth/preferences`, async ({ request }) => {
+    const refused = authorised(request);
+    if (refused) return refused;
+    const body = (await request.json()) as Record<string, unknown>;
+    const unknown = Object.keys(body).filter((k) => k !== 'personalised_feed');
+    if (unknown.length) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', '', {
+        errors: unknown.map((k) => ({ field: k, code: 'invalid', message: 'Unknown preference.' })),
+      });
+    }
+    state.preferences = { ...state.preferences, ...(body as { personalised_feed?: boolean }) };
+    return HttpResponse.json(state.preferences);
+  }),
 
   http.get(
     `${B}/clubs`,
@@ -282,9 +320,66 @@ export const handlers = [
         count: state.clubs.length,
         next: null,
         previous: null,
-        results: state.clubs,
+        results: state.clubs.map((c) => ({
+          ...c,
+          my_role: myRole(c.id) as ClubOut['my_role'],
+          my_join_request_state: state.pendingJoins.has(c.id) ? 'pending' : null,
+        })),
       }),
   ),
+
+  http.post(`${B}/clubs/:id/join`, ({ request, params }) => {
+    const refused = authorised(request);
+    if (refused) return refused;
+    const club = state.clubs.find((c) => c.id === params.id);
+    if (!club) return problem(404, 'NOT_FOUND', 'Not found');
+    if (myRole(club.id)) {
+      return problem(409, 'CLUBS_ALREADY_MEMBER', 'Already a member');
+    }
+    if (clubIds().length >= MAX_CLUBS) {
+      return problem(
+        409,
+        'CLUBS_MEMBERSHIP_LIMIT',
+        'Club limit reached',
+        `You can be a member of up to ${MAX_CLUBS} clubs. Leave one to join another.`,
+      );
+    }
+    if (club.join_mode === 'open') {
+      state.roles.push(`club_member:${club.id}`);
+      return HttpResponse.json(
+        { id: `m-${club.id}`, club: club.id, student: 'student-1', role: 'club_member' },
+        { status: 201 },
+      );
+    }
+    if (state.pendingJoins.has(club.id)) {
+      return problem(409, 'CLUBS_JOIN_PENDING', 'Request already pending');
+    }
+    state.pendingJoins.add(club.id);
+    return HttpResponse.json(
+      { id: `jr-${club.id}`, club: club.id, student: 'student-1', state: 'pending' },
+      { status: 202 },
+    );
+  }),
+
+  http.post(`${B}/clubs/:id/leave`, ({ request, params }) => {
+    const refused = authorised(request);
+    if (refused) return refused;
+    const club = state.clubs.find((c) => c.id === params.id);
+    const role = club ? myRole(club.id) : null;
+    if (!club || !role) {
+      return problem(404, 'NOT_FOUND', 'Not found', 'You are not a member of this club.');
+    }
+    if (OFFICES.includes(role)) {
+      return problem(
+        409,
+        'CLUBS_OFFICE_BEARER_CANNOT_LEAVE',
+        'Office bearers cannot leave',
+        `You are Treasurer of ${club.name}. Hand the office over before leaving.`,
+      );
+    }
+    state.roles = state.roles.filter((r) => r !== `${role}:${club.id}`);
+    return new HttpResponse(null, { status: 204 });
+  }),
 
   http.get(`${B}/events`, ({ request }) => {
     const refused = authorised(request);
@@ -292,9 +387,22 @@ export const handlers = [
     const url = new URL(request.url);
     const statuses = url.searchParams.get('status')?.split(',');
     const club = url.searchParams.get('club');
+    const search = url.searchParams.get('search')?.toLowerCase();
+    const mine = url.searchParams.get('mine') === 'true';
+    const feed = url.searchParams.get('ordering') === 'feed';
+    const isMine = (e: EventOut) => clubIds().includes(e.club);
     const results = state.events
       .filter((e) => !statuses || statuses.includes(e.status))
       .filter((e) => !club || e.club === club)
+      .filter((e) => !mine || isMine(e))
+      .filter(
+        (e) =>
+          !search ||
+          e.title.toLowerCase().includes(search) ||
+          e.club_name.toLowerCase().includes(search),
+      )
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+      .sort((a, b) => (feed ? Number(isMine(b)) - Number(isMine(a)) : 0))
       .map(withMine);
     return HttpResponse.json({ count: results.length, next: null, previous: null, results });
   }),

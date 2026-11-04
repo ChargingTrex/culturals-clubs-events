@@ -81,6 +81,28 @@ class CapabilitiesSerializer(serializers.Serializer):
     organiser_events = serializers.ListField(child=serializers.UUIDField())
     approval_stages = serializers.ListField(
         child=serializers.ChoiceField(choices=ApprovalStage.choices))
+    my_clubs_count = serializers.IntegerField(
+        help_text="Active memberships held now (counted, not read from the token).")
+    max_club_memberships = serializers.IntegerField()
+
+
+class PreferencesSerializer(serializers.Serializer):
+    """`GET /module/auth/preferences`, and `preferences` on `/module/auth/me`."""
+
+    personalised_feed = serializers.BooleanField()
+
+
+class PreferencesPatchSerializer(serializers.Serializer):
+    """A partial update; a key not listed here is refused (422)."""
+
+    personalised_feed = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        unknown = sorted(set(self.initial_data) - set(self.fields))
+        if unknown:
+            raise serializers.ValidationError(
+                {key: "Not a preference this module knows." for key in unknown})
+        return attrs
 
 
 class MeSerializer(serializers.Serializer):
@@ -94,6 +116,7 @@ class MeSerializer(serializers.Serializer):
     roles = serializers.ListField(child=serializers.CharField())
     mfa = serializers.BooleanField()
     capabilities = CapabilitiesSerializer()
+    preferences = PreferencesSerializer()
 
 
 class SemesterSerializer(serializers.ModelSerializer):

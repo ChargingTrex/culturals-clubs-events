@@ -798,6 +798,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/JoinRequest'
           description: ''
+  /api/v1/clubs/{id}/leave:
+    post:
+      operationId: clubs_leave_create
+      summary: Leave a club (the member themself; office bearers hand over first)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this club.
+        required: true
+      tags:
+      - clubs
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/clubs/{id}/members:
     get:
       operationId: clubs_members_retrieve
@@ -866,10 +885,16 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: mine
+        schema:
+          type: boolean
+        description: '`true`: only clubs the caller is an active member of (F-07).'
+      - in: query
         name: ordering
         schema:
           type: string
-        description: Model field to order by (default `starts_at`).
+        description: 'Model field to order by (default `starts_at`), or `feed`: the
+          caller''s clubs'' events first, then the rest, each by date.'
       - name: page
         required: false
         in: query
@@ -882,6 +907,11 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Case-insensitive match on the title or the club name.
       - in: query
         name: starts_at_after
         schema:
@@ -1899,6 +1929,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthMode'
+          description: ''
+  /api/v1/module/auth/preferences:
+    get:
+      operationId: module_auth_preferences_retrieve
+      description: 'The caller''s own preferences only: there is no path that names
+        another user.'
+      summary: The caller's preferences
+      tags:
+      - module
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+          description: ''
+    patch:
+      operationId: module_auth_preferences_partial_update
+      description: 'The caller''s own preferences only: there is no path that names
+        another user.'
+      summary: Change one or more preferences; unknown keys are refused
+      tags:
+      - module
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPreferencesPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPreferencesPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPreferencesPatch'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
           description: ''
   /api/v1/module/auth/refresh:
     post:
@@ -3272,6 +3346,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ApprovalStageEnum'
+        my_clubs_count:
+          type: integer
+          description: Active memberships held now (counted, not read from the token).
+        max_club_memberships:
+          type: integer
       required:
       - approval_stages
       - can_see_all_clubs
@@ -3289,6 +3368,8 @@ components:
       - is_dean
       - is_student
       - is_vice_chancellor
+      - max_club_memberships
+      - my_clubs_count
       - organiser_events
     CaptureMetrics:
       type: object
@@ -3519,11 +3600,18 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ClubRoleEnum'
           - $ref: '#/components/schemas/NullEnum'
+        my_join_request_state:
+          nullable: true
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/JoinRequestStateEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - category
       - id
       - last_activity_at
       - member_count
+      - my_join_request_state
       - my_role
       - name
       - slug
@@ -4655,7 +4743,6 @@ components:
           allOf:
           - $ref: '#/components/schemas/JoinRequestStateEnum'
           readOnly: true
-          default: pending
         note:
           type: string
           readOnly: true
@@ -4798,11 +4885,14 @@ components:
           type: boolean
         capabilities:
           $ref: '#/components/schemas/Capabilities'
+        preferences:
+          $ref: '#/components/schemas/Preferences'
       required:
       - capabilities
       - department
       - display_name
       - mfa
+      - preferences
       - prn
       - programme
       - roles
@@ -5370,6 +5460,12 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ClubRoleEnum'
           - $ref: '#/components/schemas/NullEnum'
+        my_join_request_state:
+          nullable: true
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/JoinRequestStateEnum'
+          - $ref: '#/components/schemas/NullEnum'
     PatchedEvent:
       type: object
       properties:
@@ -5458,6 +5554,12 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+    PatchedPreferencesPatch:
+      type: object
+      description: A partial update; a key not listed here is refused (422).
+      properties:
+        personalised_feed:
+          type: boolean
     PatchedSpend:
       type: object
       properties:
@@ -5469,6 +5571,14 @@ components:
         variance_note:
           type: string
           maxLength: 400
+    Preferences:
+      type: object
+      description: '`GET /module/auth/preferences`, and `preferences` on `/module/auth/me`.'
+      properties:
+        personalised_feed:
+          type: boolean
+      required:
+      - personalised_feed
     ProfileQr:
       type: object
       properties:
