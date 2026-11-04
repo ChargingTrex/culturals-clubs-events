@@ -94,6 +94,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    # UI preferences the user sets for themself (F-08.2); keys are fixed in
+    # identity/views.PreferencesPatchSerializer. Absent key = default.
+    preferences = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

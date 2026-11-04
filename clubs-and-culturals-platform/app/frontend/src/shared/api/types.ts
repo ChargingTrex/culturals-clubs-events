@@ -13,6 +13,8 @@ type S = components['schemas'];
 
 export type EventStatus = S['EventStatusEnum'];
 export type ClubOut = S['Club'];
+export type MembershipOut = S['Membership'];
+export type JoinRequestOut = S['JoinRequest'];
 export type VenueOut = S['Venue'];
 export type LoginRequest = S['Login'];
 
@@ -43,6 +45,7 @@ export type Session = S['Session'];
 export type ApprovalStage = S['ApprovalStageEnum'];
 export type Capabilities = S['Capabilities'];
 export type Me = S['Me'];
+export type Preferences = S['Preferences'];
 
 // --- participation wallet ------------------------------------------------------
 export type PassOut = S['Pass'];

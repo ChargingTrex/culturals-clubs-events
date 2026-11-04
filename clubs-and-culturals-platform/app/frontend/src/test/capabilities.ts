@@ -55,6 +55,8 @@ export function capabilitiesFromRoles(roles: string[]): Capabilities {
     can_see_overview: has('dean', 'admin', 'cultural_society'),
     organiser_events: scopes(['event_organiser']),
     approval_stages: (Object.keys(STAGE_ROLE) as ApprovalStage[]).filter((s) => has(STAGE_ROLE[s])),
+    my_clubs_count: scopes(CLUB_ROLES).length,
+    max_club_memberships: 3,
   };
 }
 
@@ -107,7 +109,7 @@ export function makeSession(
   };
 }
 
-export function makeMe(roles: string[]): Me {
+export function makeMe(roles: string[], preferences = { personalised_feed: false }): Me {
   const claims = makeClaims(roles);
   return {
     sub: claims.sub,
@@ -120,5 +122,6 @@ export function makeMe(roles: string[]): Me {
     roles,
     mfa: claims.mfa,
     capabilities: capabilitiesFromRoles(roles),
+    preferences,
   };
 }

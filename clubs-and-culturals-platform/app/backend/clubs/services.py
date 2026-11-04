@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from clubs.models import Club, JoinRequest, Membership, OfficeBearerTerm, RoleChange
 from common import roles as R
-from common.errors import ProblemDetail
+from common.errors import Conflict, ProblemDetail
 from integrations.registry import audit_sink, notifier
 
 # The offices a handover can confer. Core team and plain membership are not
@@ -108,6 +108,21 @@ def _notify_members(memberships, *, subject, body, kind, link):
 # --------------------------------------------------------------------------
 # Join requests (PRD §5.2)
 # --------------------------------------------------------------------------
+def at_membership_cap(student_id, *, excluding_club=None):
+    """
+    ADDITIONAL_REQUIREMENTS F-06: a student holds at most MAX_CLUB_MEMBERSHIPS
+    active memberships. Call this with the student's row locked (the callers
+    do) so two concurrent joins cannot both count below the cap.
+    """
+    from identity.models import Student
+
+    Student.objects.select_for_update().filter(pk=student_id).exists()
+    active = Membership.objects.filter(student_id=student_id, ended_at__isnull=True)
+    if excluding_club is not None:
+        active = active.exclude(club=excluding_club)
+    return active.count() >= settings.MAX_CLUB_MEMBERSHIPS
+
+
 def settle_join_request(join_request, *, outcome, actor_user, note=""):
     """
     Decide a pending request. On accept, the membership is created unless one
@@ -122,6 +137,15 @@ def settle_join_request(join_request, *, outcome, actor_user, note=""):
 
     membership = None
     if outcome == JoinRequest.State.ACCEPTED:
+        # Excluding this club: a student already in it is settled as "already a
+        # member" below, and that adds no membership.
+        if at_membership_cap(join_request.student_id, excluding_club=join_request.club):
+            raise Conflict(
+                code="CLUBS_MEMBERSHIP_LIMIT", title="Club limit reached",
+                detail=(f"{join_request.student.full_name} is already a member of "
+                        f"{settings.MAX_CLUB_MEMBERSHIPS} clubs and must leave one before "
+                        "this request can be accepted. It stays pending."),
+            )
         try:
             with transaction.atomic():
                 membership = Membership.objects.create(
@@ -165,8 +189,12 @@ def settle_pending_on_open(club, *, actor, actor_user):
                    .select_related("student__user", "club")
                    .filter(club=club, state=JoinRequest.State.PENDING))
         for join_request in pending:
-            settle_join_request(join_request, outcome=JoinRequest.State.ACCEPTED,
-                                actor_user=actor_user, note="Club opened to all members")
+            try:
+                settle_join_request(join_request, outcome=JoinRequest.State.ACCEPTED,
+                                    actor_user=actor_user, note="Club opened to all members")
+            except Conflict:
+                # At the membership cap: the request stays pending until they leave a club.
+                continue
             audit_sink().record(actor=actor, action="club.join_accepted", target=join_request,
                                 before={"state": JoinRequest.State.PENDING},
                                 after={"state": JoinRequest.State.ACCEPTED},

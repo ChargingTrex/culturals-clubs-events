@@ -382,6 +382,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/{id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave a club (the member themself; office bearers hand over first) */
+        post: operations["clubs_leave_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{id}/members": {
         parameters: {
             query?: never;
@@ -1009,6 +1026,30 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/module/auth/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's preferences
+         * @description The caller's own preferences only: there is no path that names another user.
+         */
+        get: operations["module_auth_preferences_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change one or more preferences; unknown keys are refused
+         * @description The caller's own preferences only: there is no path that names another user.
+         */
+        patch: operations["module_auth_preferences_partial_update"];
         trace?: never;
     };
     "/api/v1/module/auth/refresh": {
@@ -1703,6 +1744,9 @@ export interface components {
             can_see_overview: boolean;
             organiser_events: string[];
             approval_stages: components["schemas"]["ApprovalStageEnum"][];
+            /** @description Active memberships held now (counted, not read from the token). */
+            my_clubs_count: number;
+            max_club_memberships: number;
         };
         /**
          * @description Door reliability for the semester, under two names (MASTER_SPEC §7.6).
@@ -1814,6 +1858,7 @@ export interface components {
             readonly last_activity_at: string | null;
             readonly member_count: number;
             readonly my_role: (components["schemas"]["ClubRoleEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly my_join_request_state: (components["schemas"]["JoinRequestStateEnum"] | components["schemas"]["NullEnum"]) | null;
         };
         /**
          * @description * `cultural` - Cultural
@@ -2280,7 +2325,6 @@ export interface components {
             readonly department: string;
             readonly programme: string;
             readonly year: number;
-            /** @default pending */
             readonly state: components["schemas"]["JoinRequestStateEnum"];
             readonly note: string;
             readonly decided_by_label: string;
@@ -2341,6 +2385,7 @@ export interface components {
             roles: string[];
             mfa: boolean;
             capabilities: components["schemas"]["Capabilities"];
+            preferences: components["schemas"]["Preferences"];
         };
         Membership: {
             /** Format: uuid */
@@ -2608,6 +2653,7 @@ export interface components {
             readonly last_activity_at?: string | null;
             readonly member_count?: number;
             readonly my_role?: (components["schemas"]["ClubRoleEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly my_join_request_state?: (components["schemas"]["JoinRequestStateEnum"] | components["schemas"]["NullEnum"]) | null;
         };
         PatchedEvent: {
             /** Format: uuid */
@@ -2644,10 +2690,18 @@ export interface components {
             /** Format: date-time */
             readonly closed_at?: string | null;
         };
+        /** @description A partial update; a key not listed here is refused (422). */
+        PatchedPreferencesPatch: {
+            personalised_feed?: boolean;
+        };
         PatchedSpend: {
             /** Format: decimal */
             amount_spent?: string | null;
             variance_note?: string;
+        };
+        /** @description `GET /module/auth/preferences`, and `preferences` on `/module/auth/me`. */
+        Preferences: {
+            personalised_feed: boolean;
         };
         ProfileQr: {
             token: string;
@@ -3658,6 +3712,27 @@ export interface operations {
             };
         };
     };
+    clubs_leave_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this club. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     clubs_members_retrieve: {
         parameters: {
             query?: never;
@@ -3708,12 +3783,16 @@ export interface operations {
                 /** @description Events of clubs in this category. An unknown value matches nothing. */
                 category?: "committee" | "cultural" | "literary" | "social" | "sports" | "technical";
                 club?: string;
-                /** @description Model field to order by (default `starts_at`). */
+                /** @description `true`: only clubs the caller is an active member of (F-07). */
+                mine?: boolean;
+                /** @description Model field to order by (default `starts_at`), or `feed`: the caller's clubs' events first, then the rest, each by date. */
                 ordering?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Case-insensitive match on the title or the club name. */
+                search?: string;
                 starts_at_after?: string;
                 starts_at_before?: string;
                 /** @description Comma-separated event statuses. */
@@ -4572,6 +4651,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthMode"];
+                };
+            };
+        };
+    };
+    module_auth_preferences_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    module_auth_preferences_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedPreferencesPatch"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedPreferencesPatch"];
+                "multipart/form-data": components["schemas"]["PatchedPreferencesPatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
                 };
             };
         };

@@ -8,6 +8,7 @@ urlpatterns = [
     path("auth/refresh", views.RefreshView.as_view(), name="auth-refresh"),
     path("auth/logout", views.LogoutView.as_view(), name="auth-logout"),
     path("auth/me", views.MeView.as_view(), name="auth-me"),
+    path("auth/preferences", views.PreferencesView.as_view(), name="auth-preferences"),
     path("directory/students", views.StudentLookupView.as_view(), name="directory-students"),
     path("semesters", views.SemesterView.as_view(), name="semesters"),
     # Demo mode only; both 404 when DEMO_MODE is off.

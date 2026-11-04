@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch, ProtectedError
+from django.db.models import Exists, OuterRef, Prefetch, ProtectedError, Q
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from budget.models import BudgetTemplate
 from budget.services import create_lines, ensure_budget, seed_from_template
-from clubs.models import Club
+from clubs.models import Club, Membership
 from common import roles as R
 from common.errors import Conflict, ProblemDetail
 from events.models import SLOT_HOLDING, Event, EventOrganiser, EventStatus, Venue
@@ -65,8 +65,13 @@ def _soft_clash_payload(soft):
                      description="Comma-separated event statuses."),
     OpenApiParameter("starts_at_after", OpenApiTypes.DATETIME, OpenApiParameter.QUERY),
     OpenApiParameter("starts_at_before", OpenApiTypes.DATETIME, OpenApiParameter.QUERY),
+    OpenApiParameter("mine", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                     description="`true`: only clubs the caller is an active member of (F-07)."),
+    OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                     description="Case-insensitive match on the title or the club name."),
     OpenApiParameter("ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                     description="Model field to order by (default `starts_at`)."),
+                     description="Model field to order by (default `starts_at`), or `feed`: "
+                                 "the caller's clubs' events first, then the rest, each by date."),
 ]))
 class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
@@ -129,7 +134,19 @@ class EventViewSet(viewsets.ModelViewSet):
             qs = qs.filter(starts_at__gte=after)
         if before := params.get("starts_at_before"):
             qs = qs.filter(starts_at__lte=before)
+        # F-07: membership is read from the rows, not the token, so a club joined
+        # a moment ago is already "mine". A staff caller has no student_id and
+        # so no clubs of their own: `mine` is empty and `feed` is date order.
+        my_clubs = Membership.objects.filter(student_id=ctx.student_id or None,
+                                             ended_at__isnull=True)
+        if params.get("mine", "").lower() in ("1", "true", "yes"):
+            qs = qs.filter(club_id__in=my_clubs.values("club_id"))
+        if search := params.get("search"):
+            qs = qs.filter(Q(title__icontains=search) | Q(club__name__icontains=search))
         ordering = params.get("ordering", "starts_at")
+        if ordering == "feed":
+            qs = qs.annotate(from_my_club=Exists(my_clubs.filter(club_id=OuterRef("club_id"))))
+            return qs.order_by("-from_my_club", "starts_at").distinct()
         return qs.order_by(ordering).distinct()
 
     # ---- creation ------------------------------------------------------

@@ -9,12 +9,13 @@ from common.serializers import ClubRefSerializer
 class ClubSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
     my_role = serializers.SerializerMethodField()
+    my_join_request_state = serializers.SerializerMethodField()
 
     class Meta:
         model = Club
         fields = ("id", "name", "slug", "tag", "category", "description",
                   "instagram_handle", "status", "join_mode", "last_activity_at",
-                  "member_count", "my_role")
+                  "member_count", "my_role", "my_join_request_state")
         read_only_fields = ("id", "slug", "last_activity_at")
 
     @extend_schema_field(serializers.IntegerField())
@@ -25,6 +26,16 @@ class ClubSerializer(serializers.ModelSerializer):
     def get_my_role(self, club):
         ctx = self.context["request"].auth_context
         return ctx.club_role(club.id)
+
+    @extend_schema_field(serializers.ChoiceField(choices=JoinRequest.State.choices, allow_null=True))
+    def get_my_join_request_state(self, club):
+        """`pending` while the caller's own request waits (F-06.1 "Requested"), else null."""
+        student_id = self.context["request"].auth_context.student_id
+        if not student_id:
+            return None
+        pending = club.join_requests.filter(student_id=student_id,
+                                            state=JoinRequest.State.PENDING).exists()
+        return JoinRequest.State.PENDING if pending else None
 
 
 class MembershipSerializer(serializers.ModelSerializer):

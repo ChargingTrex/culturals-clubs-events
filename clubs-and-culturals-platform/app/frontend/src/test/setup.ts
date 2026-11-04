@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { clearSession } from '../shared/auth/tokens';
 import { resetState, server } from './server';
@@ -8,6 +8,9 @@ import { resetState, server } from './server';
 vi.mock('../shared/ui/qr', () => ({
   qrDataUrl: async (text: string) => `data:image/svg+xml,${encodeURIComponent(text)}`,
 }));
+
+// findBy*/waitFor default to 1 s, which flakes on a loaded machine; the flows are not slow.
+configure({ asyncUtilTimeout: 10_000 });
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => {

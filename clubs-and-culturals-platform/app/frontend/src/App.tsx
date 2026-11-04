@@ -7,8 +7,10 @@ import { createQueryClient } from './shared/queryClient';
 import { AppShell } from './shared/ui/AppShell';
 import { ToastProvider } from './shared/ui/Toast';
 import { HomeRedirect, NotBuiltPage, NotFoundPage } from './shared/ui/pages';
+import { ClubsPage } from './student/ClubsPage';
 import { EventDetailPage } from './student/EventDetailPage';
 import { EventsPage } from './student/EventsPage';
+import { FeedPage } from './student/FeedPage';
 import { PassesPage } from './student/PassesPage';
 import { ProfilePage } from './student/ProfilePage';
 import { SignInPage } from './student/SignInPage';
@@ -23,9 +25,11 @@ function page(path: string): PageDef {
 }
 
 const SCREENS: Array<[PageDef, React.ReactElement]> = [
+  [page('/feed'), <FeedPage key="feed" />],
   [page('/events'), <EventsPage key="events" />],
   [page('/passes'), <PassesPage key="passes" />],
   [page('/profile'), <ProfilePage key="profile" />],
+  [page('/clubs'), <ClubsPage key="clubs" />],
   ...[...organiser.SCREENS, ...club.SCREENS, ...staff.SCREENS].map(
     ([path, element]): [PageDef, React.ReactElement] => [page(path), element],
   ),
