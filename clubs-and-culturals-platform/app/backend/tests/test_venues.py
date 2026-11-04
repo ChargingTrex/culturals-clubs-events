@@ -138,6 +138,70 @@ class ReassignmentTests(TestCase):
         self.event.refresh_from_db()
         self.assertEqual(self.event.venue, self.hall_a, "the old slot must still be held")
 
+    def test_a_closed_venue_is_refused(self):
+        """The calendar hides closed halls; the API must refuse them too."""
+        self.hall_b.active = False
+        self.hall_b.save(update_fields=["active"])
+        response = self.reassign("dean@college.edu", self.hall_b, mfa_code="1")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["code"], "EVENTS_VENUE_CLOSED")
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.venue, self.hall_a)
+
+    def test_moving_onto_another_pending_request_is_refused(self):
+        """
+        Resolving a clash must not create a new one. A move into a slot another
+        club has requested would leave both requests blocked at approval.
+        """
+        f.event(f.club("Natya"), self.hall_b, days=7, hour=18, status=EventStatus.SUBMITTED,
+                title="Natya Workshop")
+        response = self.reassign("dean@college.edu", self.hall_b, mfa_code="1")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["code"], "EVENTS_VENUE_CONTESTED")
+        self.assertIn("Natya Workshop", response.data["detail"])
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.venue, self.hall_a)
+
+    def test_an_event_that_has_run_cannot_be_moved(self):
+        """A completed or reported event's venue is history, not a booking."""
+        Event.objects.filter(pk=self.event.pk).update(status=EventStatus.COMPLETED)
+        response = self.reassign("dean@college.edu", self.hall_b, mfa_code="1")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["code"], "EVENTS_NOT_MOVABLE")
+
+    def test_everyone_who_needs_to_know_is_told_of_the_move(self):
+        """
+        A venue change carries no money, so it goes beyond the budget roles: the
+        Secretary runs the event, and registered students would otherwise walk
+        to the old hall. Cancelled registrations are not told.
+        """
+        from governance.models import Notification
+        from participation.models import Registration
+
+        secretary = f.student("sec@college.edu", prn="23CS1003")
+        f.member(self.club, secretary, R.CLUB_SECRETARY)
+        plain = f.student("member@college.edu", prn="23CS1004")
+        f.member(self.club, plain, R.CLUB_MEMBER)
+        going = f.student("going@college.edu", prn="23CS1005")
+        gone = f.student("gone@college.edu", prn="23CS1006")
+        Registration.objects.create(event=self.event, student=going)
+        Registration.objects.create(event=self.event, student=gone,
+                                    cancelled_at=f.timezone.now())
+
+        response = self.reassign("dean@college.edu", self.hall_b, mfa_code="1")
+        self.assertEqual(response.status_code, 200)
+        told = set(Notification.objects.filter(kind="event.venue_changed")
+                   .values_list("user__email", flat=True))
+        self.assertIn("pres@college.edu", told)
+        self.assertIn("sec@college.edu", told)
+        self.assertIn("going@college.edu", told)
+        self.assertNotIn("gone@college.edu", told)
+        self.assertNotIn("member@college.edu", told, "plain members are not office bearers")
+        note = Notification.objects.filter(kind="event.venue_changed",
+                                           user__email="going@college.edu").get()
+        self.assertIn("Seminar Hall B", note.subject)
+        self.assertIn("Seminar Hall A", note.body)
+
     def test_the_slot_is_never_held_by_neither_venue(self):
         """
         The atomicity requirement, checked from the outside: after a failed move

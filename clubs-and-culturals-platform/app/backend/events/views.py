@@ -24,7 +24,8 @@ from events.serializers import (
     VenueReassignmentSerializer, VenueSerializer,
 )
 from events.services import (
-    all_clashes, assert_bookable, clashes_for, close_event, free_venues_for, reassign_venue,
+    all_clashes, assert_bookable, clashes_for, close_event, free_venues_for, notify_venue_change,
+    reassign_venue,
 )
 from governance import services as governance
 from integrations.registry import audit_sink
@@ -359,10 +360,8 @@ class EventViewSet(viewsets.ModelViewSet):
                                 detail="No such venue.")
         from_name = event.venue.name
         reassign_venue(event, to_venue=venue, reason=data.validated_data["reason"], actor=ctx)
-        governance._notify_club(
-            event, f"“{event.title}” was moved to {venue.name}",
-            f"Moved from {from_name}. Reason: {data.validated_data['reason']}",
-            "event.venue_changed")
+        event.refresh_from_db()
+        notify_venue_change(event, from_name=from_name, reason=data.validated_data["reason"])
         audit_sink().record(actor=ctx, action="event.venue_reassigned", target=event,
                             before={"venue": from_name}, after={"venue": venue.name},
                             reason=data.validated_data["reason"])
@@ -504,7 +503,8 @@ class VenueCalendarView(APIView):
                 ],
             })
         return Response({
-            "buffer_minutes": request.query_params.get("buffer") or None,
+            # The buffer the clash rule actually uses, so the Dean sees why two bookings clash.
+            "buffer_minutes": settings.VENUE_BUFFER_MINUTES,
             "venues": VenueSerializer(Venue.objects.filter(active=True), many=True).data,
             "bookings": [
                 {"id": str(e.id), "title": e.title, "club": e.club.name,

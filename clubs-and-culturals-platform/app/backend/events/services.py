@@ -10,6 +10,11 @@ from django.utils import timezone
 from common.errors import Conflict
 from events.models import SLOT_CONFIRMED, SLOT_HOLDING, Event, EventStatus, VenueReassignment
 
+# An event can change venue while it still holds its booking: pending, approved,
+# published, or live (a mid-event evacuation). A completed or reported event's
+# venue is a record of where it happened.
+MOVABLE = (EventStatus.SUBMITTED, EventStatus.APPROVED, EventStatus.PUBLISHED, EventStatus.LIVE)
+
 
 def _buffer():
     """Setup and clear-down time counted as part of the booking."""
@@ -100,6 +105,12 @@ def reassign_venue(event, *, to_venue, reason, actor):
     from events.models import Venue
 
     locked = Event.objects.select_for_update().get(pk=event.pk)
+    if locked.status not in MOVABLE:
+        raise Conflict(
+            code="EVENTS_NOT_MOVABLE", title="This event cannot be moved",
+            detail=(f"“{locked.title}” is {locked.get_status_display().lower()}; only an "
+                    "event that still holds its booking can move to another venue."),
+        )
     # Lock the target venue too (event first, then venue — the same order every
     # booking path uses): two Deans moving two events into one free hall must
     # queue on the venue row, or both read it as free. The event row lock alone
@@ -108,14 +119,31 @@ def reassign_venue(event, *, to_venue, reason, actor):
     if to_venue.pk == locked.venue_id:
         raise Conflict(code="EVENTS_SAME_VENUE", title="Already in that venue",
                        detail="Choose a different venue.")
+    if not to_venue.active:
+        raise Conflict(code="EVENTS_VENUE_CLOSED", title="Venue closed",
+                       detail=f"{to_venue.name} is closed for bookings. Choose an open venue.")
     if to_venue.capacity < locked.expected_attendance:
         raise Conflict(
             code="EVENTS_VENUE_TOO_SMALL", title="Venue too small",
             detail=(f"{to_venue.name} seats {to_venue.capacity}; "
                     f"{locked.expected_attendance} are expected."),
         )
-    assert_bookable(venue_id=to_venue.pk, starts_at=locked.starts_at,
-                    ends_at=locked.ends_at, exclude_id=locked.pk)
+    # A confirmed booking raises inside assert_bookable. A *pending* request in
+    # the target slot is refused here too: the move exists to resolve a clash,
+    # and landing on another club's request would create a new one that blocks
+    # both approvals.
+    contested = assert_bookable(venue_id=to_venue.pk, starts_at=locked.starts_at,
+                                ends_at=locked.ends_at, exclude_id=locked.pk)
+    if contested:
+        other = contested[0]
+        raise Conflict(
+            code="EVENTS_VENUE_CONTESTED", title="Another request wants that slot",
+            detail=(f"{to_venue.name} is requested for “{other.title}” ({other.club.name}) "
+                    f"from {other.starts_at:%H:%M} to {other.ends_at:%H:%M}. Moving here "
+                    "would create a new clash; decide that request first or choose "
+                    "another venue."),
+            errors=[{"field": "to_venue", "code": "CONTESTED", "message": other.title}],
+        )
     from_venue_id = locked.venue_id
     locked.venue = to_venue
     locked.save(update_fields=["venue", "updated_at"])
@@ -124,6 +152,44 @@ def reassign_venue(event, *, to_venue, reason, actor):
         actor_sub=actor.sub, actor_label=actor.display_name,
     )
     return locked
+
+
+def notify_venue_change(event, *, from_name, reason):
+    """
+    Tell everyone who would otherwise go to the wrong hall.
+
+    A venue change carries no money, so unlike approval outcomes it is not
+    limited to the budget roles: the club's office bearers (the Secretary runs
+    the event), the event's organisers, and every student still registered or
+    waitlisted. Each person is told once.
+    """
+    from clubs.models import Membership
+    from common import roles as R
+    from events.models import EventOrganiser
+    from integrations.registry import notifier
+    from participation.models import Registration
+
+    subject = f"“{event.title}” was moved to {event.venue.name}"
+    body = (f"{event.starts_at:%a %d %b, %H:%M}. Moved from {from_name} to "
+            f"{event.venue.name}. Reason: {reason}")
+    club_link = f"/club/events/{event.id}"
+    student_link = f"/events/{event.id}"
+
+    recipients = {}
+    office = (R.CLUB_PRESIDENT, R.CLUB_VICE_PRESIDENT, R.CLUB_SECRETARY, R.CLUB_TREASURER)
+    for m in Membership.objects.filter(club=event.club, ended_at__isnull=True,
+                                       role__in=office).select_related("student__user"):
+        recipients.setdefault(m.student.user_id, (m.student.user, club_link))
+    for grant in EventOrganiser.active().filter(event=event).select_related("student__user"):
+        recipients.setdefault(grant.student.user_id, (grant.student.user, club_link))
+    for reg in Registration.objects.filter(event=event, cancelled_at__isnull=True,
+                                           student__isnull=False).select_related("student__user"):
+        recipients.setdefault(reg.student.user_id, (reg.student.user, student_link))
+
+    for user, link in recipients.values():
+        notifier().send(recipient=user, subject=subject, body=body,
+                        kind="event.venue_changed", link=link)
+    return len(recipients)
 
 
 def free_venues_for(event):
