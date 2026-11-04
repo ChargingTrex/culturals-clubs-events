@@ -1,5 +1,12 @@
 # Demo pages — one page per view
 
+> **Superseded.** The production frontend is the React + TypeScript + Vite app in
+> [`app/frontend/`](../../frontend/README.md), which has every screen below
+> (F-01..F-05). Use that for walkthroughs and development. It signs in with a
+> real password (`culturals-demo` for seeded personas, plus any authenticator code
+> for staff) and does not need `DEMO_MODE`. These pages remain only as a
+> no-build fallback; do not add features here.
+
 Fifteen standalone pages, each rendering one view of the platform against the real
 API. Served at `/demo/` by Django itself, so they are same-origin and need no CORS.
 
@@ -73,23 +80,23 @@ A demo switch left on is a public account, so it is made hard to leave on by acc
 
 ## The pages
 
-| Page | Role | Shows |
-|---|---|---|
-| `index.html` | any | Every page, greying out the ones this persona genuinely cannot open |
-| `student-events.html` | Student | Published events, register and cancel |
-| `student-passes.html` | Student | Event passes with their QR images |
-| `student-profile.html` | Student | Persistent profile QR, and reissuing it |
-| `club-events.html` | Club | The club's events; go-live and close for `EVENT_OPERATORS` |
-| `club-new-event.html` | Club | Proposal form with server-computed budget preview |
-| `club-roster.html` | Club | Roster; role controls only for President and VP |
-| `club-budget.html` | Club | **Add / edit / remove entries, declare nil**, spend, settlement blockers |
-| `organiser-scan.html` | Organiser | Scan station, PRN lookup, capture rate, forged-code button |
-| `society-approvals.html` | Society | Approval gate 1, line-level sanctioning |
-| `dean-approvals.html` | Dean | Approval gate 2 — the same code, a different queue |
-| `dean-venues.html` | Dean | Master calendar, clashes, atomic reassignment |
-| `dean-overview.html` | Dean | Running totals and what needs chasing |
-| `vc-queue.html` | Management | Above-threshold gate 3 |
-| `vc-report.html` | Management | Semester report, aggregates only |
+| Page | Role | Shows | Frontend route |
+|---|---|---|---|
+| `index.html` | any | Every page, greying out the ones this persona genuinely cannot open | sidebar (`AppShell`) |
+| `student-events.html` | Student | Published events, register and cancel | `/events` |
+| `student-passes.html` | Student | Event passes with their QR images | `/passes` |
+| `student-profile.html` | Student | Persistent profile QR, and reissuing it | `/profile` |
+| `club-events.html` | Club | The club's events; go-live and close for `EVENT_OPERATORS` | `/club/events` |
+| `club-new-event.html` | Club | Proposal form with server-computed budget preview | `/club/events/new` |
+| `club-roster.html` | Club | Roster; role controls only for President and VP | `/club/roster` |
+| `club-budget.html` | Club | **Add / edit / remove entries, declare nil**, spend, settlement blockers | `/club/budget` |
+| `organiser-scan.html` | Organiser | Scan station, PRN lookup, capture rate, forged-code button | `/scan` |
+| `society-approvals.html` | Society | Approval gate 1, line-level sanctioning | `/staff/approvals/society` |
+| `dean-approvals.html` | Dean | Approval gate 2 — the same code, a different queue | `/staff/approvals/dean` |
+| `dean-venues.html` | Dean | Master calendar, clashes, atomic reassignment | `/staff/venues` |
+| `dean-overview.html` | Dean | Running totals and what needs chasing | `/staff/overview` |
+| `vc-queue.html` | Management | Above-threshold gate 3 | `/staff/approvals/vc` |
+| `vc-report.html` | Management | Semester report, aggregates only | `/staff/report` |
 
 ## Worth demonstrating
 
@@ -122,6 +129,8 @@ A demo switch left on is a public account, so it is made hard to leave on by acc
 ## Not a production frontend
 
 These pages are a demo harness: no build step, no router, no state management, ES
-modules straight from `demo.js`. The React + TypeScript + Vite frontend that
-`AGENT_PROMPT.md` §2 specifies has not been built. Deliberate — these were needed for a
-walkthrough, and they are throwaway.
+modules straight from `demo.js`. They were built for a walkthrough before the
+frontend existed. That frontend has since been built in `app/frontend/`
+(React 18 + TypeScript + Vite + TanStack Query, per `AGENT_PROMPT.md` §2); the
+"Frontend route" column above maps each page to its screen there. Treat these
+pages as throwaway: when they and the frontend disagree, the frontend is right.

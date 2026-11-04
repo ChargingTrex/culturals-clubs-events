@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import { api } from '../shared/api/endpoints';
@@ -20,6 +20,7 @@ import {
   type ScanStation,
 } from './api';
 import { newQueuedScan, readQueue, stationId, writeQueue } from './queue';
+import { Button, Chip, ScanResult, Viewfinder } from '../shared/ds';
 import { RosterPanel } from './RosterPanel';
 import { cameraSupported, useCameraScanner } from './useCameraScanner';
 import { Verdict, type LastScan } from './Verdict';
@@ -33,6 +34,22 @@ function doorEvents(events: EventOut[], caps: Capabilities): EventOut[] {
     (e) => caps.organiser_events.includes(e.id) || caps.clubs_door_staff.includes(e.club),
   );
 }
+
+/** The browser's own view of the connection, kept current by its online/offline events. */
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+const useOnline = () =>
+  useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
 
 function buzz(ok: boolean) {
   try {
@@ -63,7 +80,7 @@ export function ScanPage() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1>Scan station</h1>
-          <p className="mt-1.5 max-w-[62ch] text-muted">
+          <p className="mt-1.5 max-w-[62ch] text-ink-muted">
             Point the camera at a pass or profile QR. Every code is checked by the server; if the
             network drops, scans are kept on this device and replayed in arrival order.
           </p>
@@ -223,241 +240,263 @@ function Station({ event }: { event: EventOut }) {
       : 0;
   const scanError = scan.error && scan.error.code !== 'NETWORK_ERROR' ? scan.error : null;
 
+  const online = useOnline();
+
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center gap-2.5 text-[0.92rem] text-muted">
+    <div className="grid gap-5">
+      <div className="flex flex-wrap items-center gap-2.5 text-body-md text-ink-muted">
         <StatusPill status={event.status} label={event.status_label} />
         <span>
           {event.club_name} · {event.venue_name} · {fmtTime(event.starts_at)}–
           {fmtTime(event.ends_at)}
         </span>
-        <span className="ml-auto font-mono text-[0.78rem]">station {station}</span>
+        <span className="ml-auto flex items-center gap-2">
+          {!online ? (
+            <Chip tone="pending" icon="alert">
+              Offline · {queue.length} queued
+            </Chip>
+          ) : queue.length > 0 ? (
+            <Chip tone="pending" icon="upload">
+              Online · {queue.length} to sync
+            </Chip>
+          ) : (
+            <Chip tone="approved" live>
+              Online
+            </Chip>
+          )}
+          <span className="mono-sm">station {station}</span>
+        </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <div className="grid content-start gap-4">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="grid content-start gap-5">
           <Verdict last={last} />
           {scanError ? <ProblemView error={scanError} /> : null}
           {checkIn.error ? <ProblemView error={checkIn.error} /> : null}
 
-          <section className="panel" aria-label="Camera">
+          <section className="cc-card flex flex-col gap-4 p-5" aria-label="Camera">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3>Camera</h3>
+              <h3 className="title-md">Camera</h3>
               {cameraOn ? (
-                <button type="button" className="btn" onClick={stopCamera}>
+                <Button variant="outlined" size="sm" icon="x" onClick={stopCamera}>
                   Stop camera
-                </button>
+                </Button>
               ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary"
+                <Button
+                  size="sm"
+                  icon="qr"
                   onClick={() => void startCamera()}
                   disabled={!canUseCamera}
                 >
                   Start camera
-                </button>
+                </Button>
               )}
             </div>
-            <div
-              className={`relative mt-3 overflow-hidden rounded-md bg-ink ${cameraOn ? '' : 'hidden'}`}
+            <Viewfinder
+              className="aspect-[4/3]"
+              scanning={cameraOn}
+              hint={
+                scan.isPending
+                  ? 'Checking…'
+                  : cameraOn
+                    ? 'Point the camera at a pass'
+                    : 'Camera off — enter a code below'
+              }
             >
               <video
                 ref={videoRef}
-                className="block aspect-[4/3] w-full object-cover"
+                className={`absolute inset-0 h-full w-full object-cover ${cameraOn ? '' : 'hidden'}`}
                 muted
                 playsInline
                 aria-label="Camera preview"
               />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-[18%] rounded-md border-4 border-marigold/80"
-              />
-              {scan.isPending ? (
-                <span className="absolute top-3 left-3 rounded-full bg-paper px-2.5 py-0.5 text-[0.8rem] font-semibold">
-                  Checking…
-                </span>
-              ) : null}
-            </div>
+            </Viewfinder>
             {!canUseCamera ? (
-              <p className="note mt-3">
+              <p className="note">
                 This browser cannot read QR codes from the camera (Chrome or Edge on Android, and
                 Safari 17+, can). Type the code from the pass or look the student up by PRN below.
               </p>
             ) : cameraError ? (
-              <p className="note mt-3">{cameraError}</p>
+              <p className="note">{cameraError}</p>
             ) : null}
+
+            <div className="grid gap-4 border-t border-line pt-4">
+              <form
+                aria-label="Enter a code"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitToken(code);
+                  setCode('');
+                  codeInput.current?.focus();
+                }}
+              >
+                <label className="label" htmlFor="scan-code">
+                  Pass code
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="scan-code"
+                    ref={codeInput}
+                    className="field mono-md"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    autoComplete="off"
+                    placeholder="Paste or type the code"
+                  />
+                  <Button type="submit" disabled={!code.trim() || scan.isPending}>
+                    Check code
+                  </Button>
+                </div>
+              </form>
+
+              <form
+                aria-label="Look up by PRN"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (prn.trim()) checkIn.mutate(prn.trim());
+                }}
+              >
+                <label className="label" htmlFor="scan-prn">
+                  No phone? PRN from their ID card
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="scan-prn"
+                    className="field mono-md uppercase"
+                    value={prn}
+                    onChange={(e) => setPrn(e.target.value)}
+                    autoComplete="off"
+                    placeholder="23LA1041"
+                  />
+                  <Button
+                    type="submit"
+                    variant="tonal"
+                    icon="user"
+                    disabled={!prn.trim() || checkIn.isPending}
+                  >
+                    Check in by PRN
+                  </Button>
+                </div>
+              </form>
+            </div>
           </section>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <form
-              className="panel"
-              aria-label="Enter a code"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitToken(code);
-                setCode('');
-                codeInput.current?.focus();
-              }}
-            >
-              <label className="label" htmlFor="scan-code">
-                Pass code
-              </label>
-              <input
-                id="scan-code"
-                ref={codeInput}
-                className="field font-mono"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoComplete="off"
-                placeholder="Paste or type the code"
-              />
-              <button
-                type="submit"
-                className="btn btn-primary mt-3"
-                disabled={!code.trim() || scan.isPending}
-              >
-                Check code
-              </button>
-            </form>
-
-            <form
-              className="panel"
-              aria-label="Look up by PRN"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (prn.trim()) checkIn.mutate(prn.trim());
-              }}
-            >
-              <label className="label" htmlFor="scan-prn">
-                No phone? PRN from their ID card
-              </label>
-              <input
-                id="scan-prn"
-                className="field font-mono uppercase"
-                value={prn}
-                onChange={(e) => setPrn(e.target.value)}
-                autoComplete="off"
-                placeholder="23LA1041"
-              />
-              <button
-                type="submit"
-                className="btn mt-3"
-                disabled={!prn.trim() || checkIn.isPending}
-              >
-                Check in by PRN
-              </button>
-            </form>
-          </div>
         </div>
 
-        <div className="grid content-start gap-4">
-          <section className="panel" aria-label="At the door">
-            <h3>At the door</h3>
+        <div className="grid content-start gap-5">
+          <section className="cc-card cc-att" aria-label="At the door">
+            <div className="cc-att-head">
+              <div className="cc-att-titles">
+                <h3 className="title-md">At the door</h3>
+                <div className="caption">{event.title}</div>
+              </div>
+              <Chip tone="approved" live>
+                Live
+              </Chip>
+            </div>
             {state.error ? (
               <ProblemView error={state.error} />
             ) : !counters || !capture ? (
               <Loading />
             ) : (
               <>
-                <p className="mt-2 font-display text-[2.6rem] leading-none font-extrabold">
-                  <span data-testid="checked-in">{counters.checked_in}</span>
-                  <span className="text-[1.2rem] font-semibold text-muted">
-                    {' '}
-                    / {counters.registered} registered
-                  </span>
-                </p>
-                <div className="meter mt-3">
-                  <i style={{ width: `${filled}%` }} />
-                </div>
-                <p className="mt-1.5 text-[0.85rem] text-muted">Capacity {counters.capacity}</p>
-                <dl className="mt-4 grid grid-cols-3 gap-2 text-center text-[0.8rem]">
-                  <Stat label="Scans" value={capture.attempts} />
-                  <Stat label="Duplicates" value={capture.duplicates} />
-                  <Stat
-                    label="Capture"
-                    value={
-                      capture.capture_rate === null
+                <dl className="cc-att-stats !grid-cols-2">
+                  <div className="cc-att-stat cc-att-stat--in">
+                    <dt className="label-md">Checked in</dt>
+                    <dd className="figure-xl cc-num">
+                      <span data-testid="checked-in">{counters.checked_in}</span>
+                    </dd>
+                  </div>
+                  <div className="cc-att-stat">
+                    <dt className="label-md">Registered</dt>
+                    <dd className="figure-xl cc-num">{counters.registered}</dd>
+                  </div>
+                  <div className="cc-att-stat">
+                    <dt className="label-md">Capacity</dt>
+                    <dd className="figure-xl cc-num">{counters.capacity}</dd>
+                  </div>
+                  <div className="cc-att-stat">
+                    <dt className="label-md">Capture rate</dt>
+                    <dd className="figure-xl cc-num">
+                      {capture.capture_rate === null
                         ? '—'
-                        : `${Math.round(capture.capture_rate * 100)}%`
-                    }
-                  />
+                        : `${Math.round(capture.capture_rate * 100)}%`}
+                    </dd>
+                  </div>
                 </dl>
+                <div
+                  className="cc-progress"
+                  role="progressbar"
+                  aria-label="Checked in of registered"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(filled)}
+                >
+                  <span
+                    className="cc-progress-seg cc-progress-seg--in"
+                    style={{ width: `${filled}%` }}
+                  />
+                </div>
+                <p className="cc-att-foot caption">
+                  <b>
+                    {capture.attempts} scan{capture.attempts === 1 ? '' : 's'}
+                  </b>{' '}
+                  · {capture.duplicates} duplicate{capture.duplicates === 1 ? '' : 's'} · failed
+                  scans count too — the gap is the capture rate
+                </p>
               </>
             )}
           </section>
 
           <section
-            className={`panel ${queue.length > 0 ? 'border-warn' : ''}`}
+            className={`cc-card p-5 ${queue.length > 0 ? '!border-warning' : ''}`}
             aria-label="Offline queue"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3>Offline queue</h3>
-              <span className={`pill ${queue.length > 0 ? 'pill-warn' : ''}`} data-testid="queue">
-                {queue.length} waiting
+              <h3 className="title-md">Offline queue</h3>
+              <span data-testid="queue">
+                <Chip tone={queue.length > 0 ? 'pending' : 'neutral'} icon="upload">
+                  {queue.length} waiting
+                </Chip>
               </span>
             </div>
-            <p className="mt-1.5 text-[0.88rem] text-muted">
+            <p className="mt-1.5 text-body-md text-ink-muted">
               {queue.length > 0
                 ? 'These scans have not reached the server. They replay automatically when the connection returns.'
                 : 'Nothing waiting. Scans made without a connection collect here.'}
             </p>
             {queue.length > 0 ? (
-              <button
-                type="button"
-                className="btn btn-primary mt-3"
-                onClick={syncNow}
-                disabled={sync.isPending}
-              >
+              <Button className="mt-3" icon="upload" onClick={syncNow} disabled={sync.isPending}>
                 {sync.isPending ? 'Syncing…' : 'Sync now'}
-              </button>
+              </Button>
             ) : null}
             {sync.error ? <ProblemView error={sync.error} /> : null}
           </section>
 
-          <section className="panel" aria-label="Recent scans">
-            <h3>Recent scans</h3>
+          <section className="cc-card p-5" aria-label="Recent scans">
+            <h3 className="title-md mb-3">Recent scans</h3>
             {state.data && state.data.recent.length > 0 ? (
-              <ul className="mt-2 grid gap-1.5 text-[0.88rem]">
+              <ul className="cc-att-list">
                 {state.data.recent.slice(0, 8).map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate">
-                      {r.who ?? 'Unknown code'}
-                      {r.was_offline ? <span className="text-muted"> · offline</span> : null}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span
-                        className={`pill ${
-                          r.result === 'accepted' || r.result === 'spot_registered'
-                            ? 'pill-ok'
-                            : r.result === 'duplicate'
-                              ? 'pill-warn'
-                              : 'pill-bad'
-                        }`}
-                      >
-                        {r.result_label}
-                      </span>
-                      <span className="text-muted">{fmtTime(r.scanned_at)}</span>
-                    </span>
-                  </li>
+                  <ScanResult
+                    key={r.id}
+                    as="li"
+                    compact
+                    result={r.result}
+                    label={r.result_label}
+                    who={r.who ?? 'Unknown code'}
+                    offline={r.was_offline}
+                    at={fmtTime(r.scanned_at)}
+                  />
                 ))}
               </ul>
             ) : (
-              <p className="mt-1.5 text-[0.88rem] text-muted">No scans yet.</p>
+              <p className="text-body-md text-ink-muted">No scans yet.</p>
             )}
           </section>
         </div>
       </div>
 
       <RosterPanel eventId={event.id} />
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-sm bg-sunk px-2 py-2">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-display text-[1.25rem] font-bold">{value}</dd>
     </div>
   );
 }

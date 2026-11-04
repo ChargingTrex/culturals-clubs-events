@@ -1,8 +1,8 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useCapabilities } from '../auth/useCapabilities';
+import { EmptyState, buttonClass } from '../ds';
 import { firstAllowedPath, type PageDef } from '../nav/pages';
 import { Loading } from './Empty';
-import { ProblemView } from './ProblemView';
 
 /** `/` → the first page this role is offered. */
 export function HomeRedirect() {
@@ -16,11 +16,13 @@ export function NotBuiltPage({ page }: { page: PageDef }) {
   return (
     <>
       <h1>{page.title}</h1>
-      <div className="note mt-4">
-        This screen is part of checklist row <strong>{page.slice}</strong> and is not in this build.
-        The link is offered because your role may open it; the route guard and the API have already
-        agreed you can.
-      </div>
+      <EmptyState
+        className="mt-5 rounded-lg border border-dashed border-line"
+        title="Not in this build yet"
+      >
+        This screen is part of checklist row <strong>{page.slice}</strong>. The link is offered
+        because your role may open it; the route guard and the API have already agreed you can.
+      </EmptyState>
     </>
   );
 }
@@ -28,14 +30,16 @@ export function NotBuiltPage({ page }: { page: PageDef }) {
 export function NotFoundPage() {
   const location = useLocation();
   return (
-    <ProblemView
-      error={{
-        status: 404,
-        code: 'NOT_FOUND',
-        title: 'No such page',
-        detail: `Nothing lives at ${location.pathname}.`,
-        instance: location.pathname,
-      }}
-    />
+    <EmptyState
+      className="rounded-lg border border-dashed border-line"
+      title="No such page"
+      action={
+        <Link className={buttonClass('tonal', 'sm')} to="/">
+          Go to your first page
+        </Link>
+      }
+    >
+      Nothing lives at <span className="mono-md">{location.pathname}</span>.
+    </EmptyState>
   );
 }

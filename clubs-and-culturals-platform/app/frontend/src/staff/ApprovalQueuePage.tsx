@@ -5,6 +5,7 @@ import type { ApiError } from '../shared/api/client';
 import { fmtDate, fmtTime, inr } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
 import { Pill } from '../shared/ui/Pill';
+import { accentFor, buttonClass, Chip, ClubIcon, Stat, Switch } from '../shared/ds';
 import { ProblemView } from '../shared/ui/ProblemView';
 import {
   STAFF_KEYS,
@@ -23,41 +24,51 @@ const INTRO: Record<ApprovalStage, string> = {
   vc: 'Proposals above the escalation threshold. Approval needs a multi-factor-verified session.',
 };
 
+/** One request in the approver's queue: the design system's ApprovalCard. */
 function QueueRow({ item, slaHours }: { item: ApprovalRequest; slaHours: number }) {
   return (
-    <li
-      data-testid="queue-row"
-      className="grid gap-3 border-b border-line py-4 sm:grid-cols-[1fr_auto] sm:items-center"
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3>
-            <Link to={`/staff/approvals/${item.id}`} className="hover:underline">
-              {item.event_title}
-            </Link>
-          </h3>
-          {item.escalated ? (
-            <Pill tone="bad">Past SLA ({slaHours}h)</Pill>
-          ) : (
-            <Pill tone="plain">Waiting {ageLabel(item.age_hours)}</Pill>
-          )}
+    <li data-testid="queue-row" className="cc-card cc-approval list-none">
+      <div className="cc-approval-head">
+        <ClubIcon name={item.club} accent={accentFor(item.club)} />
+        <div className="cc-approval-club">
+          <div className="title-sm">{item.club}</div>
+          <div className="caption">
+            {item.venue} · {fmtDate(item.starts_at)}, {fmtTime(item.starts_at)}
+          </div>
+        </div>
+        {item.escalated ? (
+          <Chip tone="rejected" icon="alert">
+            Past SLA ({slaHours}h)
+          </Chip>
+        ) : (
+          <Chip tone="in-review" icon="clock">
+            Waiting {ageLabel(item.age_hours)}
+          </Chip>
+        )}
+      </div>
+      <h3 className="cc-approval-title title-md">
+        <Link to={`/staff/approvals/${item.id}`} className="text-ink hover:underline">
+          {item.event_title}
+        </Link>
+      </h3>
+      <div className="cc-approval-amount">
+        <span className="figure-xl cc-num">{inr(item.amount_requested)}</span>
+        <span className="caption">requested · {item.expected_attendance} expected</span>
+      </div>
+      {item.requires_vc || item.clashes.length > 0 || item.nil_declaration ? (
+        <div className="cc-approval-tags">
           {item.requires_vc ? <Pill tone="warn">Needs VC</Pill> : null}
           {item.clashes.length > 0 ? <Pill tone="bad">Venue clash</Pill> : null}
-          {item.nil_declaration ? <Pill tone="gold">Nil budget</Pill> : null}
+          {item.nil_declaration ? <Pill tone="info">Nil budget</Pill> : null}
         </div>
-        <p className="text-[0.875rem] text-muted">
-          {item.club} · {item.venue} · {fmtDate(item.starts_at)}, {fmtTime(item.starts_at)} ·{' '}
-          {item.expected_attendance} expected
+      ) : null}
+      {item.escalated ? (
+        <p className="cc-approval-meta text-body-md text-danger">
+          Waiting {ageLabel(item.age_hours)} at this gate.
         </p>
-        {item.escalated ? (
-          <p className="mt-1 text-[0.85rem] text-bad">
-            Waiting {ageLabel(item.age_hours)} at this gate.
-          </p>
-        ) : null}
-      </div>
-      <div className="flex items-center gap-3 sm:justify-end">
-        <span className="font-display text-[1.15rem] font-bold">{inr(item.amount_requested)}</span>
-        <Link className="btn btn-primary" to={`/staff/approvals/${item.id}`}>
+      ) : null}
+      <div className="cc-approval-actions">
+        <Link className={buttonClass('filled', 'md')} to={`/staff/approvals/${item.id}`}>
           Review
         </Link>
       </div>
@@ -81,7 +92,7 @@ export function ApprovalQueuePage({ stage }: { stage: ApprovalStage }) {
     <>
       <div className="mb-5">
         <h1>{STAGE_LABEL[stage]} approvals</h1>
-        <p className="mt-1.5 max-w-[66ch] text-muted">{INTRO[stage]}</p>
+        <p className="mt-1.5 max-w-[66ch] text-ink-muted">{INTRO[stage]}</p>
       </div>
 
       {delegated ? (
@@ -93,33 +104,24 @@ export function ApprovalQueuePage({ stage }: { stage: ApprovalStage }) {
       ) : null}
 
       {queue.data ? (
-        <div className="mb-5 grid grid-cols-3 gap-3">
-          <div className="panel !p-4">
-            <span className="text-[0.78rem] font-semibold text-muted uppercase">Waiting</span>
-            <b className="block font-display text-[1.7rem]">{rows.length}</b>
-          </div>
-          <div className="panel !p-4">
-            <span className="text-[0.78rem] font-semibold text-muted uppercase">Past SLA</span>
-            <b className={`block font-display text-[1.7rem] ${escalatedCount ? 'text-bad' : ''}`}>
-              {escalatedCount}
-            </b>
-          </div>
-          <div className="panel !p-4">
-            <span className="text-[0.78rem] font-semibold text-muted uppercase">Requested</span>
-            <b className="block font-display text-[1.7rem]">{inr(total)}</b>
-          </div>
+        <div className="mb-5 grid grid-cols-3 gap-3 lg:gap-5">
+          <Stat label="Waiting" value={rows.length} />
+          <Stat
+            label="Past SLA"
+            value={escalatedCount}
+            tone={escalatedCount ? 'danger' : undefined}
+          />
+          <Stat label="Requested" value={inr(total)} />
         </div>
       ) : null}
 
-      <label className="mb-3 flex items-center gap-2 text-[0.9rem]">
-        <input
-          type="checkbox"
+      <div className="mb-4">
+        <Switch
+          label={`Only items past the ${queue.data?.sla_hours ?? ''}${queue.data ? 'h' : ''} SLA`}
           checked={escalatedOnly}
-          onChange={(e) => setEscalatedOnly(e.target.checked)}
+          onChange={setEscalatedOnly}
         />
-        Only items past the {queue.data?.sla_hours ?? ''}
-        {queue.data ? 'h' : ''} SLA
-      </label>
+      </div>
 
       {queue.isPending ? (
         <Loading />
@@ -132,7 +134,7 @@ export function ApprovalQueuePage({ stage }: { stage: ApprovalStage }) {
             : 'Nothing waiting at this gate. New proposals appear here, oldest first.'}
         </Empty>
       ) : (
-        <ul className="m-0 list-none border-t border-line p-0">
+        <ul className="m-0 grid list-none gap-4 p-0 lg:grid-cols-2 lg:gap-5">
           {rows.map((item) => (
             <QueueRow key={item.id} item={item} slaHours={queue.data.sla_hours} />
           ))}

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import { useCapabilities } from '../shared/auth/useCapabilities';
+import { BudgetSummary, Button, EditTag, Icon, Stat, buttonClass, cx } from '../shared/ds';
 import { fmtDate, inr } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
@@ -31,13 +32,16 @@ function useBudgetAction<V>(id: string, fn: (v: V) => Promise<Budget>, done?: st
   });
 }
 
+/** One entry as a sheet row: head, basis, requested, sanctioned (an approver's cut is an edit). */
 function LineRow({
   budget,
   line,
+  index,
   editable,
 }: {
   budget: Budget;
   line: BudgetLine;
+  index: number;
   editable: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -56,88 +60,92 @@ function LineRow({
 
   if (editing) {
     return (
-      <tr className="border-b border-line">
-        <td className="py-2 pr-2">
+      <tr>
+        <td className="cc-rownum mono-sm">{index + 1}</td>
+        <td className="cc-cell--text body-md" colSpan={2}>
           <input
             aria-label="Head"
-            className="field"
+            className="cc-cell-input"
             value={head}
             onChange={(e) => setHead(e.target.value)}
           />
         </td>
-        <td className="py-2 pr-2">
+        <td className="cc-cell--money figure-md">
           <input
             aria-label="Amount"
             type="number"
             min={0}
-            className="field text-right"
+            className="cc-cell-input"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
         </td>
-        <td className="py-2 text-right whitespace-nowrap" colSpan={2}>
-          <button
-            type="button"
-            className="btn btn-primary text-[0.85rem]"
-            disabled={edit.isPending}
-            onClick={() => edit.mutate(undefined, { onSuccess: () => setEditing(false) })}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className="btn btn-quiet text-[0.85rem]"
-            onClick={() => setEditing(false)}
-          >
-            Cancel
-          </button>
+        <td className="cc-cell--text body-md" colSpan={2}>
+          <span className="flex items-center justify-end gap-1">
+            <Button
+              size="sm"
+              disabled={edit.isPending}
+              onClick={() => edit.mutate(undefined, { onSuccess: () => setEditing(false) })}
+            >
+              Save
+            </Button>
+            <Button size="sm" variant="text" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+          </span>
           {edit.error ? <ProblemView error={edit.error} /> : null}
         </td>
       </tr>
     );
   }
+  const cut =
+    line.amount_sanctioned !== null &&
+    Number(line.amount_sanctioned) < Number(line.amount_requested);
   return (
-    <tr className="border-b border-line" data-testid="budget-line">
-      <td className="py-2.5 pr-2">
-        {line.head}
-        {line.basis ? (
-          <span className="block text-[0.75rem] text-muted">{line.basis.replace('_', ' ')}</span>
-        ) : null}
+    <tr data-testid="budget-line">
+      <td className="cc-rownum mono-sm">{index + 1}</td>
+      <td className="cc-cell--text cc-cell--wrap body-md">{line.head}</td>
+      <td className="cc-cell--text body-md text-ink-muted">
+        {line.basis ? line.basis.replace('_', ' ') : '—'}
       </td>
-      <td className="py-2.5 pr-2 text-right">{inr(line.amount_requested)}</td>
-      <td className="py-2.5 pr-2 text-right">
+      <td className="cc-cell--money figure-md">{inr(line.amount_requested)}</td>
+      <td
+        className={cx('cc-cell--money figure-md', cut && 'cc-cell--edited-admin')}
+        title={cut ? `Cut by an approver — was ${inr(line.amount_requested)}` : undefined}
+      >
         {line.amount_sanctioned === null ? (
-          <span className="text-muted">—</span>
+          <span className="text-ink-muted">—</span>
         ) : (
           <>
-            {inr(line.amount_sanctioned)}
-            {Number(line.amount_sanctioned) < Number(line.amount_requested) ? (
-              <span className="block text-[0.72rem] text-warn">cut by approver</span>
+            {cut ? (
+              <>
+                <EditTag role="admin" />
+                <span className="cc-cell-was">{inr(line.amount_requested)}</span>
+              </>
             ) : null}
+            {inr(line.amount_sanctioned)}
+            {cut ? <span className="cc-sr"> (cut by approver)</span> : null}
           </>
         )}
       </td>
-      <td className="py-2.5 text-right whitespace-nowrap">
+      <td className="cc-cell--text body-md">
         {editable ? (
-          <>
-            <button
-              type="button"
-              className="btn btn-quiet text-[0.85rem]"
-              onClick={() => setEditing(true)}
-            >
+          <span className="flex items-center justify-end gap-1">
+            <Button size="sm" variant="text" icon="edit" onClick={() => setEditing(true)}>
               Edit
-            </button>
-            <button
-              type="button"
-              className="btn btn-quiet text-[0.85rem] text-bad"
+            </Button>
+            <Button
+              size="sm"
+              variant="text"
+              className="!text-danger"
               disabled={remove.isPending}
               onClick={() => remove.mutate(undefined)}
             >
               Remove
-            </button>
-            {remove.error ? <ProblemView error={remove.error} /> : null}
-          </>
+            </Button>
+          </span>
         ) : null}
+        {remove.error ? <ProblemView error={remove.error} /> : null}
       </td>
     </tr>
   );
@@ -153,7 +161,7 @@ function AddLineForm({ budget }: { budget: Budget }) {
   );
   return (
     <form
-      className="mt-4 grid gap-3 sm:grid-cols-[1fr_160px_auto] sm:items-end"
+      className="grid gap-3 border-t border-line px-4 py-4 sm:grid-cols-[1fr_160px_auto] sm:items-end"
       onSubmit={(e) => {
         e.preventDefault();
         add.mutate(undefined, {
@@ -189,13 +197,9 @@ function AddLineForm({ budget }: { budget: Budget }) {
           onChange={(e) => setAmount(e.target.value)}
         />
       </div>
-      <button
-        type="submit"
-        className="btn btn-primary"
-        disabled={add.isPending || !head.trim() || !amount}
-      >
+      <Button type="submit" icon="plus" disabled={add.isPending || !head.trim() || !amount}>
         Add
-      </button>
+      </Button>
       {add.error ? (
         <div className="sm:col-span-3">
           <ProblemView error={add.error} />
@@ -220,16 +224,16 @@ function NilPanel({ budget }: { budget: Budget }) {
   if (budget.nil_declaration) {
     const nil = budget.nil_declaration;
     return (
-      <div className="note mt-3" data-testid="nil-declaration">
+      <div className="note m-4" data-testid="nil-declaration">
         <strong>{nil.head}</strong>
         <p className="mt-1">“{nil.reason}”</p>
-        <p className="mt-1 text-[0.82rem] text-muted">
+        <p className="mt-1 text-body-md text-ink-muted">
           Declared by {nil.declared_by} on {fmtDate(nil.declared_at)}
         </p>
         {budget.is_editable ? (
           <button
             type="button"
-            className="btn mt-2 text-[0.85rem]"
+            className="btn mt-2 text-body-md"
             disabled={withdraw.isPending}
             onClick={() => withdraw.mutate(undefined)}
           >
@@ -243,7 +247,7 @@ function NilPanel({ budget }: { budget: Budget }) {
   if (!budget.is_editable || budget.lines.length > 0) return null;
   return (
     <form
-      className="mt-4 rounded-sm border border-dashed border-line p-3"
+      className="m-4 rounded-md border border-dashed border-line-strong p-4"
       onSubmit={(e) => {
         e.preventDefault();
         declare.mutate(undefined);
@@ -296,12 +300,12 @@ function ReceiptUpload({ budget, line }: { budget: Budget; line: BudgetLine }) {
           aria-label={`Receipt for ${line.head}`}
           type="file"
           accept="application/pdf,image/*"
-          className="text-[0.82rem]"
+          className="text-body-md"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
         <button
           type="button"
-          className="btn text-[0.82rem]"
+          className="btn text-body-md"
           disabled={!file || upload.isPending}
           onClick={() => upload.mutate()}
         >
@@ -337,10 +341,10 @@ function SpendRow({
   const settled = budget.stage === 'settled';
   const over = line.amount_sanctioned !== null && Number(spent) > Number(line.amount_sanctioned);
   return (
-    <li className="border-b border-line py-3" data-testid="spend-line">
+    <li className="border-b border-line px-4 py-4 last:border-b-0" data-testid="spend-line">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <strong>{line.head}</strong>
-        <span className="text-[0.85rem] text-muted">
+        <span className="text-body-md text-ink-muted">
           sanctioned {inr(line.amount_sanctioned ?? line.amount_requested)}
           {line.is_overspent ? (
             <>
@@ -382,14 +386,17 @@ function SpendRow({
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
-          <button type="submit" className="btn" disabled={save.isPending}>
+          <Button type="submit" variant="tonal" disabled={save.isPending}>
             Save
-          </button>
+          </Button>
         </form>
       ) : (
-        <p className="mt-1 text-[0.9rem]">
+        <p className={cx('mt-1 text-body-md', line.is_overspent && 'font-semibold text-danger')}>
+          {line.is_overspent ? <Icon name="alert" size={16} className="mr-1" /> : null}
           Spent {line.amount_spent === null ? '—' : inr(line.amount_spent)}
-          {line.variance_note ? <span className="text-muted"> · {line.variance_note}</span> : null}
+          {line.variance_note ? (
+            <span className="text-ink-muted"> · {line.variance_note}</span>
+          ) : null}
         </p>
       )}
       {save.error ? <ProblemView error={save.error} /> : null}
@@ -405,7 +412,7 @@ function SpendRow({
                   clubApi.budget.openReceipt(r).catch(setOpenError);
                 }}
               >
-                📎 {r.file_name}
+                <Icon name="draft" size={14} /> {r.file_name}
                 {r.amount ? ` · ${inr(r.amount)}` : ''}
               </button>
             </li>
@@ -443,9 +450,12 @@ export function BudgetDetailPage() {
 
   return (
     <article>
-      <p className="mb-3 text-[0.875rem]">
-        <Link to="/club/budget" className="text-muted hover:underline">
-          ← Budget
+      <p className="mb-3 text-body-md">
+        <Link
+          to="/club/budget"
+          className="inline-flex items-center gap-1 text-primary hover:underline"
+        >
+          <Icon name="chevron-left" size={16} /> Budget
         </Link>
       </p>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
@@ -455,7 +465,7 @@ export function BudgetDetailPage() {
             <Pill tone={STAGE_TONE[b.stage ?? 'draft']}>{b.stage_label}</Pill>
           </div>
           {ev ? (
-            <p className="mt-1.5 text-muted">
+            <p className="mt-1.5 text-ink-muted">
               {ev.club_name} · {fmtDate(ev.starts_at)} ·{' '}
               <Link to={`/club/events/${ev.id}`} className="hover:underline">
                 event page
@@ -466,114 +476,159 @@ export function BudgetDetailPage() {
         </div>
       </div>
 
-      <div className="mb-3.5 grid gap-3.5 md:grid-cols-[1fr_320px]">
-        <div className="panel grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="text-[0.78rem] text-muted uppercase">Requested</p>
-            <p className="font-display text-[1.4rem] font-bold" data-testid="total-requested">
-              {inr(b.total_requested)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[0.78rem] text-muted uppercase">Sanctioned</p>
-            <p className="font-display text-[1.4rem] font-bold">{inr(b.total_sanctioned)}</p>
-          </div>
-          <div>
-            <p className="text-[0.78rem] text-muted uppercase">Spent</p>
-            <p className="font-display text-[1.4rem] font-bold">{inr(b.total_spent)}</p>
-          </div>
+      <div className="mb-5 grid gap-3.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5">
+        <div className="grid grid-cols-3 gap-3.5">
+          <Stat
+            label="Requested"
+            value={<span data-testid="total-requested">{inr(b.total_requested)}</span>}
+          />
+          <Stat label="Sanctioned" value={inr(b.total_sanctioned)} />
+          <Stat
+            label="Spent"
+            value={inr(b.total_spent)}
+            tone={
+              Number(b.total_sanctioned) > 0 && Number(b.total_spent) > Number(b.total_sanctioned)
+                ? 'danger'
+                : undefined
+            }
+          />
           {Number(b.total_requested) > b.thresholds.vc_threshold ? (
-            <p className="col-span-3 text-[0.85rem]">
+            <p className="col-span-3 text-body-md">
               <Pill tone="warn">
                 Above {inr(b.thresholds.vc_threshold)} — the Vice-Chancellor signs too
               </Pill>
             </p>
           ) : null}
         </div>
-        <div className="panel">
+        {spendPhase && Number(b.total_sanctioned) > 0 ? (
+          <BudgetSummary
+            title="Spend against sanction"
+            subtitle={b.stage === 'settled' ? 'Settled' : 'Enter spend and attach receipts below'}
+            sanctioned={Number(b.total_sanctioned)}
+            spent={Number(b.total_spent)}
+          />
+        ) : (
           <EnvelopeMeter envelope={b.envelope} />
-        </div>
+        )}
       </div>
 
-      <section className="panel" aria-label="Budget entries">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3>Entries</h3>
+      <section className="cc-card cc-sheet-wrap" aria-label="Budget entries">
+        <div className="cc-sheet-toolbar">
+          <div>
+            <h3 className="title-md">Entries</h3>
+            <div className="caption cc-sheet-sub">
+              {b.is_editable
+                ? 'Requested is what the club asks for. Approvers set what is sanctioned.'
+                : spendPhase
+                  ? 'Sanctioned. Record what was spent below.'
+                  : 'Amounts are frozen while an approver holds the budget.'}
+            </div>
+          </div>
+          <span className="cc-spacer" />
           {awaitingSubmit && canPropose && b.is_ready_to_submit && ev ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[0.85rem] text-muted">Priced — ready for the approvers.</span>
+              <span className="text-body-md text-ink-muted">Priced — ready for the approvers.</span>
               <SubmitButton event={ev} compact />
             </div>
           ) : null}
         </div>
         {b.lines.length > 0 ? (
-          <table className="mt-3 w-full text-[0.92rem]">
-            <thead>
-              <tr className="border-b border-line text-left text-[0.78rem] text-muted uppercase">
-                <th className="py-2 font-semibold">Head</th>
-                <th className="py-2 text-right font-semibold">Requested</th>
-                <th className="py-2 text-right font-semibold">Sanctioned</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {b.lines.map((line) => (
-                <LineRow key={line.id} budget={b} line={line} editable={editable} />
-              ))}
-            </tbody>
-          </table>
+          <div className="cc-sheet-scroll">
+            <table className="cc-sheet">
+              <thead>
+                <tr>
+                  <th className="cc-rownum label-md" scope="col">
+                    <span className="cc-sr">Row</span>
+                  </th>
+                  <th className="label-md" scope="col">
+                    Head
+                  </th>
+                  <th className="label-md" scope="col">
+                    Basis
+                  </th>
+                  <th className="label-md cc-al-right" scope="col">
+                    Requested
+                  </th>
+                  <th className="label-md cc-al-right" scope="col">
+                    Sanctioned
+                  </th>
+                  <th className="label-md" scope="col">
+                    <span className="cc-sr">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {b.lines.map((line, i) => (
+                  <LineRow key={line.id} budget={b} line={line} index={i} editable={editable} />
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td className="cc-rownum" />
+                  <td className="label-lg" colSpan={2}>
+                    Total
+                  </td>
+                  <td className="figure-md cc-cell--money">{inr(b.total_requested)}</td>
+                  <td className="figure-md cc-cell--money">
+                    {Number(b.total_sanctioned) > 0 ? inr(b.total_sanctioned) : '—'}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         ) : !b.nil_declaration ? (
-          <p className="mt-2 text-[0.9rem] text-muted">
+          <p className="px-4 py-4 text-body-md text-ink-muted">
             No entries yet. A proposal cannot go for approval until it is priced or declared nil.
           </p>
         ) : null}
         <NilPanel budget={b} />
         {editable && !b.nil_declaration ? <AddLineForm budget={b} /> : null}
-        {!b.is_editable && !spendPhase ? (
-          <p className="mt-3 text-[0.85rem] text-muted">
-            Amounts are frozen while an approver holds the budget.
-          </p>
-        ) : null}
       </section>
 
       {spendPhase && b.lines.length > 0 ? (
-        <section className="panel mt-3.5" aria-label="Spend and receipts">
-          <h3>Spend and receipts</h3>
-          <p className="mt-1 text-[0.85rem] text-muted">
-            Receipts are required for anything above {inr(b.thresholds.receipt_threshold)}.
-          </p>
-          <ul className="m-0 mt-2 list-none p-0">
+        <section className="cc-card mt-5" aria-label="Spend and receipts">
+          <div className="cc-sheet-toolbar">
+            <div>
+              <h3 className="title-md">Spend and receipts</h3>
+              <div className="caption cc-sheet-sub">
+                Receipts are required for anything above {inr(b.thresholds.receipt_threshold)}.
+              </div>
+            </div>
+          </div>
+          <ul className="m-0 list-none p-0">
             {b.lines.map((line) => (
               <SpendRow key={line.id} budget={b} line={line} canSpend={canSpend} />
             ))}
           </ul>
-          {b.stage === 'settled' ? (
-            <p className="mt-3">
+          <div className="border-t border-line px-4 py-4">
+            {b.stage === 'settled' ? (
               <Pill tone="ok">Settled{b.settled_at ? ` on ${fmtDate(b.settled_at)}` : ''}</Pill>
-            </p>
-          ) : (
-            <div className="mt-4">
-              {b.settlement_problems.length > 0 ? (
-                <ul className="mb-3 list-disc pl-5 text-[0.88rem] text-warn">
-                  {b.settlement_problems.map((p, i) => (
-                    <li key={`${p.field}-${i}`}>{p.message}</li>
-                  ))}
-                </ul>
-              ) : null}
-              {b.settlement_hint ? <p className="note mb-3">{b.settlement_hint}</p> : null}
-              {canSpend ? (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={settle.isPending || !b.can_settle}
-                  title={b.settlement_waiting_on ?? undefined}
-                  onClick={() => settle.mutate(undefined)}
-                >
-                  Settle budget
-                </button>
-              ) : null}
-              {settle.error ? <ProblemView error={settle.error} /> : null}
-            </div>
-          )}
+            ) : (
+              <>
+                {b.settlement_problems.length > 0 ? (
+                  <ul className="mb-3 list-disc pl-5 text-body-md text-warning">
+                    {b.settlement_problems.map((p, i) => (
+                      <li key={`${p.field}-${i}`}>{p.message}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {b.settlement_hint ? <p className="note mb-3">{b.settlement_hint}</p> : null}
+                {canSpend ? (
+                  <button
+                    type="button"
+                    className={buttonClass('filled')}
+                    disabled={settle.isPending || !b.can_settle}
+                    title={b.settlement_waiting_on ?? undefined}
+                    onClick={() => settle.mutate(undefined)}
+                  >
+                    Settle budget
+                  </button>
+                ) : null}
+                {settle.error ? <ProblemView error={settle.error} /> : null}
+              </>
+            )}
+          </div>
         </section>
       ) : null}
     </article>

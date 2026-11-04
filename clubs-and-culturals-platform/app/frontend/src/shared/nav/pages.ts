@@ -8,6 +8,7 @@
  * the screen shows the API's refusal rather than a blank.
  */
 import type { ApprovalStage, Capabilities } from '../api/types';
+import type { IconName } from '../ds';
 
 export type PageNeed =
   | 'is_student'
@@ -38,6 +39,8 @@ export interface PageDef {
   group: PageGroup;
   need: PageNeed;
   probe: string;
+  /** Design-system icon shown beside the title in the sidebar and bottom bar. */
+  icon: IconName;
   /** Which checklist row builds the screen. Only F-02 is in this slice. */
   slice: 'F-02' | 'F-03' | 'F-04' | 'F-05';
 }
@@ -45,6 +48,7 @@ export interface PageDef {
 export const PAGES: readonly PageDef[] = [
   {
     path: '/events',
+    icon: 'calendar',
     title: "What's on",
     group: 'Student',
     need: 'is_student',
@@ -53,6 +57,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/passes',
+    icon: 'ticket',
     title: 'My passes',
     group: 'Student',
     need: 'is_student',
@@ -61,6 +66,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/profile',
+    icon: 'qr',
     title: 'Profile QR',
     group: 'Student',
     need: 'is_student',
@@ -69,6 +75,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/club/events',
+    icon: 'calendar',
     title: 'Club events',
     group: 'Club',
     need: 'clubs',
@@ -77,6 +84,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/club/events/new',
+    icon: 'plus',
     title: 'New event',
     group: 'Club',
     need: 'clubs_can_propose',
@@ -85,6 +93,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/club/budget',
+    icon: 'wallet',
     title: 'Budget',
     group: 'Club',
     need: 'clubs_with_budget_access',
@@ -93,6 +102,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/club/roster',
+    icon: 'clubs',
     title: 'Members & roles',
     group: 'Club',
     need: 'clubs',
@@ -101,6 +111,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/scan',
+    icon: 'qr',
     title: 'Scan station',
     group: 'Door',
     need: 'door',
@@ -109,6 +120,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/staff/approvals/society',
+    icon: 'approval',
     title: 'Society approvals',
     group: 'Approvals',
     need: 'stage:cultural_society',
@@ -117,6 +129,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/staff/approvals/dean',
+    icon: 'approval',
     title: 'Dean approvals',
     group: 'Approvals',
     need: 'stage:dean',
@@ -125,6 +138,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/staff/approvals/vc',
+    icon: 'approval',
     title: 'Above-threshold',
     group: 'Approvals',
     need: 'stage:vc',
@@ -133,6 +147,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/staff/venues',
+    icon: 'pin',
     title: 'Venues',
     group: 'Staff',
     need: 'is_dean',
@@ -141,6 +156,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/staff/overview',
+    icon: 'eye',
     title: 'This semester',
     group: 'Staff',
     need: 'can_see_overview',
@@ -149,6 +165,7 @@ export const PAGES: readonly PageDef[] = [
   },
   {
     path: '/staff/report',
+    icon: 'sheet',
     title: 'Semester report',
     group: 'Staff',
     need: 'report',

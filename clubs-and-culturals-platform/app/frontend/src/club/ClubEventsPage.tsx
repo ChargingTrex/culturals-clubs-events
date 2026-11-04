@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import type { EventOut, Page } from '../shared/api/types';
+import { ClubIcon, SegmentedControl, accentFor, buttonClass } from '../shared/ds';
 import { fmtDate, fmtTime, inr } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
@@ -33,7 +35,7 @@ export function SubmitButton({ event, compact }: { event: EventOut; compact?: bo
     <>
       <button
         type="button"
-        className={`btn btn-primary ${compact ? 'text-[0.85rem]' : ''}`}
+        className={buttonClass('filled', compact ? 'sm' : 'md')}
         disabled={submit.isPending}
         onClick={() => submit.mutate()}
       >
@@ -48,37 +50,63 @@ export function SubmitButton({ event, compact }: { event: EventOut; compact?: bo
   );
 }
 
+/** Stage filter under the title (design system: segmented control with counts). */
+const FILTERS = [
+  { value: 'all', label: 'All', match: () => true },
+  { value: 'drafts', label: 'Drafts', match: (e: EventOut) => SUBMITTABLE.has(e.status) },
+  {
+    value: 'review',
+    label: 'With approvers',
+    match: (e: EventOut) => e.status === 'submitted',
+  },
+  {
+    value: 'upcoming',
+    label: 'Upcoming',
+    match: (e: EventOut) => ['approved', 'published', 'live'].includes(e.status),
+  },
+  {
+    value: 'past',
+    label: 'Past',
+    match: (e: EventOut) => ['completed', 'reported', 'cancelled', 'rejected'].includes(e.status),
+  },
+] as const;
+
 function ClubEventRow({ event }: { event: EventOut }) {
+  const pct = event.capacity > 0 ? Math.min(100, (event.registered / event.capacity) * 100) : 0;
+  const ran = event.status === 'completed' || event.status === 'reported';
   return (
-    <li
-      data-testid="club-event-row"
-      className="grid gap-3 border-b border-line py-4 sm:grid-cols-[1fr_auto] sm:items-center"
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3>
-            <Link to={`/club/events/${event.id}`} className="hover:underline">
+    <li data-testid="club-event-row" className="cc-card flex list-none flex-col gap-3 p-5">
+      <div className="flex items-start gap-3">
+        <ClubIcon name={event.club_name} accent={accentFor(event.club_name)} />
+        <div className="min-w-0 flex-1">
+          <h3 className="title-md">
+            <Link to={`/club/events/${event.id}`} className="text-ink hover:underline">
               {event.title}
             </Link>
           </h3>
-          <StatusPill status={event.status} label={event.status_label} />
-          {event.budget ? <Pill>{event.budget.stage_label}</Pill> : null}
+          <p className="text-body-md text-ink-muted">
+            {fmtDate(event.starts_at)} · {fmtTime(event.starts_at)}–{fmtTime(event.ends_at)} ·{' '}
+            {event.venue_name}
+          </p>
         </div>
-        <p className="text-[0.875rem] text-muted">
-          {fmtDate(event.starts_at)} · {fmtTime(event.starts_at)}–{fmtTime(event.ends_at)} ·{' '}
-          {event.venue_name}
-        </p>
-        <p className="text-[0.875rem] text-muted">
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusPill status={event.status} label={event.status_label} />
+        {event.budget ? <Pill>{event.budget.stage_label}</Pill> : null}
+      </div>
+      <div>
+        <div className="meter">
+          <i style={{ width: `${pct}%` }} />
+        </div>
+        <p className="mt-1.5 text-body-md text-ink-muted">
           {event.registered} registered of {event.capacity}
-          {event.status === 'completed' || event.status === 'reported'
-            ? ` · ${event.attended} attended`
-            : ''}
+          {ran ? ` · ${event.attended} attended` : ''}
           {event.budget ? ` · requested ${inr(event.budget.total_requested)}` : ''}
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+      <div className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t border-line pt-3">
         {SUBMITTABLE.has(event.status) ? <SubmitButton event={event} compact /> : null}
-        <Link className="btn text-[0.85rem]" to={`/club/events/${event.id}`}>
+        <Link className={buttonClass('outlined', 'sm')} to={`/club/events/${event.id}`}>
           Open
         </Link>
       </div>
@@ -95,13 +123,16 @@ export function ClubEventsPage() {
     enabled: !isPending,
   });
   const canPropose = (capabilities?.clubs_can_propose.length ?? 0) > 0;
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['value']>('all');
+  const all = events.data?.results ?? [];
+  const shown = all.filter(FILTERS.find((f) => f.value === filter)?.match ?? (() => true));
 
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1>Club events</h1>
-          <p className="mt-1.5 max-w-[62ch] text-muted">
+          <p className="mt-1.5 max-w-[62ch] text-ink-muted">
             Every event {selected ? selected.name : 'your club'} has proposed — drafts, those with
             approvers, and those already run.
           </p>
@@ -109,12 +140,26 @@ export function ClubEventsPage() {
         <div className="flex flex-wrap items-end gap-3">
           <ClubPicker clubs={clubs} value={selected?.id} onChange={select} />
           {canPropose ? (
-            <Link className="btn btn-primary" to="/club/events/new">
+            <Link className={buttonClass('filled')} to="/club/events/new">
               New event
             </Link>
           ) : null}
         </div>
       </div>
+
+      {all.length > 0 ? (
+        <SegmentedControl
+          className="mb-5 max-w-full overflow-x-auto"
+          label="Show"
+          value={filter}
+          onChange={(v) => setFilter(v as typeof filter)}
+          options={FILTERS.map((f) => ({
+            value: f.value,
+            label: f.label,
+            count: all.filter(f.match).length,
+          }))}
+        />
+      ) : null}
 
       {error ? <ProblemView error={error} /> : null}
       {events.isPending ? (
@@ -133,9 +178,11 @@ export function ClubEventsPage() {
         >
           No events yet.
         </Empty>
+      ) : shown.length === 0 ? (
+        <Empty>Nothing in this view.</Empty>
       ) : (
-        <ul className="m-0 list-none border-t border-line p-0">
-          {events.data.results.map((e) => (
+        <ul className="m-0 grid list-none gap-4 p-0 lg:grid-cols-2 lg:gap-5">
+          {shown.map((e) => (
             <ClubEventRow key={e.id} event={e} />
           ))}
         </ul>

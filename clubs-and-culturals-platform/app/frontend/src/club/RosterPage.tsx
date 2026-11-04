@@ -19,13 +19,14 @@ import {
   type Membership,
   type OfficeBearerHistory,
 } from './api';
+import { Avatar, Button, RevisionTimeline, ROLE_POSITION } from '../shared/ds';
 import { ClubPicker } from './ClubPicker';
 import { useMyClubs, useSelectedClub } from './useMyClubs';
 
 const rosterKey = (club: string) => ['clubs', club, 'members'] as const;
-const OFFICE_TONE: Partial<Record<ClubRole, 'gold' | 'ok'>> = {
-  club_president: 'gold',
-  club_vice_president: 'gold',
+const OFFICE_TONE: Partial<Record<ClubRole, 'info' | 'ok'>> = {
+  club_president: 'info',
+  club_vice_president: 'info',
   club_treasurer: 'ok',
   club_secretary: 'ok',
 };
@@ -47,7 +48,7 @@ function RoleControl({ member, club }: { member: Membership; club: string }) {
     <div>
       <select
         aria-label={`Role for ${member.full_name}`}
-        className="field py-1 text-[0.85rem]"
+        className="field h-(--control-sm) py-0 text-body-md"
         value={role}
         disabled={change.isPending}
         onChange={(e) => {
@@ -92,37 +93,40 @@ function JoinQueue({ club }: { club: string }) {
     <section className="panel" aria-label="Join requests">
       <h3>Join requests</h3>
       {pending.length === 0 ? (
-        <p className="mt-1.5 text-[0.9rem] text-muted">Nobody is waiting.</p>
+        <p className="mt-1.5 text-body-md text-ink-muted">Nobody is waiting.</p>
       ) : (
         <ul className="mt-2 list-none p-0">
           {pending.map((r) => (
             <li
               key={r.id}
-              className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2.5"
+              className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3 last:border-b-0"
             >
-              <div>
-                <strong>{r.full_name}</strong>
-                <span className="block text-[0.82rem] text-muted">
-                  {r.prn} · {r.department} · year {r.year} · asked {fmtDate(r.created_at)}
-                </span>
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar name={r.full_name} size="sm" />
+                <div className="min-w-0">
+                  <strong>{r.full_name}</strong>
+                  <span className="block text-body-md text-ink-muted">
+                    {r.prn} · {r.department} · year {r.year} · asked {fmtDate(r.created_at)}
+                  </span>
+                </div>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-primary text-[0.85rem]"
+                <Button
+                  size="sm"
+                  icon="check"
                   disabled={decide.isPending}
                   onClick={() => decide.mutate({ req: r, outcome: 'accept' })}
                 >
                   Accept
-                </button>
-                <button
-                  type="button"
-                  className="btn text-[0.85rem]"
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outlined"
                   disabled={decide.isPending}
                   onClick={() => decide.mutate({ req: r, outcome: 'decline' })}
                 >
                   Decline
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -171,7 +175,7 @@ function Handover({ club, members }: { club: string; members: Membership[] }) {
   return (
     <section className="panel" aria-label="Handover">
       <h3>Handover</h3>
-      <p className="mt-1.5 text-[0.9rem] text-muted">
+      <p className="mt-1.5 text-body-md text-ink-muted">
         Name next term&apos;s office bearers. The outgoing holders lose their permissions at the
         effective time.
       </p>
@@ -184,7 +188,7 @@ function Handover({ club, members }: { club: string; members: Membership[] }) {
       >
         {OFFICES.map((office) => (
           <div key={office} className="grid gap-1 sm:grid-cols-[140px_1fr] sm:items-center">
-            <label className="text-[0.88rem] font-semibold" htmlFor={`ho-${office}`}>
+            <label className="text-body-md font-semibold" htmlFor={`ho-${office}`}>
               {ROLES.find((r) => r.value === office)?.label}
             </label>
             <select
@@ -203,7 +207,7 @@ function Handover({ club, members }: { club: string; members: Membership[] }) {
           </div>
         ))}
         <div className="grid gap-1 sm:grid-cols-[140px_1fr] sm:items-center">
-          <label className="text-[0.88rem] font-semibold" htmlFor="ho-effective">
+          <label className="text-body-md font-semibold" htmlFor="ho-effective">
             Effective
           </label>
           <input
@@ -214,29 +218,37 @@ function Handover({ club, members }: { club: string; members: Membership[] }) {
             onChange={(e) => setEffective(e.target.value)}
           />
         </div>
-        <button
+        <Button
           type="submit"
-          className="btn btn-primary justify-self-start"
+          icon="history"
+          className="justify-self-start"
           disabled={run.isPending || chosen === 0}
         >
           Record handover
-        </button>
+        </Button>
       </form>
       {run.error ? <ProblemView error={run.error} /> : null}
 
-      <h3 className="mt-5">Office-bearer history</h3>
+      <h3 className="mt-6">Office-bearer history</h3>
       {history.isPending ? (
         <Loading />
       ) : history.error ? (
         <ProblemView error={history.error} />
       ) : history.data.results.length === 0 ? (
-        <p className="mt-1.5 text-[0.9rem] text-muted">No terms recorded yet.</p>
+        <p className="mt-1.5 text-body-md text-ink-muted">No terms recorded yet.</p>
       ) : (
-        <ul className="mt-2 list-none p-0 text-[0.9rem]">
+        <ul className="mt-2 list-none p-0 text-body-md">
           {history.data.results.map((t) => (
-            <li key={t.id} className="flex flex-wrap gap-2 border-b border-line py-1.5">
-              <strong>{t.role_label}</strong> {t.full_name}
-              <span className="text-muted">
+            <li
+              key={t.id}
+              className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0"
+            >
+              <Avatar name={t.full_name} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{t.full_name}</span>
+                <span className="caption text-ink-muted">{t.role_label}</span>
+              </span>
+              <span className="mono-sm text-ink-muted">
                 {fmtDate(t.starts_at)} – {t.ends_at ? fmtDate(t.ends_at) : 'now'}
               </span>
             </li>
@@ -269,7 +281,7 @@ export function RosterPage() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1>{roster.data?.club.name ?? selected.name} members</h1>
-          <p className="mt-1.5 max-w-[62ch] text-muted">
+          <p className="mt-1.5 max-w-[62ch] text-ink-muted">
             {canAssign
               ? 'Assign roles here. Every change is recorded with who made it.'
               : 'Who is in the club, and who holds which office.'}
@@ -283,7 +295,7 @@ export function RosterPage() {
             </Pill>
           ) : null}
           {roster.data?.pending_join_requests ? (
-            <Pill tone="gold">{roster.data.pending_join_requests} waiting to join</Pill>
+            <Pill tone="info">{roster.data.pending_join_requests} waiting to join</Pill>
           ) : null}
         </div>
       </div>
@@ -293,67 +305,92 @@ export function RosterPage() {
       ) : roster.error ? (
         <ProblemView error={roster.error} />
       ) : (
-        <div className="grid gap-3.5 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0">
-            <div className="panel overflow-x-auto p-0">
-              <table className="w-full text-[0.92rem]" data-testid="roster">
-                <thead>
-                  <tr className="border-b border-line text-left text-[0.78rem] text-muted uppercase">
-                    <th className="px-4 py-2.5 font-semibold">Name</th>
-                    <th className="px-2 py-2.5 font-semibold">PRN</th>
-                    <th className="px-2 py-2.5 font-semibold">Department</th>
-                    <th className="px-4 py-2.5 font-semibold">Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roster.data.results.map((m) => (
-                    <tr
-                      key={m.id}
-                      className="border-b border-line last:border-0"
-                      data-testid="member-row"
-                    >
-                      <td className="px-4 py-2.5">
-                        {m.full_name}
-                        <span className="block text-[0.75rem] text-muted">
-                          {m.programme} · year {m.year}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2.5 font-mono text-[0.82rem]">{m.prn}</td>
-                      <td className="px-2 py-2.5">{m.department}</td>
-                      <td className="px-4 py-2.5">
-                        {canAssign ? (
-                          <RoleControl key={`${m.id}-${m.role}`} member={m} club={club} />
-                        ) : (
-                          <Pill tone={OFFICE_TONE[m.role ?? 'club_member'] ?? 'plain'}>
-                            {m.role_label}
-                          </Pill>
-                        )}
-                      </td>
+            <section className="cc-card cc-sheet-wrap">
+              <div className="cc-sheet-toolbar">
+                <div>
+                  <h3 className="title-md">Members</h3>
+                  <div className="caption cc-sheet-sub">
+                    {roster.data.results.length} in the club · office-bearers wear a gold ring
+                  </div>
+                </div>
+              </div>
+              <div className="cc-sheet-scroll">
+                <table className="cc-sheet" data-testid="roster">
+                  <thead>
+                    <tr>
+                      <th className="label-md" scope="col">
+                        Name
+                      </th>
+                      <th className="label-md" scope="col">
+                        PRN
+                      </th>
+                      <th className="label-md" scope="col">
+                        Department
+                      </th>
+                      <th className="label-md" scope="col">
+                        Role
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {roster.data.results.map((m) => (
+                      <tr key={m.id} data-testid="member-row">
+                        <td className="body-md">
+                          <span className="flex items-center gap-3 py-2">
+                            <Avatar
+                              name={m.full_name}
+                              size="sm"
+                              position={ROLE_POSITION[m.role ?? 'club_member']}
+                            />
+                            <span className="min-w-0">
+                              {m.full_name}
+                              <span className="block caption text-ink-muted">
+                                {m.programme} · year {m.year}
+                              </span>
+                            </span>
+                          </span>
+                        </td>
+                        <td className="cc-cell--id mono-md">{m.prn}</td>
+                        <td className="body-md">{m.department}</td>
+                        <td className="body-md">
+                          {canAssign ? (
+                            <RoleControl key={`${m.id}-${m.role}`} member={m} club={club} />
+                          ) : (
+                            <Pill tone={OFFICE_TONE[m.role ?? 'club_member'] ?? 'plain'}>
+                              {m.role_label}
+                            </Pill>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
             {roster.data.recent_changes.length > 0 ? (
-              <section className="panel mt-3.5" aria-label="Role changes">
-                <h3>Role changes</h3>
-                <ul className="mt-2 list-none p-0 text-[0.9rem]">
-                  {roster.data.recent_changes.map((c) => {
+              <section className="panel mt-5" aria-label="Role changes">
+                <h3 className="mb-4">Role changes</h3>
+                <RevisionTimeline
+                  items={roster.data.recent_changes.map((c) => {
                     const who = roster.data.results.find((m) => m.id === c.membership);
-                    return (
-                      <li key={c.id} className="border-b border-line py-1.5 last:border-0">
-                        {who?.full_name ?? 'A member'}: {roleLabel(c.from_role)} →{' '}
-                        <strong>{roleLabel(c.to_role)}</strong>
-                        <span className="text-muted">
-                          {' '}
-                          · by {c.actor_label} · {fmtDate(c.created_at)}
-                        </span>
-                        {c.reason ? <span className="block text-muted">“{c.reason}”</span> : null}
-                      </li>
-                    );
+                    return {
+                      role: 'member' as const,
+                      name: c.actor_label,
+                      roleLabel: 'Club',
+                      at: fmtDate(c.created_at),
+                      action: (
+                        <>
+                          {who?.full_name ?? 'A member'}: {roleLabel(c.from_role)} →{' '}
+                          <strong>{roleLabel(c.to_role)}</strong>
+                        </>
+                      ),
+                      comment: c.reason || undefined,
+                    };
                   })}
-                </ul>
+                />
               </section>
             ) : null}
           </div>

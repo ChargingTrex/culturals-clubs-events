@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Button } from '../shared/ds';
 import { QrImage } from '../shared/ui/QrImage';
 
 /**
@@ -31,20 +32,22 @@ export function BrightView({
       aria-modal="true"
       aria-label={`${title} — full screen`}
       data-testid="bright-view"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-white p-6 text-black"
+      data-theme="light"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-qr-paper p-6 text-qr-ink"
       style={{ filter: 'brightness(1.08)', colorScheme: 'light' }}
       onClick={onClose}
     >
       <div className="text-center">
-        <h2 className="text-black">{title}</h2>
-        {subtitle ? <p className="text-[0.9rem] text-neutral-600">{subtitle}</p> : null}
+        <p className="label-md tracking-[0.08em] text-qr-ink/70 uppercase">Show at the door</p>
+        <h2 className="headline mt-1 text-qr-ink">{title}</h2>
+        {subtitle ? <p className="body-md text-qr-ink/70">{subtitle}</p> : null}
       </div>
-      <div className="w-[min(88vw,64vh)] rounded-md bg-white p-3 [&>img]:h-auto [&>img]:w-full">
+      <div className="w-[min(88vw,64vh)] rounded-xl bg-qr-paper p-3 shadow-elevation-3 [&>img]:h-auto [&>img]:w-full">
         <QrImage value={value} size={640} alt={`${title} QR`} />
       </div>
-      <button type="button" className="btn" onClick={onClose}>
+      <Button variant="outlined" icon="x" onClick={onClose}>
         Close
-      </button>
+      </Button>
     </div>
   );
 }

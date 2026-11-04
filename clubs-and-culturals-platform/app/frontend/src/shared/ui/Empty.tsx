@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react';
+import { EmptyState } from '../ds';
 
+/** Empty list or page: the design system's EmptyState (glyph tile, message, action). */
 export function Empty({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-md border border-dashed border-line p-7 text-center text-muted">
-      <p>{children}</p>
-      {action ? <div className="mt-3">{action}</div> : null}
-    </div>
+    <EmptyState
+      title={children}
+      action={action ? <div className="mt-1">{action}</div> : undefined}
+      className="rounded-lg border border-dashed border-line"
+    />
   );
 }
 
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
-    <p role="status" className="p-11 text-center opacity-45">
+    <p role="status" className="body-md p-11 text-center text-ink-muted">
       {label}
     </p>
   );

@@ -3,6 +3,22 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import { useSession } from '../shared/auth/store';
+import {
+  ApprovalFlow,
+  BudgetSheet,
+  Button,
+  Card,
+  Chip,
+  ClubIcon,
+  Icon,
+  RevisionTimeline,
+  Stat,
+  accentFor,
+  formatINR,
+  type RevisionItem,
+  type SheetRow,
+} from '../shared/ds';
+import { GATE_NAME, STAGE_ROLE, flowSteps } from '../shared/approvals';
 import { fmtDate, fmtTime, inr, roleLabel } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill } from '../shared/ui/Pill';
@@ -15,7 +31,6 @@ import {
   ageLabel,
   staffApi,
   type ApprovalRequest,
-  type ApprovalStep,
   type DecideBody,
   type Decision,
   type DecisionOut,
@@ -35,32 +50,64 @@ const STATE_TONE = {
   withdrawn: 'plain',
 } as const;
 
-function Trail({ steps }: { steps: ApprovalStep[] }) {
-  if (steps.length === 0) {
-    return <p className="mt-2 text-[0.9rem] text-muted">No decisions yet.</p>;
+function Trail({ a }: { a: ApprovalRequest }) {
+  if (a.steps.length === 0) {
+    return <p className="text-body-md text-ink-muted">No decisions yet.</p>;
   }
+  const items: RevisionItem[] = a.steps.map((s) => {
+    const role = STAGE_ROLE[s.stage];
+    const sanctioned = Number(s.amount_sanctioned);
+    const reduced = sanctioned > 0 && sanctioned < Number(a.amount_requested);
+    return {
+      role,
+      name: s.actor_label,
+      roleLabel:
+        roleLabel(s.actor_role) + (s.on_behalf_of_label ? ` for ${s.on_behalf_of_label}` : ''),
+      at: `${fmtDate(s.created_at)} ${fmtTime(s.created_at)}`,
+      tags: (
+        <>
+          <Pill tone={DECISION[s.decision].tone}>{DECISION[s.decision].label}</Pill>
+          {s.mfa_verified ? <Pill tone="ok">MFA</Pill> : null}
+        </>
+      ),
+      action: s.stage_label,
+      ...(reduced
+        ? { field: 'Sanctioned', from: inr(a.amount_requested), to: inr(s.amount_sanctioned) }
+        : sanctioned > 0
+          ? { action: `${s.stage_label} · sanctioned ${inr(s.amount_sanctioned)}` }
+          : {}),
+      comment: s.comment || undefined,
+    };
+  });
   return (
-    <ol className="mt-3 flex list-none flex-col gap-3 p-0" data-testid="trail">
-      {steps.map((s) => (
-        <li key={s.id} className="border-l-[3px] border-line pl-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <strong>{s.stage_label}</strong>
-            <Pill tone={DECISION[s.decision].tone}>{DECISION[s.decision].label}</Pill>
-            {s.mfa_verified ? <Pill tone="ok">MFA</Pill> : null}
-            {Number(s.amount_sanctioned) > 0 ? (
-              <span className="text-[0.85rem]">sanctioned {inr(s.amount_sanctioned)}</span>
-            ) : null}
-          </div>
-          <p className="text-[0.85rem] text-muted">
-            {s.actor_label} ({roleLabel(s.actor_role)})
-            {s.on_behalf_of_label ? ` on behalf of ${s.on_behalf_of_label}` : ''} ·{' '}
-            {fmtDate(s.created_at)} {fmtTime(s.created_at)}
-          </p>
-          {s.comment ? <p className="mt-1 text-[0.92rem]">“{s.comment}”</p> : null}
-        </li>
-      ))}
-    </ol>
+    <div data-testid="trail">
+      <RevisionTimeline items={items} />
+    </div>
   );
+}
+
+/** Budget lines as a sheet. A line sanctioned below its request is an edit. */
+function budgetRows(a: ApprovalRequest): SheetRow[] {
+  const sanctioner = [...a.steps].reverse().find((s) => Number(s.amount_sanctioned) > 0);
+  return a.lines.map((l) => {
+    const req = Number(l.amount_requested);
+    const san = l.amount_sanctioned != null ? Number(l.amount_sanctioned) : null;
+    const reduced = san != null && san < req;
+    return {
+      id: l.id,
+      cells: { head: l.head, requested: req, sanctioned: san ?? '' },
+      edits: reduced
+        ? {
+            sanctioned: {
+              role: sanctioner ? STAGE_ROLE[sanctioner.stage] : 'admin',
+              by: sanctioner?.actor_label,
+              at: sanctioner ? fmtDate(sanctioner.created_at) : undefined,
+              from: req,
+            },
+          }
+        : undefined,
+    };
+  });
 }
 
 function DecisionPanel({ item }: { item: ApprovalRequest }) {
@@ -100,98 +147,109 @@ function DecisionPanel({ item }: { item: ApprovalRequest }) {
   const noMfa = item.requires_mfa && session?.claims.mfa === false;
 
   return (
-    <section className="panel mt-3.5" aria-label="Your decision">
-      <h2>Your decision</h2>
+    <Card title="Your decision" className="mt-5" subtitle={`${GATE_NAME[item.current_stage]} gate`}>
+      <section aria-label="Your decision" className="flex flex-col gap-4">
+        {canSanction ? (
+          <>
+            <BudgetSheet
+              title="Sanction by line"
+              subtitle="You may reduce a head, never raise it. Lines you leave are sanctioned as requested."
+              columns={[
+                { key: 'head', label: 'Head', wrap: true },
+                { key: 'requested', label: 'Requested', type: 'money' },
+                { key: 'sanction', label: 'Sanction (₹)', type: 'money', width: 160 },
+              ]}
+              rows={item.lines.map((l) => {
+                const v = sanction[l.id] ?? '';
+                const reduced = v !== '' && Number(v) < Number(l.amount_requested);
+                return {
+                  id: l.id,
+                  cells: {
+                    head: l.head,
+                    requested: Number(l.amount_requested),
+                    sanction: (
+                      <input
+                        aria-label={`Sanction for ${l.head}`}
+                        className="cc-cell-input"
+                        inputMode="numeric"
+                        value={v}
+                        onChange={(e) => setSanction((s) => ({ ...s, [l.id]: e.target.value }))}
+                      />
+                    ),
+                  },
+                  edits: reduced
+                    ? { sanction: { role: 'admin', by: 'you', from: Number(l.amount_requested) } }
+                    : undefined,
+                  over: { sanction: Number(v) > Number(l.amount_requested) },
+                };
+              })}
+              totalValues={{
+                requested: formatINR(Number(item.amount_requested)),
+                sanction: formatINR(sanctionTotal),
+              }}
+            />
+            {overLines.length > 0 ? (
+              <p className="flex items-center gap-1.5 text-body-md text-danger">
+                <Icon name="alert" size={16} />
+                {overLines.map((l) => l.head).join(', ')}: above what was requested — the server
+                will refuse it.
+              </p>
+            ) : null}
+          </>
+        ) : null}
 
-      {canSanction ? (
-        <div className="mt-3">
-          <h3>Sanction by line</h3>
-          <table className="mt-2 w-full text-[0.92rem]">
-            <thead>
-              <tr className="text-left text-[0.78rem] text-muted uppercase">
-                <th className="py-1.5 font-semibold">Head</th>
-                <th className="py-1.5 text-right font-semibold">Requested</th>
-                <th className="py-1.5 text-right font-semibold">Sanction (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {item.lines.map((l) => (
-                <tr key={l.id} className="border-t border-line">
-                  <td className="py-2">{l.head}</td>
-                  <td className="py-2 text-right">{inr(l.amount_requested)}</td>
-                  <td className="py-2 text-right">
-                    <input
-                      aria-label={`Sanction for ${l.head}`}
-                      className="field ml-auto max-w-[140px] text-right"
-                      inputMode="numeric"
-                      value={sanction[l.id] ?? ''}
-                      onChange={(e) => setSanction((s) => ({ ...s, [l.id]: e.target.value }))}
-                    />
-                  </td>
-                </tr>
-              ))}
-              <tr className="border-t border-line font-semibold">
-                <td className="py-2">Total</td>
-                <td className="py-2 text-right">{inr(item.amount_requested)}</td>
-                <td className="py-2 text-right">{inr(sanctionTotal)}</td>
-              </tr>
-            </tbody>
-          </table>
-          {overLines.length > 0 ? (
-            <p className="mt-2 text-[0.85rem] text-bad">
-              {overLines.map((l) => l.head).join(', ')}: above what was requested — the server will
-              refuse it.
-            </p>
-          ) : null}
+        {noMfa ? (
+          <div className="note">
+            Approving this needs a multi-factor-verified session. Sign out and sign in again with
+            your authenticator code.
+          </div>
+        ) : null}
+
+        <div>
+          <label className="label" htmlFor="decide-comment">
+            Comment{' '}
+            <span className="font-normal text-ink-muted">(required to return or reject)</span>
+          </label>
+          <textarea
+            id="decide-comment"
+            className="field min-h-[84px]"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="What should the club change? The club sees this."
+          />
         </div>
-      ) : null}
 
-      {noMfa ? (
-        <div className="note mt-3">
-          Approving this needs a multi-factor-verified session. Sign out and sign in again with your
-          authenticator code.
+        {/* Approve is the only filled button; Reject is outlined in danger. */}
+        <div className="cc-approval-actions">
+          <Button
+            variant="outlined"
+            icon="undo"
+            disabled={decide.isPending}
+            onClick={() => decide.mutate('return')}
+          >
+            Return for changes
+          </Button>
+          <Button
+            variant="reject"
+            icon="x"
+            disabled={decide.isPending}
+            onClick={() => decide.mutate('reject')}
+          >
+            Reject
+          </Button>
+          <span className="cc-spacer" />
+          <Button
+            variant="approve"
+            icon="check"
+            disabled={decide.isPending}
+            onClick={() => decide.mutate('approve')}
+          >
+            Approve{item.current_stage === 'cultural_society' ? ' and send to Dean' : ''}
+          </Button>
         </div>
-      ) : null}
-
-      <label className="label mt-4" htmlFor="decide-comment">
-        Comment <span className="font-normal text-muted">(required to return or reject)</span>
-      </label>
-      <textarea
-        id="decide-comment"
-        className="field min-h-[84px]"
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="What should the club change? The club sees this."
-      />
-
-      <div className="mt-3 flex flex-wrap gap-2.5">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate('approve')}
-        >
-          Approve{item.current_stage === 'cultural_society' ? ' and send to Dean' : ''}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate('return')}
-        >
-          Return for changes
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger"
-          disabled={decide.isPending}
-          onClick={() => decide.mutate('reject')}
-        >
-          Reject
-        </button>
-      </div>
-      {decide.error ? <ProblemView error={decide.error} /> : null}
-    </section>
+        {decide.error ? <ProblemView error={decide.error} /> : null}
+      </section>
+    </Card>
   );
 }
 
@@ -210,52 +268,65 @@ export function ApprovalDetailPage() {
 
   return (
     <article>
-      <p className="mb-3 text-[0.875rem]">
-        <Link to={STAGE_PATH[a.current_stage]} className="text-muted hover:underline">
-          ← {STAGE_LABEL[a.current_stage]} approvals
+      <p className="mb-3 text-body-md">
+        <Link
+          to={STAGE_PATH[a.current_stage]}
+          className="inline-flex items-center gap-1 text-primary hover:underline"
+        >
+          <Icon name="chevron-left" size={16} /> {STAGE_LABEL[a.current_stage]} approvals
         </Link>
       </p>
-      <div className="mb-5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h1>{a.event_title}</h1>
-          <Pill tone={STATE_TONE[a.state ?? 'pending']}>
-            {pending ? `At ${a.stage_label}` : (a.state ?? '')}
-          </Pill>
-          {a.escalated ? <Pill tone="bad">Past SLA · {ageLabel(a.age_hours)}</Pill> : null}
-        </div>
-        <p className="mt-1.5 text-muted">
-          {a.club} · {a.venue} · {fmtDate(a.starts_at)}, {fmtTime(a.starts_at)}–{fmtTime(a.ends_at)}
-        </p>
-      </div>
-
-      <div className="grid gap-3.5 md:grid-cols-3">
-        <div className="panel">
-          <span className="text-[0.78rem] font-semibold text-muted uppercase">Requested</span>
-          <b className="block font-display text-[1.6rem]">{inr(a.amount_requested)}</b>
-          {a.requires_vc ? (
-            <p className="mt-1 text-[0.85rem] text-warn">
-              Goes to the Vice-Chancellor{a.vc_reason ? `: ${a.vc_reason}` : ''}
-            </p>
-          ) : null}
-        </div>
-        <div className="panel">
-          <span className="text-[0.78rem] font-semibold text-muted uppercase">Expected</span>
-          <b className="block font-display text-[1.6rem]">{a.expected_attendance}</b>
-          <p className="text-[0.85rem] text-muted">people</p>
-        </div>
-        <div className="panel">
-          <span className="text-[0.78rem] font-semibold text-muted uppercase">At this gate</span>
-          <b className="block font-display text-[1.6rem]">{ageLabel(a.age_hours)}</b>
-          <p className="text-[0.85rem] text-muted">
-            since {fmtDate(a.stage_entered_at ?? a.created_at)}
+      <div className="mb-5 flex items-start gap-4">
+        <ClubIcon name={a.club} accent={accentFor(a.club)} size="lg" />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1>{a.event_title}</h1>
+            <Pill tone={STATE_TONE[a.state ?? 'pending']}>
+              {pending ? `At ${a.stage_label}` : (a.state ?? '')}
+            </Pill>
+            {a.escalated ? <Pill tone="bad">Past SLA · {ageLabel(a.age_hours)}</Pill> : null}
+          </div>
+          <p className="mt-1.5 text-ink-muted">
+            {a.club} · {a.venue} · {fmtDate(a.starts_at)}, {fmtTime(a.starts_at)}–
+            {fmtTime(a.ends_at)}
           </p>
         </div>
       </div>
 
+      <section className="cc-card mb-5 overflow-x-auto px-4 py-5" aria-label="Route">
+        <ApprovalFlow steps={flowSteps(a)} className="min-w-[560px]" />
+      </section>
+
+      <div className="grid gap-3.5 md:grid-cols-3 lg:gap-5">
+        <Stat
+          label="Requested"
+          value={inr(a.amount_requested)}
+          note={
+            a.requires_vc ? (
+              <span className="text-warning">
+                Goes to the Vice-Chancellor{a.vc_reason ? `: ${a.vc_reason}` : ''}
+              </span>
+            ) : undefined
+          }
+        />
+        <Stat label="Expected" value={a.expected_attendance} note="people" />
+        <Stat
+          label="At this gate"
+          value={ageLabel(a.age_hours)}
+          tone={a.escalated ? 'danger' : undefined}
+          note={`since ${fmtDate(a.stage_entered_at ?? a.created_at)}`}
+        />
+      </div>
+
       {a.clashes.length > 0 ? (
-        <div className="mt-3.5 rounded-[10px] border border-bad bg-bad-soft/60 px-4 py-3.5">
-          <strong>Venue clash</strong>
-          <ul className="mt-1.5 ml-4 list-disc text-[0.9rem]">
+        <div
+          className="mt-5 rounded-md border border-danger bg-danger-soft px-4 py-3.5"
+          role="alert"
+        >
+          <strong className="flex items-center gap-1.5 text-danger">
+            <Icon name="alert" size={18} /> Venue clash
+          </strong>
+          <ul className="mt-1.5 ml-4 list-disc text-body-md">
             {a.clashes.map((c) => (
               <li key={c.id}>
                 {c.title} ({c.club}) · {fmtDate(c.starts_at)} {fmtTime(c.starts_at)}–
@@ -263,7 +334,7 @@ export function ApprovalDetailPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[0.85rem]">
+          <p className="mt-2 text-body-md">
             It cannot be approved until one event moves.{' '}
             <Link to="/staff/venues" className="underline">
               Open the venue calendar
@@ -272,44 +343,54 @@ export function ApprovalDetailPage() {
         </div>
       ) : null}
 
-      <div className="mt-3.5 grid gap-3.5 md:grid-cols-2">
-        <section className="panel">
-          <h3>Budget</h3>
-          {a.nil_declaration ? (
-            <p className="mt-2 text-[0.92rem]">
-              <Pill tone="gold">Nil budget</Pill> {a.nil_declaration.reason}
-              <span className="block text-[0.82rem] text-muted">
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        {a.nil_declaration ? (
+          <Card title="Budget">
+            <p className="text-body-md">
+              <Pill tone="info">Nil budget</Pill> {a.nil_declaration.reason}
+              <span className="block text-body-md text-ink-muted">
                 Declared by {a.nil_declaration.declared_by}
               </span>
             </p>
-          ) : a.lines.length === 0 ? (
-            <p className="mt-2 text-[0.9rem] text-muted">No budget lines.</p>
-          ) : (
-            <table className="mt-2 w-full text-[0.92rem]">
-              <tbody>
-                {a.lines.map((l) => (
-                  <tr key={l.id} className="border-t border-line first:border-t-0">
-                    <td className="py-1.5">{l.head}</td>
-                    <td className="py-1.5 text-right">{inr(l.amount_requested)}</td>
-                    <td className="py-1.5 text-right text-muted">
-                      {l.amount_sanctioned !== null ? `→ ${inr(l.amount_sanctioned)}` : ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-        <section className="panel">
-          <h3>Approval trail</h3>
-          <Trail steps={a.steps} />
-        </section>
+          </Card>
+        ) : a.lines.length === 0 ? (
+          <Card title="Budget">
+            <p className="text-body-md text-ink-muted">No budget lines.</p>
+          </Card>
+        ) : (
+          <BudgetSheet
+            title="Budget"
+            subtitle={`${a.lines.length} lines`}
+            legend={
+              a.lines.some(
+                (l) =>
+                  l.amount_sanctioned != null &&
+                  Number(l.amount_sanctioned) < Number(l.amount_requested),
+              )
+                ? true
+                : undefined
+            }
+            columns={[
+              { key: 'head', label: 'Head', wrap: true },
+              { key: 'requested', label: 'Requested', type: 'money' },
+              { key: 'sanctioned', label: 'Sanctioned', type: 'money' },
+            ]}
+            rows={budgetRows(a)}
+            totals={['requested', 'sanctioned']}
+          />
+        )}
+        <Card title="Approval trail">
+          <Trail a={a} />
+        </Card>
       </div>
 
       {a.my_stage && pending ? (
         <DecisionPanel item={a} />
       ) : (
-        <div className="note mt-3.5">
+        <div className="note mt-5 flex items-center gap-2">
+          <Chip tone={pending ? 'pending' : 'neutral'} icon={pending ? 'clock' : 'check'}>
+            {pending ? 'Waiting' : 'Decided'}
+          </Chip>
           {pending
             ? `This is waiting at the ${a.stage_label} gate, which is not yours.`
             : 'This request has been decided.'}

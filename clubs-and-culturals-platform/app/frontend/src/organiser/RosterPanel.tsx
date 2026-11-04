@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { ApiError } from '../shared/api/client';
 import { fmtTime } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
+import { Avatar, SegmentedControl } from '../shared/ds';
 import { Pill } from '../shared/ui/Pill';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { doorApi, rosterKey, type Roster } from './api';
@@ -35,92 +36,100 @@ export function RosterPanel({ eventId }: { eventId: string }) {
   const pct = counts.registered > 0 ? Math.round((counts.attended / counts.registered) * 100) : 0;
 
   return (
-    <section className="panel" aria-label="Attendee list" data-testid="roster">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2>Attendees</h2>
-        <p className="text-[0.92rem] text-muted" data-testid="roster-counts">
-          <strong className="text-ink">{counts.attended}</strong> of {counts.registered} checked in
-          ({pct}%){counts.waitlisted ? ` · ${counts.waitlisted} waitlisted` : ''}
-        </p>
-      </div>
-      <div className="meter mt-2.5">
-        <i style={{ width: `${pct}%` }} />
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <div className="min-w-[200px] flex-1">
-          <label className="label" htmlFor="roster-search">
-            Find by name or PRN
-          </label>
-          <input
-            id="roster-search"
-            className="field"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="e.g. 23LA1041"
-          />
+    <section className="cc-card cc-sheet-wrap" aria-label="Attendee list" data-testid="roster">
+      <div className="px-5 pt-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2>Attendees</h2>
+          <p className="text-body-md text-ink-muted" data-testid="roster-counts">
+            <strong className="text-ink">{counts.attended}</strong> of {counts.registered} checked
+            in ({pct}%){counts.waitlisted ? ` · ${counts.waitlisted} waitlisted` : ''}
+          </p>
         </div>
-        <div role="group" aria-label="Show" className="flex gap-1.5">
-          {(
-            [
-              ['all', 'All'],
-              ['in', 'Checked in'],
-              ['out', 'Not yet'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={show === value}
-              className={`btn ${show === value ? 'btn-primary' : ''}`}
-              onClick={() => setShow(value)}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="cc-progress mt-2.5" aria-hidden="true">
+          <span className="cc-progress-seg cc-progress-seg--in" style={{ width: `${pct}%` }} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="min-w-[200px] flex-1">
+            <label className="label" htmlFor="roster-search">
+              Find by name or PRN
+            </label>
+            <input
+              id="roster-search"
+              className="field"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="e.g. 23LA1041"
+            />
+          </div>
+          <SegmentedControl
+            label="Show"
+            value={show}
+            onChange={(v) => setShow(v as typeof show)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'in', label: 'Checked in' },
+              { value: 'out', label: 'Not yet' },
+            ]}
+          />
         </div>
       </div>
 
       {rows.length === 0 ? (
-        <div className="mt-4">
+        <div className="m-5">
           <Empty>
             {results.length === 0 ? 'Nobody has registered yet.' : 'No one matches that.'}
           </Empty>
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full border-collapse text-left text-[0.9rem]">
+        <div className="cc-sheet-scroll mt-4 border-t border-line">
+          <table className="cc-sheet">
             <thead>
-              <tr className="border-b border-line text-[0.78rem] tracking-[0.05em] text-muted uppercase">
-                <th className="py-2 pr-3 font-semibold">Name</th>
-                <th className="py-2 pr-3 font-semibold">PRN</th>
-                <th className="hidden py-2 pr-3 font-semibold sm:table-cell">Programme</th>
-                <th className="py-2 font-semibold">Status</th>
+              <tr>
+                <th className="label-md" scope="col">
+                  Name
+                </th>
+                <th className="label-md" scope="col">
+                  PRN
+                </th>
+                <th className="label-md hidden sm:table-cell" scope="col">
+                  Programme
+                </th>
+                <th className="label-md" scope="col">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((a) => (
-                <tr key={a.id} className="border-b border-line">
-                  <td className="py-2 pr-3 font-medium">{a.full_name}</td>
-                  <td className="py-2 pr-3 font-mono text-[0.85rem]">{a.prn}</td>
-                  <td className="hidden py-2 pr-3 text-muted sm:table-cell">
+                <tr key={a.id}>
+                  <td className="body-md">
+                    <span className="flex items-center gap-2.5 py-1.5">
+                      <Avatar
+                        name={a.full_name}
+                        size="xs"
+                        badge={a.attended ? 'checked-in' : null}
+                      />
+                      <span className="font-medium">{a.full_name}</span>
+                    </span>
+                  </td>
+                  <td className="cc-cell--id mono-md">{a.prn}</td>
+                  <td className="body-md hidden text-ink-muted sm:table-cell">
                     {a.programme} · Y{a.year}
                   </td>
-                  <td className="py-2">
-                    {a.attended ? (
-                      <Pill tone="ok">
-                        In{a.checked_in_at ? ` · ${fmtTime(a.checked_in_at)}` : ''}
-                      </Pill>
-                    ) : a.waitlisted ? (
-                      <Pill tone="warn">Waitlisted</Pill>
-                    ) : (
-                      <Pill>Not yet</Pill>
-                    )}
-                    {a.source === 'spot' ? (
-                      <span className="ml-1.5">
-                        <Pill tone="gold">At the door</Pill>
-                      </span>
-                    ) : null}
+                  <td className="body-md">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      {a.attended ? (
+                        <Pill tone="ok">
+                          In{a.checked_in_at ? ` · ${fmtTime(a.checked_in_at)}` : ''}
+                        </Pill>
+                      ) : a.waitlisted ? (
+                        <Pill tone="warn">Waitlisted</Pill>
+                      ) : (
+                        <Pill>Not yet</Pill>
+                      )}
+                      {a.source === 'spot' ? <Pill tone="info">At the door</Pill> : null}
+                    </span>
                   </td>
                 </tr>
               ))}

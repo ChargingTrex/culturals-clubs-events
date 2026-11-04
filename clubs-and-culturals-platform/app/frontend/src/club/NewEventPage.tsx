@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Button, Icon, Switch } from '../shared/ds';
 import type { ApiError } from '../shared/api/client';
 import type { Page } from '../shared/api/types';
 import { inr } from '../shared/format';
@@ -41,7 +42,7 @@ const toIso = (local: string): string => (local ? new Date(local).toISOString() 
 function FieldError({ error, field }: { error: ApiError | null; field: string }) {
   const hit = error?.errors.find((e) => e.field === field);
   return hit ? (
-    <p className="mt-1 text-[0.82rem] text-bad" role="alert">
+    <p className="mt-1 text-body-md text-danger" role="alert">
       {hit.message}
     </p>
   ) : null;
@@ -133,13 +134,16 @@ export function NewEventPage() {
 
   return (
     <>
-      <p className="mb-3 text-[0.875rem]">
-        <Link to="/club/events" className="text-muted hover:underline">
-          ← Club events
+      <p className="mb-3 text-body-md">
+        <Link
+          to="/club/events"
+          className="inline-flex items-center gap-1 text-primary hover:underline"
+        >
+          <Icon name="chevron-left" size={16} /> Club events
         </Link>
       </p>
       <h1>New event</h1>
-      <p className="mt-1.5 mb-5 max-w-[62ch] text-muted">
+      <p className="mt-1.5 mb-5 max-w-[62ch] text-ink-muted">
         Propose it here. Pick a budget template to send it straight for approval, or save it as a
         draft and let the Treasurer price it line by line.
       </p>
@@ -165,7 +169,7 @@ export function NewEventPage() {
               </select>
             </div>
           ) : (
-            <p className="text-[0.9rem] text-muted sm:col-span-2">
+            <p className="text-body-md text-ink-muted sm:col-span-2">
               For <strong className="text-ink">{clubs[0]?.name}</strong>
             </p>
           )}
@@ -269,7 +273,7 @@ export function NewEventPage() {
               onChange={(e) => set('capacity', e.target.value)}
             />
             {venue ? (
-              <p className="mt-1 text-[0.8rem] text-muted">
+              <p className="mt-1 text-caption text-ink-muted">
                 {venue.name} seats {venue.capacity}.
               </p>
             ) : null}
@@ -316,29 +320,45 @@ export function NewEventPage() {
 
           {template ? (
             <div className="mt-3">
-              <table className="w-full text-[0.875rem]">
-                <tbody>
-                  {template.lines.map((l) => (
-                    <tr key={l.head} className="border-b border-line">
-                      <td className="py-1.5">
-                        {l.head}
-                        <span className="block text-[0.75rem] text-muted">{l.explanation}</span>
-                      </td>
-                      <td className="py-1.5 text-right">{inr(l.amount)}</td>
+              <div className="overflow-hidden rounded-md border border-line">
+                <table className="cc-sheet">
+                  <thead>
+                    <tr>
+                      <th className="label-md" scope="col">
+                        Head
+                      </th>
+                      <th className="label-md cc-al-right" scope="col">
+                        Requested
+                      </th>
                     </tr>
-                  ))}
-                  <tr className="border-b border-line">
-                    <td className="py-1.5">Contingency {template.contingency.percent}%</td>
-                    <td className="py-1.5 text-right">{inr(template.contingency.amount)}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 font-semibold">Total requested</td>
-                    <td className="py-1.5 text-right font-semibold" data-testid="template-total">
-                      {inr(template.total_requested)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {template.lines.map((l) => (
+                      <tr key={l.head}>
+                        <td className="cc-cell--wrap body-md py-1.5">
+                          {l.head}
+                          <span className="block caption text-ink-muted">{l.explanation}</span>
+                        </td>
+                        <td className="cc-cell--money figure-md">{inr(l.amount)}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="body-md">Contingency {template.contingency.percent}%</td>
+                      <td className="cc-cell--money figure-md">
+                        {inr(template.contingency.amount)}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="label-lg">Total requested</td>
+                      <td className="cc-cell--money figure-md" data-testid="template-total">
+                        {inr(template.total_requested)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
               <p className="mt-2">
                 {template.requires_vc ? (
                   <Pill tone="warn">
@@ -348,33 +368,28 @@ export function NewEventPage() {
                   <Pill tone="ok">Society and Dean only</Pill>
                 )}
               </p>
-              <label className="mt-3 flex items-center gap-2 text-[0.9rem]">
-                <input
-                  type="checkbox"
+              <div className="mt-3">
+                <Switch
+                  label="Send for approval now"
                   checked={form.submit}
-                  onChange={(e) => set('submit', e.target.checked)}
+                  onChange={(on) => set('submit', on)}
                 />
-                Send for approval now
-              </label>
+              </div>
             </div>
           ) : (
-            <p className="mt-3 text-[0.875rem] text-muted">
+            <p className="mt-3 text-body-md text-ink-muted">
               Saved as a draft with an empty budget. Add lines under Budget, then send it from Club
               events.
             </p>
           )}
 
-          <button
-            type="submit"
-            className="btn btn-primary mt-4 w-full justify-center"
-            disabled={create.isPending}
-          >
+          <Button type="submit" block className="mt-4" disabled={create.isPending}>
             {create.isPending
               ? 'Saving…'
               : form.budget_template && form.submit
                 ? 'Propose and send'
                 : 'Save draft'}
-          </button>
+          </Button>
         </aside>
       </form>
       {err ? <ProblemView error={err} /> : null}

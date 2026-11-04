@@ -105,6 +105,29 @@ describe('student journey', () => {
     await waitFor(() => expect(screen.getAllByTestId('event-row')).toHaveLength(1));
     expect(screen.getByText('Lens Heritage Photowalk')).toBeInTheDocument();
   });
+
+  it('desktop search: finds events by title or club, and clears', async () => {
+    const user = userEvent.setup();
+    renderAt('/events', { roles: ['student'] });
+    expect(await screen.findAllByTestId('event-row')).toHaveLength(2);
+
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search events and clubs' }),
+      'hack{Enter}',
+    );
+    await waitFor(() => expect(screen.getAllByTestId('event-row')).toHaveLength(1));
+    expect(screen.getByText('Byte Hack Night')).toBeInTheDocument();
+
+    // Matches the club name too.
+    const box = screen.getByRole('searchbox', { name: 'Search events and clubs' });
+    await user.clear(box);
+    await user.type(box, 'lens{Enter}');
+    await waitFor(() => expect(screen.getAllByTestId('event-row')).toHaveLength(1));
+    expect(screen.getByText('Lens Heritage Photowalk')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    await waitFor(() => expect(screen.getAllByTestId('event-row')).toHaveLength(2));
+  });
 });
 
 describe('sign-in', () => {
@@ -163,10 +186,15 @@ describe('navigation and guards', () => {
     ).toEqual(["What's on", 'My passes', 'Profile QR']);
   });
 
-  it('offers a president eight pages, on the bottom bar too', async () => {
+  it('offers a president eight pages on phones: four on the bottom bar, four under More', async () => {
+    const user = userEvent.setup();
     renderAt('/events', { roles: [...PERSONAS.president] });
     const nav = await screen.findByTestId('nav-bottom');
-    expect(within(nav).getAllByRole('link')).toHaveLength(8);
+    // Design system: a bottom bar holds at most five destinations.
+    expect(within(nav).getAllByRole('link')).toHaveLength(4);
+    await user.click(within(nav).getByRole('button', { name: 'More' }));
+    const more = await screen.findByTestId('nav-more');
+    expect(within(more).getAllByRole('link')).toHaveLength(4);
   });
 
   it("renders the API's own refusal when a student opens a staff page", async () => {

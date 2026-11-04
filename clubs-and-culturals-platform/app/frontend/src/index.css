@@ -1,185 +1,130 @@
 @import 'tailwindcss';
 
-/* Design tokens ported from web-app/assets/app.css. Same colours, same radii,
-   same type stacks; light and dark. */
-:root {
-  --ink: #1e1b3a;
-  --ink-2: #3a3660;
-  --muted: #6b6a86;
-  --line: #dddce8;
-  --paper: #f6f7fb;
-  --surface: #ffffff;
-  --sunk: #eeeef5;
-  --marigold: #e8a317;
-  --marigold-ink: #3a2600;
-  --marigold-soft: #fbefd2;
-  --ok: #2f7d5b;
-  --ok-soft: #ddf0e6;
-  --warn: #b26b00;
-  --warn-soft: #fcebcb;
-  --bad: #c23b3b;
-  --bad-soft: #f8dede;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --ink: #ecebf7;
-    --ink-2: #c9c7e3;
-    --muted: #9d9bbb;
-    --line: #35325a;
-    --paper: #141228;
-    --surface: #1d1a36;
-    --sunk: #262345;
-    --marigold: #f2b535;
-    --marigold-ink: #241700;
-    --marigold-soft: #3a2e12;
-    --ok: #5fc495;
-    --ok-soft: #173a2b;
-    --warn: #f2b535;
-    --warn-soft: #3a2e12;
-    --bad: #f07a7a;
-    --bad-soft: #3e1c22;
+/* Fonts (SIL OFL), self-hosted. Plus Jakarta Sans's latin-ext subset carries ₹. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* THE global config: every colour, type style, space, radius and shadow. */
+@import './shared/ds/tokens.css';
+@import './shared/ds/components.css' layer(components);
+@import './shared/ds/domain.css' layer(components);
+@import './shared/ds/charts.css' layer(components);
+
+/* Page-wide element styles. In the base layer so components and utilities win. */
+@layer base {
+  html {
+    height: 100%;
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+  }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body-lg);
+    line-height: var(--text-body-lg--line-height);
+    font-weight: var(--type-body-lg-weight);
+    letter-spacing: var(--text-body-lg--letter-spacing);
+    -webkit-font-smoothing: antialiased;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--link);
+  }
+
+  /* Headings follow the type scale: one large title per page (headline on phones). */
+  h1 {
+    font-family: var(--font-sans);
+    font-size: var(--text-large-title);
+    line-height: var(--text-large-title--line-height);
+    font-weight: var(--type-large-title-weight);
+    letter-spacing: var(--text-large-title--letter-spacing);
+  }
+  h2 {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    font-weight: var(--type-title-lg-weight);
+    letter-spacing: var(--text-title-lg--letter-spacing);
+  }
+  h3 {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-md);
+    line-height: var(--text-title-md--line-height);
+    font-weight: var(--type-title-md-weight);
+    letter-spacing: var(--text-title-md--letter-spacing);
+  }
+  @media (max-width: 47.99rem) {
+    h1 {
+      font-size: var(--text-headline);
+      line-height: var(--text-headline--line-height);
+    }
   }
 }
-:root[data-theme='dark'] {
-  --ink: #ecebf7;
-  --ink-2: #c9c7e3;
-  --muted: #9d9bbb;
-  --line: #35325a;
-  --paper: #141228;
-  --surface: #1d1a36;
-  --sunk: #262345;
-  --marigold: #f2b535;
-  --marigold-ink: #241700;
-  --marigold-soft: #3a2e12;
-  --ok: #5fc495;
-  --ok-soft: #173a2b;
-  --warn: #f2b535;
-  --warn-soft: #3a2e12;
-  --bad: #f07a7a;
-  --bad-soft: #3e1c22;
-}
 
-@theme inline {
-  --color-ink: var(--ink);
-  --color-ink-2: var(--ink-2);
-  --color-muted: var(--muted);
-  --color-line: var(--line);
-  --color-paper: var(--paper);
-  --color-surface: var(--surface);
-  --color-sunk: var(--sunk);
-  --color-marigold: var(--marigold);
-  --color-marigold-ink: var(--marigold-ink);
-  --color-marigold-soft: var(--marigold-soft);
-  --color-ok: var(--ok);
-  --color-ok-soft: var(--ok-soft);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-bad: var(--bad);
-  --color-bad-soft: var(--bad-soft);
-  --font-display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Instrument Sans', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
-  --radius-sm: 6px;
-  --radius-md: 12px;
-}
-
-html {
-  height: 100%;
-  scroll-padding-top: env(safe-area-inset-top, 0px);
-}
-body {
-  margin: 0;
-  min-height: 100%;
-  background: var(--paper);
-  color: var(--ink);
-  font: 16px/1.55 var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  padding-top: env(safe-area-inset-top, 0px);
-}
-:focus-visible {
-  outline: 3px solid var(--marigold);
-  outline-offset: 2px;
-}
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  line-height: 1.1;
-}
-h1 {
-  font-size: clamp(1.9rem, 4vw, 2.6rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-h2 {
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-h3 {
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-/* Small set of composed classes that are reused across every page. */
+/* Shared classes used across every page, restyled onto the design system.
+   They only reference tokens, so tokens.css still drives them. */
 @layer components {
+  /* Outlined button by default; .btn-primary is the one filled action per view. */
   .btn {
-    @apply inline-flex cursor-pointer items-center gap-1.5 rounded-sm border border-line bg-surface px-4 py-2 text-[0.92rem] font-semibold hover:border-ink-2 disabled:cursor-not-allowed disabled:opacity-45;
+    @apply relative inline-flex h-(--control-md) cursor-pointer items-center justify-center gap-2 rounded-md border border-line-strong bg-surface px-5 text-label-lg font-(--type-label-lg-weight) whitespace-nowrap text-primary no-underline transition-colors hover:bg-primary-soft focus-visible:shadow-focus focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-(--disabled) disabled:hover:bg-surface;
   }
   .btn-primary {
-    @apply border-marigold bg-marigold text-marigold-ink hover:brightness-105 hover:border-marigold;
+    @apply border-primary bg-primary text-on-primary hover:bg-primary hover:brightness-110 disabled:hover:bg-primary;
+  }
+  .btn-tonal {
+    @apply border-transparent bg-primary-soft text-on-primary-soft hover:brightness-95;
   }
   .btn-quiet {
-    @apply border-transparent bg-transparent px-2 hover:border-transparent hover:underline;
+    @apply h-auto border-transparent bg-transparent px-2 py-1 hover:bg-transparent hover:underline;
   }
   .btn-danger {
-    @apply border-current bg-transparent text-bad;
+    @apply border-danger bg-surface text-danger hover:bg-danger-soft;
   }
   .field {
-    @apply w-full rounded-sm border border-line bg-surface px-3 py-2;
+    @apply h-(--control-md) w-full rounded-sm border border-line-strong bg-surface px-3 text-body-md text-ink placeholder:text-ink-subtle focus-visible:border-primary focus-visible:shadow-focus focus-visible:outline-none;
+  }
+  textarea.field {
+    @apply h-auto py-2;
   }
   .label {
-    @apply mb-1 block text-[0.85rem] font-semibold text-ink-2;
+    @apply mb-1.5 block text-label-md font-(--type-label-md-weight) text-ink-muted;
   }
   .panel {
-    @apply rounded-md border border-line bg-surface p-5;
+    @apply rounded-lg border border-line bg-surface p-5 shadow-elevation-1;
   }
+  /* Chips. Prefer <Pill>/<StatusChip>, which add the status icon. */
   .pill {
-    @apply inline-block rounded-full bg-sunk px-2.5 py-0.5 text-[0.78rem] font-semibold text-ink-2;
+    @apply inline-flex items-center gap-1 rounded-full bg-neutral-soft px-2.5 py-1 text-label-md font-(--type-label-md-weight) whitespace-nowrap text-ink-muted;
   }
   .pill-ok {
-    @apply bg-ok-soft text-ok;
+    @apply bg-success-soft text-success;
   }
   .pill-warn {
-    @apply bg-warn-soft text-warn;
+    @apply bg-warning-soft text-warning;
   }
   .pill-bad {
-    @apply bg-bad-soft text-bad;
+    @apply bg-danger-soft text-danger;
   }
-  .pill-gold {
-    @apply bg-marigold-soft text-ink;
+  .pill-info {
+    @apply bg-primary-soft text-on-primary-soft;
   }
   .note {
-    @apply rounded-r-sm border-l-[3px] border-marigold bg-marigold-soft px-3.5 py-3 text-[0.92rem];
+    @apply rounded-md border border-line bg-primary-soft px-4 py-3 text-body-md text-ink;
   }
   .meter {
-    @apply h-2 overflow-hidden rounded-[4px] bg-sunk;
+    @apply h-2.5 overflow-hidden rounded-full bg-neutral-soft;
   }
   .meter > i {
-    @apply block h-full bg-marigold;
+    @apply block h-full bg-primary;
   }
   .tokenbox {
-    @apply rounded-[8px] bg-sunk px-3 py-2 font-mono text-[0.7rem] break-all text-ink-2;
-  }
-  .nav-link {
-    @apply block rounded-sm px-3 py-2 text-[0.91rem] font-medium text-ink-2 no-underline hover:text-ink;
-  }
-  .nav-link[aria-current='page'] {
-    @apply bg-marigold-soft text-ink shadow-[inset_3px_0_0_var(--marigold)];
-  }
-  .nav-link-bottom {
-    @apply whitespace-nowrap rounded-sm px-3 py-2 text-[0.85rem] font-medium text-ink-2 no-underline;
-  }
-  .nav-link-bottom[aria-current='page'] {
-    @apply bg-marigold-soft text-ink shadow-[inset_0_-3px_0_var(--marigold)];
+    @apply rounded-sm bg-surface-sunken px-3 py-2 text-mono-sm break-all text-ink-muted;
   }
 }

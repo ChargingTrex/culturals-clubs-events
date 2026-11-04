@@ -1,9 +1,9 @@
 # Culturals — frontend
 
 React 18 + TypeScript (strict) + Vite + Tailwind v4 + TanStack Query + react-router. The
-stack is fixed by `../../AGENT_PROMPT.md` §2. This directory holds the student and organiser
-screens (checklist rows F-01..F-03) and the shared shell every role uses; club and staff
-screens (F-04, F-05) land in `src/staff/` and alongside later.
+stack is fixed by `../../AGENT_PROMPT.md` §2. This is the production frontend: every role's
+screens (checklist rows F-01..F-05) plus the shared shell. It replaces the static demo pages in
+`../backend/demo/`.
 
 ```
 src/
@@ -14,8 +14,9 @@ src/
     nav/      pages.ts (the capability → page table), guards.tsx (RequireAuth, RequireCapability)
     ui/       AppShell, Nav, ProblemView, ErrorBoundary, Empty, Pill, Toast, QrImage
   student/    SignInPage, EventsPage, EventDetailPage, PassesPage, ProfilePage, BrightView
-  organiser/  (F-03)
-  staff/      (F-05)
+  organiser/  ScanPage, RosterPanel, Verdict, offline scan queue (F-03)
+  club/       ClubEvents, ClubEventDetail, NewEvent, Budget, BudgetDetail, Roster (F-04)
+  staff/      ApprovalQueue, ApprovalDetail, Venues, Overview, Report (F-05)
   test/       MSW server, capability builder, render helper, setup
 tests/e2e/    Playwright smoke (needs a running backend)
 ```

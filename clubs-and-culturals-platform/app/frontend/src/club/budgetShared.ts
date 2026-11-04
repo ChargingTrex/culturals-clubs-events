@@ -5,15 +5,15 @@ import { clubApi } from './api';
 
 export const BUDGETS_KEY = ['budget', 'list'] as const;
 
-type Tone = 'plain' | 'ok' | 'warn' | 'bad' | 'gold';
+type Tone = 'plain' | 'ok' | 'warn' | 'bad' | 'info';
 export const STAGE_TONE: Record<string, Tone> = {
   draft: 'plain',
-  society_review: 'warn',
-  dean_review: 'warn',
-  vc_review: 'warn',
-  sanctioned: 'gold',
-  settled: 'ok',
-  returned: 'bad',
+  society_review: 'info',
+  dean_review: 'info',
+  vc_review: 'info',
+  sanctioned: 'ok',
+  settled: 'plain',
+  returned: 'warn',
   rejected: 'bad',
 };
 

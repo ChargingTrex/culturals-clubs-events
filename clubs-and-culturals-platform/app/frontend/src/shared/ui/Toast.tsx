@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Icon } from '../ds';
 
 interface Toast {
   id: number;
@@ -36,14 +37,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed bottom-[calc(84px+env(safe-area-inset-bottom,0px))] left-1/2 z-50 flex w-[min(460px,92vw)] -translate-x-1/2 flex-col gap-2 md:bottom-6"
+        className="pointer-events-none fixed bottom-[calc(var(--navbar-height)+var(--space-5)+env(safe-area-inset-bottom,0px))] left-1/2 z-50 flex w-[min(460px,92vw)] -translate-x-1/2 flex-col gap-2 md:bottom-6"
       >
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
-            className="rounded-sm bg-ink px-4 py-2.5 text-[0.9rem] text-paper shadow-[0_6px_24px_rgba(0,0,0,0.18)]"
+            className="flex items-center gap-2.5 rounded-md border border-line bg-surface-raised px-4 py-3 text-body-md text-ink shadow-elevation-3"
           >
+            <Icon name="check" size={18} className="shrink-0 text-success" />
             {t.text}
           </div>
         ))}
