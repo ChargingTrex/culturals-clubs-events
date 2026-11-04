@@ -32,6 +32,25 @@ class LoginSerializer(serializers.Serializer):
     mfa_code = serializers.CharField(required=False, allow_blank=True)
 
 
+
+def user_needs_mfa(user):
+    """
+    §5.5: MFA is mandatory for staff roles. It is enforced at login, and
+    separately at the point of a sensitive action via the `mfa` claim. The same
+    demand applies to any `is_staff` account and to anyone currently covering an
+    approval gate under a Delegation (MASTER_SPEC §11.3): a delegated decision
+    always needs the claim, so the login that issues it has to run the challenge
+    for them too. One rule, used by login and by the demo account list.
+    """
+    from governance.models import Delegation
+
+    return (
+        bool(user.is_staff)
+        or any(R.split_role(r)[0] in R.MFA_REQUIRED_ROLES for r in (user.global_roles or []))
+        or Delegation.objects.in_force().filter(delegate_user=user).exists()
+    )
+
+
 def _auth_failed(detail):
     # One message for wrong address, wrong password and unknown account alike:
     # distinguishing them tells an attacker which institutional addresses exist.
@@ -99,20 +118,8 @@ class LoginView(APIView):
                 detail=f"This account is {user.get_status_display().lower()}.",
             )
 
-        # §5.5: MFA is mandatory for staff roles. It is enforced at login, and
-        # separately at the point of a sensitive action via the `mfa` claim.
-        # The same demand applies to any `is_staff` account and to anyone
-        # currently covering an approval gate under a Delegation (MASTER_SPEC
-        # §11.3): a delegated decision always needs the claim, so the login that
-        # issues it has to run the challenge for them too.
-        from governance.models import Delegation
-
-        needs_mfa = (
-            bool(user.is_staff)
-            or any(R.split_role(r)[0] in R.MFA_REQUIRED_ROLES
-                   for r in (user.global_roles or []))
-            or Delegation.objects.in_force().filter(delegate_user=user).exists()
-        )
+        # §5.5: MFA is mandatory for staff roles (see needs_mfa).
+        needs_mfa = user_needs_mfa(user)
         supplied = (data.validated_data.get("mfa_code") or "").strip()
         if needs_mfa and not supplied:
             raise ProblemDetail(
@@ -328,12 +335,20 @@ class DemoPersonasView(APIView):
         if not settings.DEMO_MODE:
             raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
                                 detail="Demo mode is not enabled.")
+        # Demo mode only (404 otherwise): the pilot accounts are public test
+        # accounts, so the sign-in page can list them and fill the form. Signing in
+        # still goes through the real login, including the second factor.
+        from identity.management.commands.seed_demo import PASSWORD as DEMO_PASSWORD
+
         out = []
         for key, persona in DEMO_PERSONAS.items():
             user = persona["find"]()
             out.append({"key": key, "label": persona["label"], "sub": persona["sub"],
                         "available": user is not None,
-                        "name": user.display_name if user else None})
+                        "name": user.display_name if user else None,
+                        "email": user.email if user else None,
+                        "password": DEMO_PASSWORD if user else None,
+                        "mfa_required": user_needs_mfa(user) if user else False})
         return Response({"demo_mode": True, "personas": out})
 
 

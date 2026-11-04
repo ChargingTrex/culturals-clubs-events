@@ -26,3 +26,4 @@ web-app/
 clubs-and-culturals-platform/app/backend/staticfiles/
 clubs-and-culturals-platform/app/backend/staticfiles_build/
 clubs-and-culturals-platform/app/backend/config/settings_ci.py
+clubs-and-culturals-platform/app/backend/db.sqlite3.pre-*

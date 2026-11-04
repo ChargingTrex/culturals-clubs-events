@@ -122,6 +122,10 @@ class DemoPersonaSerializer(serializers.Serializer):
     sub = serializers.CharField()
     available = serializers.BooleanField()
     name = serializers.CharField(allow_null=True)
+    # Demo mode only: the public pilot account, so the sign-in page can fill the form.
+    email = serializers.EmailField(allow_null=True)
+    password = serializers.CharField(allow_null=True)
+    mfa_required = serializers.BooleanField()
 
 
 class DemoPersonasSerializer(serializers.Serializer):

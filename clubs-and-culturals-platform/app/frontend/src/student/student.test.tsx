@@ -3,7 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { PERSONAS } from '../test/capabilities';
 import { renderAt } from '../test/render';
-import { state } from '../test/server';
+import { http, HttpResponse } from 'msw';
+import { API_BASE } from '../shared/api/client';
+import { setTheme } from '../shared/ui/theme';
+import { server, state } from '../test/server';
 
 describe('student journey', () => {
   it('register → pass visible under My passes', async () => {
@@ -202,5 +205,72 @@ describe('navigation and guards', () => {
     const problem = await screen.findByTestId('problem');
     expect(problem).toHaveAttribute('data-code', 'REPORTING_DENIED');
     expect(problem).toHaveTextContent('This is the rule refusing');
+  });
+});
+
+describe('pilot accounts (demo server)', () => {
+  it('lists only accounts that exist, and picking one fills the form for a real sign-in', async () => {
+    const user = userEvent.setup();
+    renderAt('/signin');
+    const panel = await screen.findByTestId('pilot-accounts');
+    // Management has no account on this server, so it is not offered.
+    expect(within(panel).queryByText('Management')).not.toBeInTheDocument();
+
+    await user.click(within(panel).getByRole('button', { name: /Use the Student account/ }));
+    expect(screen.getByLabelText('Institutional email')).toHaveValue('25la1001@college.edu');
+    expect(screen.getByLabelText('Password')).toHaveValue('culturals-demo');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByRole('heading', { name: "What's on" });
+  });
+
+  it('a staff account reveals the code field, and the real second-factor check still applies', async () => {
+    const user = userEvent.setup();
+    renderAt('/signin');
+    const panel = await screen.findByTestId('pilot-accounts');
+    await user.click(within(panel).getByRole('button', { name: /Use the Dean account/ }));
+    const code = screen.getByLabelText(/Authenticator code/);
+    expect(code).toHaveFocus();
+    await user.type(code, '123456');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByRole('heading', { name: 'Dean approvals' });
+  });
+
+  it('shows nothing on a server without demo mode', async () => {
+    server.use(
+      http.get(`${API_BASE}/module/auth/demo/personas`, () =>
+        HttpResponse.json({ code: 'NOT_FOUND', title: 'Not found', status: 404 }, { status: 404 }),
+      ),
+    );
+    renderAt('/signin');
+    await screen.findByRole('heading', { name: 'Sign in' });
+    await waitFor(() => expect(screen.queryByTestId('pilot-accounts')).not.toBeInTheDocument());
+  });
+});
+
+describe('theme toggle', () => {
+  it('cycles System → Light → Dark → System, sets the theme and remembers it', async () => {
+    const user = userEvent.setup();
+    setTheme('system');
+    renderAt('/signin');
+    const toggle = await screen.findByTestId('theme-toggle');
+    const root = document.documentElement;
+    expect(root).not.toHaveAttribute('data-theme');
+
+    await user.click(toggle);
+    expect(root).toHaveAttribute('data-theme', 'light');
+    expect(localStorage.getItem('culturals.theme')).toBe('light');
+
+    await user.click(screen.getByTestId('theme-toggle'));
+    expect(root).toHaveAttribute('data-theme', 'dark');
+
+    await user.click(screen.getByTestId('theme-toggle'));
+    expect(root).not.toHaveAttribute('data-theme');
+    expect(localStorage.getItem('culturals.theme')).toBeNull();
+  });
+
+  it('is in the app bar once signed in', async () => {
+    renderAt('/events', { roles: ['student'] });
+    expect((await screen.findAllByTestId('theme-toggle')).length).toBeGreaterThan(0);
+    setTheme('system');
   });
 });

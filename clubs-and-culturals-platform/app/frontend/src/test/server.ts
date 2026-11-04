@@ -176,6 +176,45 @@ const ROLE_BY_EMAIL: Record<string, string[]> = {
 };
 
 export const handlers = [
+  // Demo server: the pilot accounts the sign-in page lists.
+  http.get(`${B}/module/auth/demo/personas`, () =>
+    HttpResponse.json({
+      demo_mode: true,
+      personas: [
+        {
+          key: 'student',
+          label: 'Student',
+          sub: 'Any enrolled student',
+          available: true,
+          name: 'Nithya',
+          email: '25la1001@college.edu',
+          password: 'culturals-demo',
+          mfa_required: false,
+        },
+        {
+          key: 'dean',
+          label: 'Dean',
+          sub: 'Dean of Student Affairs — the mandatory gate',
+          available: true,
+          name: 'Dr. Revathi Srinivasan',
+          email: 'dean@college.edu',
+          password: 'culturals-demo',
+          mfa_required: true,
+        },
+        {
+          key: 'vc',
+          label: 'Management',
+          sub: 'Vice-Chancellor — dashboard only',
+          available: false,
+          name: null,
+          email: null,
+          password: null,
+          mfa_required: false,
+        },
+      ],
+    }),
+  ),
+
   http.post(`${B}/module/auth/login`, async ({ request }) => {
     const body = (await request.json()) as { email: string; password: string; mfa_code?: string };
     if (body.password !== 'culturals-demo') {

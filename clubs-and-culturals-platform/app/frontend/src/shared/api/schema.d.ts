@@ -1952,6 +1952,10 @@ export interface components {
             sub: string;
             available: boolean;
             name: string | null;
+            /** Format: email */
+            email: string | null;
+            password: string | null;
+            mfa_required: boolean;
         };
         DemoPersonaRef: {
             key: string;

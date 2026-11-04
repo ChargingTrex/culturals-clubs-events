@@ -3837,11 +3837,23 @@ components:
         name:
           type: string
           nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        password:
+          type: string
+          nullable: true
+        mfa_required:
+          type: boolean
       required:
       - available
+      - email
       - key
       - label
+      - mfa_required
       - name
+      - password
       - sub
     DemoPersonaRef:
       type: object

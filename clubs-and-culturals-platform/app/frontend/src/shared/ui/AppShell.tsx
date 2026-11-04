@@ -9,6 +9,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { Loading } from './Empty';
 import { Nav, SignOutButton } from './Nav';
 import { ProblemView } from './ProblemView';
+import { ThemeToggle } from './ThemeToggle';
 
 function greeting(now = new Date()): string {
   const h = now.getHours();
@@ -96,14 +97,28 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-dvh bg-bg">
-      {capabilities ? <Nav capabilities={capabilities} variant="sidebar" footer={who} /> : null}
+      {capabilities ? (
+        <Nav
+          capabilities={capabilities}
+          variant="sidebar"
+          footer={
+            <>
+              {who}
+              <ThemeToggle />
+            </>
+          }
+        />
+      ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Phone top bar: wordmark, then who is signed in. */}
         <header className="cc-bar cc-bar--small md:hidden">
           <div className="cc-bar-row">
             <strong className="title-md text-navy">Culturals</strong>
-            <div className="ml-auto flex min-w-0 items-center gap-3">{who}</div>
+            <div className="ml-auto flex min-w-0 items-center gap-2">
+              <ThemeToggle />
+              {who}
+            </div>
           </div>
         </header>
 
@@ -120,7 +135,10 @@ export function AppShell() {
             <div className="flex flex-1 justify-center">
               {capabilities?.is_student ? <EventSearch /> : null}
             </div>
-            <div className="flex max-w-[280px] min-w-0 shrink-0 items-center gap-3">{who}</div>
+            <div className="flex min-w-0 shrink-0 items-center gap-3">
+              <ThemeToggle />
+              <div className="flex max-w-[280px] min-w-0 items-center gap-3">{who}</div>
+            </div>
           </div>
         </header>
 
