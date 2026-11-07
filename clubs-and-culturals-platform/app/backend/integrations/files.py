@@ -41,3 +41,22 @@ class PlatformFileStore(FileStore):
 
     def url_for(self, key):
         raise NotImplementedError("PlatformFileStore requires the platform file service.")
+
+
+def file_location(key):
+    """
+    Where a stored file's bytes are. Local mode keeps the module's own bucket on
+    disk, so a view can stream the file itself; platform mode only knows a URL,
+    so the view redirects to it.
+
+    Returns {"kind": "file", "path": Path}, {"kind": "redirect", "url": str},
+    or None when the key escapes the local bucket (not written by this module).
+    """
+    from integrations.registry import file_store
+
+    store = file_store()
+    if isinstance(store, LocalFileStore):
+        root = store.root.resolve()
+        path = (root / key).resolve()
+        return {"kind": "file", "path": path} if root in path.parents else None
+    return {"kind": "redirect", "url": store.url_for(key)}

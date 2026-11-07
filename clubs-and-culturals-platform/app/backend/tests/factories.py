@@ -12,7 +12,7 @@ from django.utils import timezone
 from budget.models import Budget, BudgetLine
 from clubs.models import Club, Membership
 from common import roles as R
-from events.models import Event, EventStatus, Venue
+from events.models import Event, EventPhoto, EventSocialPost, EventStatus, Venue
 from identity.models import Semester, Student, User
 
 PASSWORD = "test-password-123"
@@ -58,6 +58,21 @@ def event(club_obj, venue_obj, *, title="Test Event", days=7, hour=18, duration=
         ends_at=starts + timedelta(hours=duration), capacity=capacity or venue_obj.capacity,
         expected_attendance=expected, status=status, fest=fest,
     )
+
+
+def evidence(event_obj, *, photos=0, links=(), highlight=False):
+    """
+    Photo and post-link rows without files, for tests that only read the
+    records (reporting). Upload itself is tested through the API.
+    """
+    for i in range(photos):
+        EventPhoto.objects.create(event=event_obj, file_key=f"test/{event_obj.pk}-{i}.jpg",
+                                  file_name=f"{i}.jpg", content_type="image/jpeg",
+                                  is_highlight=highlight and i == 0)
+    for url in links:
+        EventSocialPost.objects.create(event=event_obj, url=url,
+                                       platform=EventSocialPost.Platform.INSTAGRAM
+                                       if "instagram" in url else EventSocialPost.Platform.OTHER)
 
 
 def budget(event_obj, amounts=(10000,)):

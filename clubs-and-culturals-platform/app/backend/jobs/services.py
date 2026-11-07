@@ -126,6 +126,29 @@ def purge_external(*, now=None):
     return {"purged": purged, "registrations_removed": 0, "as_of": today.isoformat()}
 
 
+def complete_ended(*, now=None):
+    """
+    PRD §5.11 status automation: an event whose end (plus the scan-station
+    grace) has passed is completed, so "completed but not reported" can be
+    chased (Event_Flows §5.5). Saved one by one so the status hooks run: club
+    activity, and the feedback request to attendees.
+    """
+    from django.conf import settings
+
+    from events.models import Event, EventStatus
+
+    now = now or timezone.now()
+    cutoff = now - timedelta(hours=settings.ORGANISER_GRACE_HOURS)
+    done = []
+    for event in Event.objects.filter(status__in=(EventStatus.PUBLISHED, EventStatus.LIVE),
+                                      ends_at__lt=cutoff):
+        event.status = EventStatus.COMPLETED
+        event.save(update_fields=["status", "updated_at"])
+        done.append(str(event.pk))
+    log.info("complete-ended: %d events completed", len(done))
+    return {"completed": len(done), "ids": done}
+
+
 def flag_dormant(*, now=None):
     """
     B-05 (W2) owns the rule — `Club.last_activity_at` against `DORMANCY_DAYS` —
@@ -251,6 +274,7 @@ def _normalise(outcome, *, key):
 # ---------------------------------------------------------------------------
 
 JOBS = {
+    "complete-ended": complete_ended,
     "rollup-scans": rollup_scans,
     "purge-external": purge_external,
     "flag-dormant": flag_dormant,

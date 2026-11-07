@@ -67,9 +67,8 @@ class _OverlapDataset(TestCase):
                 services.resolve(services.live_pass(reg).token, event,
                                  operator=self.organiser.user, station_id="G1")
             event.status = EventStatus.REPORTED
-            event.photo_count = 3
-            event.social_links = ["https://example.com/p/1"]
             event.save()
+            f.evidence(event, photos=3, links=["https://example.com/p/1"])
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
         f.user("vc@college.edu", global_roles=[R.VICE_CHANCELLOR], mfa=True)
         f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
@@ -193,9 +192,8 @@ class CaptureRateTests(TestCase):
         services.resolve(first_pass.token, self.event, operator=organiser.user, station_id="G1")
         services.check_in_manually(self.event, s3, operator=organiser.user, station_id="DESK")
         self.event.status = EventStatus.REPORTED
-        self.event.photo_count = 1
-        self.event.social_links = ["https://example.com/p"]
         self.event.save()
+        f.evidence(self.event, photos=1, links=["https://example.com/p"])
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
 
     def test_the_two_rates_are_distinct_numbers_under_distinct_names(self):
@@ -243,17 +241,13 @@ class DeanOverviewAdditionsTests(TestCase):
         self.dormant.save()
         self.no_links = f.event(self.club, f.venue("A"), title="No Links", days=-4,
                                 status=EventStatus.REPORTED)
-        self.no_links.photo_count = 2
-        self.no_links.save()
+        f.evidence(self.no_links, photos=2)
         self.no_photos = f.event(self.club, f.venue("B"), title="No Photos", days=-3,
                                  status=EventStatus.REPORTED)
-        self.no_photos.social_links = ["https://example.com/p"]
-        self.no_photos.save()
+        f.evidence(self.no_photos, links=["https://example.com/p"])
         self.complete = f.event(self.club, f.venue("C"), title="Complete", days=-2,
                                 status=EventStatus.REPORTED)
-        self.complete.photo_count = 1
-        self.complete.social_links = ["https://example.com/q"]
-        self.complete.save()
+        f.evidence(self.complete, photos=1, links=["https://example.com/q"])
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
         f.user("vc@college.edu", global_roles=[R.VICE_CHANCELLOR], mfa=True)
         f.student("student@college.edu", prn="23CS1001")

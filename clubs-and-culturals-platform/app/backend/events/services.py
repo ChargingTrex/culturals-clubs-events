@@ -1,14 +1,19 @@
 """
-Venue clash detection and atomic reassignment.
+Venue clash detection and atomic reassignment; event evidence and closing.
 """
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from common.errors import Conflict
-from events.models import SLOT_CONFIRMED, SLOT_HOLDING, Event, EventStatus, VenueReassignment
+from common import roles as R
+from common.errors import Conflict, ProblemDetail
+from events.models import (
+    SLOT_CONFIRMED, SLOT_HOLDING, Event, EventPhoto, EventReport, EventSocialPost, EventStatus,
+    VenueReassignment,
+)
 
 # An event can change venue while it still holds its booking: pending, approved,
 # published, or live (a mid-event evacuation). A completed or reported event's
@@ -207,26 +212,179 @@ def free_venues_for(event):
     return out
 
 
-def close_event(event, *, photo_count, social_links, actor):
+# --------------------------------------------------------------------------
+# Evidence: photos, social post links, the report (PRD §5.10, §5.14, §5.12.3)
+# --------------------------------------------------------------------------
+# Exact types, as for receipts: an SVG is an image by media type and a script
+# by content, and these files are served inline on the API origin.
+PHOTO_CONTENT_TYPES = ("image/jpeg", "image/png", "image/webp", "image/heic")
+PHOTO_MAX_BYTES = 10 * 1024 * 1024
+# Promotion can start once the event is approved (PRD §5.14.1); late photos and
+# links are still welcome after the report is in.
+EVIDENCE_OPEN = (EventStatus.APPROVED, EventStatus.PUBLISHED, EventStatus.LIVE,
+                 EventStatus.COMPLETED, EventStatus.REPORTED)
+CLOSEABLE = (EventStatus.LIVE, EventStatus.PUBLISHED, EventStatus.COMPLETED)
+
+
+def _bare_type(content_type):
+    return (content_type or "").split(";")[0].strip().lower()
+
+
+def _assert_evidence_open(event):
+    if event.status not in EVIDENCE_OPEN:
+        raise Conflict(code="EVENTS_EVIDENCE_NOT_OPEN", title="Not yet",
+                       detail=(f"“{event.title}” is {event.get_status_display().lower()}. "
+                               "Photos and post links can be added once it is approved."))
+
+
+def _store_image(upload, field):
+    """Validate an uploaded image at the trust boundary and put it in the file store."""
+    from integrations.registry import file_store
+
+    if upload is None:
+        raise ProblemDetail(code="EVENTS_FILE_MISSING", title="No file supplied", status_code=422,
+                            detail="Attach a photograph.",
+                            errors=[{"field": field, "code": "REQUIRED", "message": "A file is required."}])
+    content_type = _bare_type(upload.content_type)
+    if content_type not in PHOTO_CONTENT_TYPES:
+        raise ProblemDetail(code="EVENTS_FILE_TYPE", title="Unsupported file type", status_code=422,
+                            detail="Photos must be one of: " + ", ".join(PHOTO_CONTENT_TYPES) + ".",
+                            errors=[{"field": field, "code": "CONTENT_TYPE",
+                                     "message": upload.content_type or ""}])
+    if upload.size > PHOTO_MAX_BYTES:
+        raise ProblemDetail(code="EVENTS_FILE_TOO_LARGE", title="File too large", status_code=422,
+                            detail=f"Photos must be under {PHOTO_MAX_BYTES // (1024 * 1024)} MB.",
+                            errors=[{"field": field, "code": "TOO_LARGE", "message": str(upload.size)}])
+    stored = file_store().put(key=upload.name, content=upload.read(), content_type=content_type)
+    return stored, content_type
+
+
+def add_photo(event, upload, *, caption="", actor_sub=None):
+    _assert_evidence_open(event)
+    stored, content_type = _store_image(upload, "file")
+    return EventPhoto.objects.create(
+        event=event, file_key=stored["key"], file_name=(upload.name or "photo")[:200],
+        content_type=content_type, byte_size=stored["bytes"], sha256=stored["sha256"],
+        caption=(caption or "").strip()[:300], uploaded_by_sub=actor_sub,
+    )
+
+
+def platform_for(url):
+    host = (urlsplit(url).hostname or "").lower()
+    if host == "instagram.com" or host.endswith(".instagram.com"):
+        return EventSocialPost.Platform.INSTAGRAM
+    if host in ("linkedin.com", "lnkd.in") or host.endswith(".linkedin.com"):
+        return EventSocialPost.Platform.LINKEDIN
+    return EventSocialPost.Platform.OTHER
+
+
+def add_social_post(event, *, url, platform=None, screenshot=None, actor_sub=None):
+    """Store a pasted link. It is never fetched (PRD §5.14: link capture, not integration)."""
+    _assert_evidence_open(event)
+    extra = {}
+    if screenshot is not None:
+        stored, content_type = _store_image(screenshot, "screenshot")
+        extra = {"screenshot_key": stored["key"], "screenshot_content_type": content_type}
+    try:
+        with transaction.atomic():
+            return EventSocialPost.objects.create(
+                event=event, url=url, platform=platform or platform_for(url),
+                added_by_sub=actor_sub, **extra)
+    except IntegrityError:
+        raise Conflict(code="EVENTS_SOCIAL_POST_DUPLICATE", title="Already recorded",
+                       detail="That link is already recorded for this event.")
+
+
+def request_photo_removal(photo, *, actor_sub):
+    """
+    PRD §5.10 consent: a student asks for one image to go. The club's event
+    operators are told; they take it down. Asking twice does not notify twice.
+    """
+    if photo.removal_requested_at is not None:
+        return photo
+    photo.removal_requested_by_sub = actor_sub
+    photo.removal_requested_at = timezone.now()
+    photo.save(update_fields=["removal_requested_by_sub", "removal_requested_at", "updated_at"])
+    from clubs.services import _notify_members, current_office_bearers
+
+    event = photo.event
+    officers = current_office_bearers(event.club, R.EVENT_OPERATORS)
+    transaction.on_commit(lambda: _notify_members(
+        officers, subject=f"Photo removal requested: “{event.title}”",
+        body=("A student pictured in a photo from this event has asked for it to be removed. "
+              "Open the event's photos to review it."),
+        kind="photo.removal_requested", link=f"/club/{event.club_id}/events/{event.id}"))
+    return photo
+
+
+def report_draft(event):
+    """
+    The auto-drafted report (PRD §5.12.3): every number read from the records,
+    the organiser's words from EventReport when written. Budget figures are
+    added by the caller, which knows who is asking.
+    """
+    from feedback.services import summarise
+    from participation.models import Registration
+
+    places = Registration.objects.filter(event=event, cancelled_at__isnull=True, waitlisted=False)
+    attended = places.filter(attended=True)
+    photos = event.photos.filter(removed_at__isnull=True)
+    report = EventReport.objects.filter(event=event).first()
+    feedback = summarise(event)
+    return {
+        "registered": places.count(),
+        "attended": attended.count(),
+        # Own students and external participants are never summed into one figure.
+        "attended_students": attended.filter(student__isnull=False).count(),
+        "attended_external": attended.filter(external__isnull=False).count(),
+        "no_show": places.filter(attended=False).count(),
+        "walk_ins": places.filter(source__in=(Registration.Source.SPOT,
+                                              Registration.Source.MANUAL)).count(),
+        "photos": photos.count(),
+        "highlights": photos.filter(is_highlight=True).count(),
+        "social_posts": event.social_posts.count(),
+        "social_post_required": bool(settings.SOCIAL_POST_REQUIRED_ABOVE
+                                     and attended.count() > settings.SOCIAL_POST_REQUIRED_ABOVE),
+        "feedback": {"count": feedback["count"], "average_rating": feedback["average_rating"]},
+        "outcomes": report.outcomes if report else "",
+        "learnings": report.learnings if report else "",
+        "submitted_at": report.submitted_at if report else None,
+    }
+
+
+def close_event(event, *, outcomes, learnings="", actor):
     """
     Close and report an event.
 
     At least one photo is required: Event_Flows treats evidence as part of
     closing, and the semester report's "missing evidence" list exists to chase
-    exactly this. Attendance is not re-derived here — it is whatever the door
-    recorded.
+    exactly this. A social post link is required only above the configured
+    attendance (PRD §5.14.1). Attendance is not re-derived here — it is
+    whatever the door recorded. Attendees are asked for feedback by the
+    status hook in participation/signals.py.
     """
-    if photo_count < 1:
-        raise Conflict(code="EVENTS_EVIDENCE_REQUIRED", title="Evidence required",
-                       detail="An event cannot be closed without at least one photo.",
-                       errors=[{"field": "photo_count", "code": "REQUIRED",
-                                "message": "Upload at least one photo."}])
-    if event.status not in (EventStatus.LIVE, EventStatus.PUBLISHED, EventStatus.COMPLETED):
-        raise Conflict(code="EVENTS_NOT_CLOSEABLE", title="Cannot close this event",
-                       detail=f"An event that is {event.get_status_display().lower()} cannot be closed.")
-    event.photo_count = photo_count
-    event.social_links = [link for link in social_links if link]
-    event.status = EventStatus.REPORTED
-    event.closed_at = timezone.now()
-    event.save(update_fields=["photo_count", "social_links", "status", "closed_at", "updated_at"])
+    with transaction.atomic():
+        event = Event.objects.select_for_update().get(pk=event.pk)
+        if event.status not in CLOSEABLE:
+            raise Conflict(code="EVENTS_NOT_CLOSEABLE", title="Cannot close this event",
+                           detail=f"An event that is {event.get_status_display().lower()} cannot be closed.")
+        if not event.photos.filter(removed_at__isnull=True).exists():
+            raise Conflict(code="EVENTS_EVIDENCE_REQUIRED", title="Evidence required",
+                           detail="An event cannot be closed without at least one photo.",
+                           errors=[{"field": "photos", "code": "REQUIRED",
+                                    "message": "Upload at least one photo."}])
+        threshold = settings.SOCIAL_POST_REQUIRED_ABOVE
+        if threshold and not event.social_posts.exists() and event.attended_count() > threshold:
+            raise Conflict(code="EVENTS_SOCIAL_POST_REQUIRED", title="Post link required",
+                           detail=(f"Events with more than {threshold} attendees need at least "
+                                   "one social post link before they can be closed."),
+                           errors=[{"field": "social_posts", "code": "REQUIRED",
+                                    "message": "Add a link to a post about the event."}])
+        now = timezone.now()
+        EventReport.objects.update_or_create(event=event, defaults={
+            "outcomes": outcomes.strip(), "learnings": (learnings or "").strip(),
+            "submitted_by_sub": actor.sub or None, "submitted_at": now})
+        event.status = EventStatus.REPORTED
+        event.closed_at = now
+        event.save(update_fields=["status", "closed_at", "updated_at"])
     return event

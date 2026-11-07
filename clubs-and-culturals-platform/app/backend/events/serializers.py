@@ -5,7 +5,9 @@ from budget.models import BudgetStage
 from common import roles as R
 from common.serializers import EventRefSerializer
 from participation.services import live_pass
-from events.models import Event, EventOrganiser, EventStatus, Fest, Venue, VenueReassignment
+from events.models import (
+    Event, EventOrganiser, EventPhoto, EventSocialPost, EventStatus, Fest, Venue, VenueReassignment,
+)
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -37,9 +39,11 @@ class EventSerializer(serializers.ModelSerializer):
     club_name = serializers.CharField(source="club.name", read_only=True)
     venue_name = serializers.CharField(source="venue.name", read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
-    # A JSON column on the model; declared so the schema says "list of URLs"
-    # rather than "anything". CloseEventSerializer is what validates them.
+    # Read from EventPhoto / EventSocialPost rows; kept under the old names so
+    # existing readers (overview, report, CSV) did not have to change.
+    photo_count = serializers.IntegerField(read_only=True)
     social_links = serializers.ListField(child=serializers.URLField(), read_only=True)
+    highlight_photo_url = serializers.SerializerMethodField()
     registered = serializers.SerializerMethodField()
     attended = serializers.SerializerMethodField()
     budget = serializers.SerializerMethodField()
@@ -50,10 +54,17 @@ class EventSerializer(serializers.ModelSerializer):
         fields = ("id", "title", "club", "club_name", "fest", "kind", "description",
                   "venue", "venue_name", "starts_at", "ends_at", "capacity",
                   "expected_attendance", "status", "status_label", "photo_count",
-                  "social_links", "registered", "attended", "budget", "my_registration",
-                  "submitted_at", "closed_at")
+                  "social_links", "highlight_photo_url", "registered", "attended", "budget",
+                  "my_registration", "submitted_at", "closed_at")
         read_only_fields = ("id", "status", "photo_count", "social_links", "submitted_at",
                             "closed_at")
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_highlight_photo_url(self, event):
+        """The first highlight, else the first photo: what a card shows."""
+        photos = [p for p in event.photos.all() if p.removed_at is None]
+        chosen = next((p for p in photos if p.is_highlight), photos[0] if photos else None)
+        return photo_file_url(chosen) if chosen else None
 
     @extend_schema_field(serializers.IntegerField())
     def get_registered(self, event):
@@ -231,10 +242,94 @@ class ReassignRequestSerializer(serializers.Serializer):
         return value.strip()
 
 
+def photo_file_url(photo):
+    return f"/api/v1/events/{photo.event_id}/photos/{photo.id}/file"
+
+
 class CloseEventSerializer(serializers.Serializer):
-    photo_count = serializers.IntegerField(min_value=0)
-    social_links = serializers.ListField(child=serializers.URLField(), required=False,
-                                         default=list)
+    """Photos and post links are attached beforehand; closing adds the words."""
+
+    outcomes = serializers.CharField(max_length=5000, help_text="What happened, for the report.")
+    learnings = serializers.CharField(max_length=5000, required=False, allow_blank=True, default="",
+                                      help_text="What worked, what to change next time.")
+
+
+class EventPhotoSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    removal_requested = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EventPhoto
+        fields = ("id", "caption", "is_highlight", "content_type", "byte_size", "file_url",
+                  "removal_requested", "created_at")
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField())
+    def get_file_url(self, photo):
+        return photo_file_url(photo)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_removal_requested(self, photo):
+        return photo.removal_requested_at is not None
+
+
+class PhotoUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(help_text="JPEG, PNG, WebP or HEIC, under 10 MB.")
+    caption = serializers.CharField(max_length=300, required=False, allow_blank=True)
+
+
+class PhotoUpdateSerializer(serializers.Serializer):
+    caption = serializers.CharField(max_length=300, required=False, allow_blank=True)
+    is_highlight = serializers.BooleanField(required=False)
+
+
+class EventSocialPostSerializer(serializers.ModelSerializer):
+    screenshot_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EventSocialPost
+        fields = ("id", "platform", "url", "screenshot_url", "created_at")
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_screenshot_url(self, post):
+        if not post.screenshot_key:
+            return None
+        return f"/api/v1/events/{post.event_id}/social-posts/{post.id}/screenshot"
+
+
+class SocialPostInSerializer(serializers.Serializer):
+    # URLField accepts http(s) only, so a pasted javascript: link never reaches a page.
+    url = serializers.URLField(max_length=500)
+    platform = serializers.ChoiceField(choices=EventSocialPost.Platform.choices, required=False,
+                                       help_text="Inferred from the link's host when omitted.")
+    screenshot = serializers.FileField(required=False, help_text="Optional image of the post.")
+
+
+class ReportFeedbackSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    average_rating = serializers.FloatField(allow_null=True)
+
+
+class EventReportDraftSerializer(serializers.Serializer):
+    """GET /events/{id}/report — numbers from the records, words from the organiser."""
+
+    registered = serializers.IntegerField()
+    attended = serializers.IntegerField()
+    attended_students = serializers.IntegerField()
+    attended_external = serializers.IntegerField()
+    no_show = serializers.IntegerField()
+    walk_ins = serializers.IntegerField()
+    photos = serializers.IntegerField()
+    highlights = serializers.IntegerField()
+    social_posts = serializers.IntegerField()
+    feedback = ReportFeedbackSerializer()
+    budget = BudgetSummarySerializer(allow_null=True)
+    social_post_required = serializers.BooleanField(
+        help_text="Closing will refuse without a post link at this attendance.")
+    outcomes = serializers.CharField(allow_blank=True)
+    learnings = serializers.CharField(allow_blank=True)
+    submitted_at = serializers.DateTimeField(allow_null=True)
 
 
 class FestSerializer(serializers.ModelSerializer):
