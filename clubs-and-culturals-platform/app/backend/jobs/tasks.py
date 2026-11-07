@@ -34,3 +34,8 @@ def escalate_sla():
 @shared_task(name="jobs.apply_due_terms")
 def apply_due_terms():
     return run_job("apply-due-terms")
+
+
+@shared_task(name="jobs.complete_ended")
+def complete_ended():
+    return run_job("complete-ended")
