@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dean — Culturals user guide</title>
+<style>
+:root{--bg:#f6f7fb;--panel:#fff;--ink:#111827;--muted:#5b6475;--line:#e3e6ee;--accent:#1d5fe0}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141c;--panel:#161d28;--ink:#e7ebf2;--muted:#9aa4b5;--line:#263042;--accent:#7aa7ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:28px 16px;border-right:1px solid var(--line)}
+nav .brand{font-weight:700;font-size:18px;margin:0 8px 18px}nav a{display:block;padding:7px 10px;border-radius:8px;color:var(--muted);text-decoration:none}
+nav a:hover{color:var(--ink)}nav a.on{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+main{padding:32px 40px 80px;min-width:0}h1{font-size:32px;line-height:1.2;margin:0 0 12px}h2{margin-top:40px;padding-top:8px;border-top:1px solid var(--line)}
+a{color:var(--accent)}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0;display:block}
+table{border-collapse:collapse;width:100%;margin:12px 0;display:block;overflow-x:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--panel)}
+code{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.9em}pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto}
+pre code{border:0;padding:0}pre.mermaid{text-align:center}
+@media (max-width:820px){.wrap{display:block}nav{position:static;height:auto;display:flex;flex-wrap:wrap;gap:4px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}nav .brand{width:100%;margin:0 0 6px}main{padding:20px 16px 60px}}
+</style></head><body><div class="wrap">
+<nav aria-label="Chapters"><div class="brand">Culturals guide</div><a href="index.html">Overview</a><a href="getting-started.html">Getting started</a><a href="student.html">Student</a><a href="club-officers.html">Club officers</a><a href="treasurer.html">Treasurer</a><a href="organiser.html">Organiser & door</a><a href="cultural-society.html">Cultural Society</a><a href="dean.html" class=on aria-current=page>Dean</a><a href="vice-chancellor.html">Vice-Chancellor</a></nav>
+<main><h1 id="dean-guide">Dean guide</h1>
+<p>This chapter is for the Dean of Student Affairs. Every event proposal from every club passes
+through your gate. You sanction the budget line by line, and your approval publishes the event
+unless the Vice-Chancellor also has to approve it. You also manage venues and resolve venue
+clashes, and you can see the events calendar, the semester overview and the semester report.</p>
+<h2 id="how-a-proposal-moves">How a proposal moves</h2>
+<p>A club's proposal goes to the Cultural Society (cultural and literary clubs only), then to you
+(<strong>always</strong>: the app does not allow a route without the Dean, so someone is always accountable
+for the money), then to the Vice-Chancellor (only above ₹50,000 or for a fest), and is then
+published. See the <a href="index.html#approval-flow">approval flow</a> for the diagram.</p>
+<h2 id="signing-in">Signing in</h2>
+<p>Sign in with your <strong>Institutional email</strong> and <strong>Password</strong>, click
+<strong>I have an authenticator code</strong>, type the 6-digit code from your authenticator app, and click
+<strong>Sign in</strong>. The Dean cannot sign in without the code. Approvers commit college money, so a
+password alone is not enough, and every decision is marked <strong>MFA</strong> in the approval trail. See
+the <a href="cultural-society.html#signing-in">Cultural Society guide</a> for a picture of the form.</p>
+<h2 id="what-you-see-after-signing-in">What you see after signing in</h2>
+<p>You start on <strong>Dean approvals</strong>. The side menu has:</p>
+<ul>
+<li><strong>Dean approvals</strong>: proposals waiting at your gate.</li>
+<li><strong>Venues</strong>: every venue and booking, any clashes, and moving events.</li>
+<li><strong>Calendar</strong>: every venue booking, hour by hour.</li>
+<li><strong>This semester</strong>: running totals and things to chase up.</li>
+<li><strong>Semester report</strong>: attendance and money for the semester.</li>
+</ul>
+<p><img loading="lazy" alt="Dean approvals queue with Folk Fusion Evening, Short Film Screening and Culturals Night 2026" src="img/dean-01-queue.png" /></p>
+<p>The figures at the top show how many proposals are <strong>Waiting</strong>, how many are <strong>Past SLA</strong>
+(more than 48 hours at your gate) and the total <strong>Requested</strong>. Turn on
+<strong>Only items past the 48h SLA</strong> to see only the late ones. A <strong>Needs VC</strong> tag means the
+proposal goes on to the Vice-Chancellor after you.</p>
+<p>In the demo data, <strong>Folk Fusion Evening</strong> (Dance Club) has been approved by the Cultural Society
+and is waiting for you. It stays pending in this guide.</p>
+<h2 id="review-a-proposal">Review a proposal</h2>
+<ol>
+<li>On a card, click <strong>Review</strong>.</li>
+<li>The proposal page shows:
+   - The <strong>route</strong>: which gates are done (with who approved and when), which gate it is at now,
+     and which are <strong>Not needed</strong>.
+   - <strong>Requested</strong>, <strong>Expected</strong> (people) and <strong>At this gate</strong> (how long it has waited).
+   - <strong>Budget</strong>: the club's lines.
+   - <strong>Approval trail</strong>: earlier decisions and comments, for example the Cultural Society's
+     note.
+   - <strong>Your decision</strong>, with <strong>Sanction by line</strong>.</li>
+</ol>
+<p>The example below is <strong>Short Film Screening</strong>. You returned it once (see
+<a href="#decided-proposals-four-examples">Decided proposals</a>); the club revised it and resubmitted it,
+and the Cultural Society has approved the new version.</p>
+<p><img loading="lazy" alt="Short Film Screening back at the Dean's gate after resubmission" src="img/dean-02-proposal.png" /></p>
+<h2 id="sanction-the-budget-and-decide">Sanction the budget and decide</h2>
+<p>In <strong>Sanction by line</strong>, each line starts at the amount requested.</p>
+<ul>
+<li>To give less for a line, type the lower amount in its <strong>Sanction (₹)</strong> box. The total updates.</li>
+<li>You <strong>cannot raise</strong> a line above what the club asked for. If you type a higher amount, the
+  line turns red and the app warns that the server will refuse it.</li>
+<li>Lines you leave alone are sanctioned as requested.</li>
+</ul>
+<p><img loading="lazy" alt="A sanction above the requested amount, with the warning" src="img/dean-03-sanction-over.png" /></p>
+<p>Then choose:</p>
+<ul>
+<li><strong>Approve</strong>: sanctions the amounts shown. The event is <strong>published</strong> unless it needs the
+  Vice-Chancellor, in which case it moves to the Vice-Chancellor's queue.</li>
+<li><strong>Return for changes</strong>: the club can edit and resubmit. The new version starts again at the
+  first gate.</li>
+<li><strong>Reject</strong>: the proposal is closed. This is final.</li>
+</ul>
+<p>A <strong>Comment</strong> is optional to approve and <strong>required to return or reject</strong>. The club sees it,
+and its office bearers are notified when you return or reject.</p>
+<p><img loading="lazy" alt="Decision panel with every line at the requested amount and a comment" src="img/dean-04-decision.png" /></p>
+<p>After you click <strong>Approve</strong>, you return to the queue with a confirmation such as
+<strong>Approved: Short Film Screening</strong>.</p>
+<p><img loading="lazy" alt="Dean queue after approving Short Film Screening" src="img/dean-05-approved.png" /></p>
+<p>If you open the proposal again, the route ends in <strong>Sanctioned · Published</strong>, the <strong>Sanctioned</strong>
+column is filled in, and your decision is in the trail.</p>
+<p><img loading="lazy" alt="Short Film Screening approved and published" src="img/dean-06-published.png" /></p>
+<h3 id="proposals-that-need-the-vice-chancellor">Proposals that need the Vice-Chancellor</h3>
+<p>When the budget is above ₹50,000 (or the event is part of a fest), the <strong>Requested</strong> figure says
+<strong>Goes to the Vice-Chancellor</strong> and why. Your approval sanctions the budget and passes the
+proposal to the Vice-Chancellor; it is not published yet.</p>
+<p><img loading="lazy" alt="Culturals Night 2026, above the threshold, at the Dean's gate" src="img/dean-07-needs-vc.png" /></p>
+<h2 id="decided-proposals-four-examples">Decided proposals: four examples</h2>
+<p>The demo data has one proposal for each outcome. A decided proposal shows its final state next
+to the title, a route with the deciding gate marked, and every decision with its comment in the
+<strong>Approval trail</strong>. The decision panel is replaced by <strong>This request has been decided.</strong></p>
+<ul>
+<li><strong>Pending</strong>: <strong>Folk Fusion Evening</strong> waits in your queue (see the first picture above).</li>
+<li><strong>Rejected</strong>: <strong>Late-Night Improv Marathon</strong> (Theatre Club). The Society approved it; the Dean
+  rejected it because it "runs past the 10 pm campus curfew and has no security plan for 300
+  people". The route shows a red cross at the Dean. A rejected proposal cannot be resubmitted.</li>
+</ul>
+<p><img loading="lazy" alt="Late-Night Improv Marathon, rejected by the Dean with a comment" src="img/dean-08-rejected.png" /></p>
+<ul>
+<li><strong>Returned</strong>: <strong>Short Film Screening</strong>, first version. The Dean returned it asking to trim
+  publicity and add the screening licence. The route shows the return arrow at the Dean. The club
+  then edited and resubmitted it, which created the new version you approved above.</li>
+</ul>
+<p><img loading="lazy" alt="The first version of Short Film Screening, returned by the Dean with a comment" src="img/dean-09-returned.png" /></p>
+<ul>
+<li><strong>Approved</strong>: <strong>Carnatic Music Recital</strong> (Music Club). Approved by the Society and the Dean and
+  published. Here the Dean reduced <strong>Sound &amp; lighting</strong> from ₹12,000 to ₹10,800. The reduced line
+  is highlighted with the original amount struck through, and the trail shows the total going
+  from ₹36,720 to ₹35,520.</li>
+</ul>
+<p><img loading="lazy" alt="Carnatic Music Recital, approved with one line reduced" src="img/dean-10-carnatic.png" /></p>
+<h2 id="resolve-a-venue-clash">Resolve a venue clash</h2>
+<p>Two events in the same venue at overlapping times (counting the 30-minute setup buffer) are a
+clash. <strong>Neither can be approved, at any gate, until one moves.</strong> The app does not pick a winner;
+you decide which event moves.</p>
+<ol>
+<li>Open <strong>Venues</strong>. The <strong>Clashes</strong> figure counts clashes on all dates, and a red box lists each
+   clashing pair side by side, with whether each is a <strong>Pending request</strong> or <strong>Confirmed</strong>.</li>
+</ol>
+<p><img loading="lazy" alt="Venues page with Open Mic Night and Contemporary Dance Workshop clashing in Seminar Hall A" src="img/dean-11-venues.png" /></p>
+<ol start="2">
+<li>Under the event that should move, click <strong>Move this one</strong>.</li>
+<li>In <strong>Move to</strong>, pick a venue. Each choice says whether it is free; venues that are taken or
+   too small for the expected crowd cannot be picked.</li>
+<li>In <strong>Reason (the club sees this)</strong>, explain the move.</li>
+<li>Click <strong>Move</strong>, or <strong>Cancel</strong> to close the form without changing anything.</li>
+</ol>
+<p><img loading="lazy" alt="The Move this one form for Contemporary Dance Workshop" src="img/dean-12-move-form.png" /></p>
+<p>When you move an event, the club's office bearers, the event's organisers and every registered
+student are notified of the new venue and your reason. The app checks the slot again when you
+click <strong>Move</strong>, so if someone has just booked the venue, the move is refused.</p>
+<p>Below the clash box, <strong>Venues</strong> lists every upcoming booking by day and venue. Each booking is
+marked <strong>Confirmed</strong> (approved) or <strong>Pencilled</strong> (still in approval). You can also move any
+single booking with <strong>Move venue</strong>. Pick a <strong>Day</strong> to see one date, or turn on
+<strong>Show past days</strong>.</p>
+<h2 id="calendar">Calendar</h2>
+<p><strong>Calendar</strong> shows the same bookings as a week-by-week grid. It is read-only; you move events
+from <strong>Venues</strong>.</p>
+<ol>
+<li>Use <strong>Previous week</strong>, <strong>Today</strong> and <strong>Next week</strong> to change the week.</li>
+<li>Each day in the week strip shows how many bookings it has. A red dot marks a day with a clash.
+   Click a day to open it.</li>
+<li>The day opens as a grid: venues across the top, one row per hour. A booking with a solid
+   outline is approved; a dashed one marked <strong>requested</strong> is still going through approval.</li>
+<li>A slot holding two bookings in one venue turns red and says <strong>Clash</strong>, and the pair is listed
+   above the grid.</li>
+</ol>
+<p><img loading="lazy" alt="Calendar on 23 Nov 2026 with the Seminar Hall A clash at 17:00" src="img/dean-13-calendar.png" /></p>
+<p>Bookings are in whole hours. If the grid is wider than the screen, scroll it sideways to see the
+other venues. The Cultural Society and the Vice-Chancellor see the same calendar.</p>
+<h2 id="this-semester">This semester</h2>
+<p><strong>This semester</strong> shows pending approvals by gate, items <strong>Past SLA</strong>, the number of <strong>Venue
+clashes</strong> (with <strong>Open calendar</strong>), active clubs, how well door scanning is capturing
+attendance, completed events still missing a report, photos or social links, venue use and
+inactive clubs. Items waiting past the SLA are listed with a link to each proposal.</p>
+<p><img loading="lazy" alt="This semester overview for the Dean" src="img/dean-14-overview.png" /></p>
+<h2 id="semester-report">Semester report</h2>
+<p><strong>Semester report</strong> shows totals for completed events: events run, attendance, unique students,
+external guests, money sanctioned against money spent, and attendance by club, category and
+department, then a table of events. It has totals only, no individual student records. Click
+<strong>Download CSV</strong> to save it.</p>
+<p><img loading="lazy" alt="Semester report" src="img/dean-15-report.png" /></p>
+<h2 id="good-to-know">Good to know</h2>
+<ul>
+<li><strong>Why can't I approve this?</strong> Usually a venue clash. Move one of the events on <strong>Venues</strong>
+  first. If the error says a second factor is required, sign out and sign in again with your
+  authenticator code.</li>
+<li><strong>Can I give a club more than it asked for?</strong> No. Ask the club to return a revised proposal.</li>
+<li><strong>Does my approval publish the event?</strong> Yes, unless the proposal shows <strong>Needs VC</strong>. Then it
+  goes to the Vice-Chancellor.</li>
+<li><strong>Return or reject?</strong> Return when the club can fix the proposal: it comes back after editing.
+  Reject only when it should not run at all; the club cannot resubmit it.</li>
+<li><strong>Covering for someone?</strong> If you are covering another approver's gate, a note at the top of
+  the queue says so. The trail records both names, and every decision while covering needs a
+  session signed in with the authenticator code.</li>
+<li><strong>Notifications:</strong> clubs are notified when you return or reject a proposal, and everyone
+  affected is notified when you move an event. There is no notification inbox on the staff
+  screens; use the queues and <strong>This semester</strong> to see what needs you.</li>
+</ul>
+<h2 id="known-issues">Known issues</h2>
+<ul>
+<li>The staff screens have no list of decided proposals. The queues show only pending items, so a
+  rejected, returned or approved proposal can only be opened from a direct link. The four
+  examples above were opened that way.</li>
+<li>A resubmitted proposal opens with an empty approval trail; the earlier return and its comment
+  stay on the old request, and nothing links the two.</li>
+<li>The Vice-Chancellor reason is shown as a raw number ("budget over 50000") rather than
+  "₹50,000".</li>
+<li>On a decided proposal the status tag shows the raw lowercase state ("approved", "rejected",
+  "returned").</li>
+<li>In the <strong>Move this one</strong> form at desktop width, the <strong>Move to</strong> list is narrow and cuts off
+  venue names ("Amphitheatr…").</li>
+</ul></main></div>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+mermaid.initialize({startOnLoad:true,theme:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"default"});
+</script></body></html>

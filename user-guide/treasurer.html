@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Treasurer — Culturals user guide</title>
+<style>
+:root{--bg:#f6f7fb;--panel:#fff;--ink:#111827;--muted:#5b6475;--line:#e3e6ee;--accent:#1d5fe0}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141c;--panel:#161d28;--ink:#e7ebf2;--muted:#9aa4b5;--line:#263042;--accent:#7aa7ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1180px;margin:0 auto}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:28px 16px;border-right:1px solid var(--line)}
+nav .brand{font-weight:700;font-size:18px;margin:0 8px 18px}nav a{display:block;padding:7px 10px;border-radius:8px;color:var(--muted);text-decoration:none}
+nav a:hover{color:var(--ink)}nav a.on{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+main{padding:32px 40px 80px;min-width:0}h1{font-size:32px;line-height:1.2;margin:0 0 12px}h2{margin-top:40px;padding-top:8px;border-top:1px solid var(--line)}
+a{color:var(--accent)}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0;display:block}
+table{border-collapse:collapse;width:100%;margin:12px 0;display:block;overflow-x:auto}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--panel)}
+code{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.9em}pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto}
+pre code{border:0;padding:0}pre.mermaid{text-align:center}
+@media (max-width:820px){.wrap{display:block}nav{position:static;height:auto;display:flex;flex-wrap:wrap;gap:4px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}nav .brand{width:100%;margin:0 0 6px}main{padding:20px 16px 60px}}
+</style></head><body><div class="wrap">
+<nav aria-label="Chapters"><div class="brand">Culturals guide</div><a href="index.html">Overview</a><a href="getting-started.html">Getting started</a><a href="student.html">Student</a><a href="club-officers.html">Club officers</a><a href="treasurer.html" class=on aria-current=page>Treasurer</a><a href="organiser.html">Organiser & door</a><a href="cultural-society.html">Cultural Society</a><a href="dean.html">Dean</a><a href="vice-chancellor.html">Vice-Chancellor</a></nav>
+<main><h1 id="treasurer-guide">Treasurer guide</h1>
+<p>This chapter is for club treasurers. Your job in Culturals covers the money side of your club's
+events. Before an event, you price its budget line by line so it can go for approval. After the
+event, you enter what was actually spent, attach receipts and settle the budget. The club's
+President and Vice-President can do the same budget work, so a budget can still be settled when
+the treasurer is away.</p>
+<p>If you have not signed in yet, read <a href="getting-started.html">Getting started</a> first. Screenshots use
+the demo accounts of Kavya (Music Club treasurer), Deepa (Dance Club treasurer), Harini
+(Photography Club treasurer) and the Theatre Club treasurer.</p>
+<h2 id="what-you-see-after-signing-in">What you see after signing in</h2>
+<p>The left sidebar has the usual student pages (<strong>Feed</strong>, <strong>What's on</strong>, <strong>My passes</strong>,
+<strong>Profile QR</strong>, <strong>Clubs</strong>). Under <strong>CLUB</strong> you also get:</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>What it is for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Club events</strong></td>
+<td>Your club's events and proposals, with their approval status.</td>
+</tr>
+<tr>
+<td><strong>New event</strong></td>
+<td>Propose an event, and optionally start its budget from a template.</td>
+</tr>
+<tr>
+<td><strong>Budget</strong></td>
+<td>Every budget your club has, from draft to settled. This chapter is mostly about this page.</td>
+</tr>
+<tr>
+<td><strong>Members &amp; roles</strong></td>
+<td>Your club's members and who holds which role.</td>
+</tr>
+</tbody>
+</table>
+<p>Ordinary club members do not see your club's budgets. Only the President, Vice-President and
+Treasurer do.</p>
+<h2 id="read-the-budget-page">Read the Budget page</h2>
+<p>Open <strong>Budget</strong> in the sidebar.</p>
+<p><img loading="lazy" alt="The Budget page: the yearly envelope card and the list of event budgets" src="img/treasurer-01-budget-list.png" /></p>
+<ul>
+<li><strong>The envelope card</strong> at the top shows your club's yearly allowance. It says how much is left,
+  and its meter turns amber at 85 % used and red when you go over. Under the meter are two
+  figures: <strong>Sanctioned</strong> (approved so far this year) and <strong>Settled</strong> (closed so far). If the
+  college has not set an allowance for your club, the card says <strong>No envelope set</strong>.</li>
+<li><strong>Event budgets</strong> has one row per event, newest first, with the number of lines and the
+  <strong>Requested</strong>, <strong>Sanctioned</strong> and <strong>Spent</strong> totals.</li>
+<li>The button at the end of each row tells you what is next:</li>
+<li><strong>Price it</strong>: you can still edit the budget.</li>
+<li><strong>Settle</strong>: the event has run and the budget is waiting for you to settle it.</li>
+<li><strong>Open</strong>: there is nothing for you to do right now, but you can look at it.</li>
+</ul>
+<h3 id="what-the-stages-mean">What the stages mean</h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What it means</th>
+<th>Can you edit amounts?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Draft</strong></td>
+<td>Not sent yet. You are still pricing it.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>With the Cultural Society</strong></td>
+<td>The Cultural Society is reviewing it (cultural and literary clubs only).</td>
+<td>No, amounts are frozen</td>
+</tr>
+<tr>
+<td><strong>With the Dean</strong></td>
+<td>The Dean of Student Affairs is reviewing it. Every budget goes here.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>With the Vice-Chancellor</strong></td>
+<td>The Vice-Chancellor is reviewing it (big budgets and fests only).</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Returned for changes</strong></td>
+<td>An approver sent it back. Revise it and send it again.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Rejected</strong></td>
+<td>Turned down.</td>
+<td>Yes, but the proposal cannot go forward as it is</td>
+</tr>
+<tr>
+<td><strong>Sanctioned</strong></td>
+<td>Approved. After the event, you enter spend and receipts.</td>
+<td>No, you only enter spend</td>
+</tr>
+<tr>
+<td><strong>Settled</strong></td>
+<td>Spend and receipts are complete and the budget is closed.</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>Two other labels can appear next to the stage. <strong>No budget required</strong> means the event was
+declared nil (see below). <strong>Settlement due</strong> means it is time to settle.</p>
+<h2 id="how-the-budget-size-affects-approval">How the budget size affects approval</h2>
+<p>The chain is: the Cultural Society (only for cultural and literary clubs), then the Dean
+(always), then the Vice-Chancellor (only when the total requested is <strong>above ₹50,000</strong>, or the
+event is part of a fest). The <a href="index.html#approval-flow">approval flow</a> diagram shows the whole
+chain.</p>
+<p>When a budget is over the limit, its page shows a yellow note: <strong>Above ₹50,000 — the
+Vice-Chancellor signs too</strong>. Expect the approval to take one more step.</p>
+<p><img loading="lazy" alt="A ₹69,120 budget waiting with the Cultural Society. The note says the Vice-Chancellor must sign too" src="img/treasurer-02-vc-budget.png" /></p>
+<p>While an approver has the budget, the page says <strong>Amounts are frozen while an approver holds the
+budget.</strong> An approver can sanction less than you asked for on any line. That line then shows a
+small purple <strong>A</strong> mark, with your requested amount crossed out next to the sanctioned amount.</p>
+<p><strong>No club role approves its own budget.</strong> If you also hold an approval role, for example as a
+stand-in for the Dean, the app still will not let you decide on your own club's budget.</p>
+<h2 id="start-a-budget-from-a-template">Start a budget from a template</h2>
+<p>Every event gets a budget when it is created. When you propose an event under <strong>New event</strong>,
+the <strong>Budget</strong> panel on the right lets you start that budget from a template instead of a blank
+sheet.</p>
+<ol>
+<li>Fill in the event details. <strong>Expected attendance</strong> matters, because lines marked <em>per head</em>
+   (for example Refreshments) are worked out from it.</li>
+<li>Under <strong>Template</strong>, choose one: <strong>Competition</strong>, <strong>Exhibition</strong>, <strong>Performance</strong> or
+   <strong>Workshop</strong>. You can also choose <strong>None — the Treasurer prices it</strong> to start with an empty
+   budget.</li>
+<li>Check the preview. It lists each line, then a <strong>Contingency</strong> line (8 % of the other lines on
+   top, as a buffer for surprises), then the <strong>Total requested</strong>. A green <strong>Society and Dean
+   only</strong> note, or a yellow <strong>needs the Vice-Chancellor too</strong> note, tells you who will approve it.</li>
+<li>Decide when to send it:
+   - Leave <strong>Send for approval now</strong> on and press <strong>Propose and send</strong> to send it straight to
+     the approvers.
+   - Turn the switch off and press <strong>Save draft</strong> if you want to adjust the lines first.</li>
+</ol>
+<p><img loading="lazy" alt="New event with the Competition template chosen: lines, 8 % contingency and the total" src="img/treasurer-03-template.png" /></p>
+<h2 id="price-a-draft-budget">Price a draft budget</h2>
+<p>Open the budget from <strong>Budget</strong> (button <strong>Price it</strong>), or from the event page (<strong>Open budget</strong>).</p>
+<p><img loading="lazy" alt="A draft budget: the entries table, the Add an entry form and Send for approval" src="img/treasurer-04-draft-budget.png" /></p>
+<ul>
+<li><strong>Add a line:</strong> type the item under <strong>Add an entry</strong> (for example "Sound hire"), enter the
+  <strong>Amount (₹)</strong> and press <strong>Add</strong>. Two lines cannot have the same name.</li>
+<li><strong>Change a line:</strong> press <strong>Edit</strong> on its row, change the name or amount, then press <strong>Save</strong>.
+  <strong>Cancel</strong> leaves it as it was.</li>
+<li><strong>Delete a line:</strong> press <strong>Remove</strong>.</li>
+</ul>
+<p><img loading="lazy" alt="Editing the Printing line in place" src="img/treasurer-05-edit-entry.png" /></p>
+<p>The <strong>Contingency</strong> line is worked out once, when the template is applied. It does <strong>not</strong>
+change when you add or edit other lines, so adjust it by hand with <strong>Edit</strong> if you need to.</p>
+<p>Once the budget has at least one line, the header shows <strong>Priced — ready for the approvers.</strong>
+and a <strong>Send for approval</strong> button. You can send the proposal from there or from <strong>Club events</strong>.</p>
+<h3 id="events-that-need-no-money-declare-nil">Events that need no money: declare nil</h3>
+<p>An empty budget cannot go for approval. If an event really costs nothing (for example a talk in
+your own classroom), you must say so instead of leaving the budget blank:</p>
+<ol>
+<li>Open the budget while it has no lines.</li>
+<li>Under <strong>Or declare that this event needs no money</strong>, type the reason (at least a few words).</li>
+<li>Press <strong>Declare nil</strong>.</li>
+</ol>
+<p>Approvers then see your reason and your name instead of a set of figures, and the budget list
+shows <strong>No budget required</strong>. To price the event after all, press <strong>Withdraw — price it
+instead</strong>. You can only declare nil when no line has an amount, so remove any priced lines first.</p>
+<h2 id="when-your-budget-comes-back">When your budget comes back</h2>
+<p>Instead of approving, an approver can <strong>return</strong> a budget for changes or <strong>reject</strong> it, and they
+must leave a comment either way. Read the comment under <strong>Approval trail</strong> on the event page. To get there,
+click <strong>event page</strong> under the budget's title.</p>
+<h3 id="returned-for-changes-revise-and-resubmit">Returned for changes: revise and resubmit</h3>
+<p><strong>Short Film Screening</strong> (Photography Club) is an example of a returned budget. The Dean
+returned it with this comment: <em>"Publicity looks high for an 80-seat screening, and the
+screening licence is missing. Trim publicity and add the licence, then resubmit."</em></p>
+<p><img loading="lazy" alt="Approval trail: the Dean's return comment, then the resubmitted round" src="img/treasurer-06-returned-trail.png" /></p>
+<p>What the treasurer did:</p>
+<ol>
+<li>Opened the budget. While it is <strong>Returned for changes</strong>, the budget can be edited again.</li>
+<li>Pressed <strong>Edit</strong> on Publicity and lowered it to ₹600.</li>
+<li>Added a <strong>Screening licence</strong> entry of ₹2,500 under <strong>Add an entry</strong>.</li>
+<li>Pressed <strong>Send for approval</strong> on the budget (or on the event under <strong>Club events</strong>).</li>
+</ol>
+<p>The resubmitted budget starts again at the first approver. The approval trail keeps the
+returned round with the Dean's comment, and shows the new round under it. While the new round
+is under review, the amounts are frozen again.</p>
+<p><img loading="lazy" alt="Short Film Screening after the changes: Publicity ₹600 and a new Screening licence line" src="img/treasurer-07-returned-budget.png" /></p>
+<p>The contingency line did not change when the lines were edited (see the note under <em>Price a
+draft budget</em>), so check it before you resubmit.</p>
+<h3 id="rejected-final">Rejected: final</h3>
+<p><strong>Late-Night Improv Marathon</strong> (Theatre Club) was rejected by the Dean: <em>"Runs past the 10 pm
+campus curfew and has no security plan for 300 people. Not approved this semester."</em> A
+rejected proposal cannot be sent again. If you still want to hold the event, propose a new event
+that deals with the reasons in the comment. Rejected proposals can be removed with <strong>Delete</strong> on
+the event page.</p>
+<p><img loading="lazy" alt="Approval trail of a rejected proposal, with the Dean's reason" src="img/treasurer-08-rejected-trail.png" /></p>
+<h2 id="once-it-is-sanctioned-an-example">Once it is sanctioned: an example</h2>
+<p><strong>Carnatic Music Recital</strong> went through the Cultural Society and the Dean and is now
+<strong>Sanctioned</strong>. The Dean cut Sound &amp; lighting from ₹12,000 to ₹10,800 (marked <strong>A</strong>), so the
+sanctioned total is ₹35,520 against ₹36,720 requested. Plan your spending on the sanctioned
+figures. The card on the right now shows <strong>Spend against sanction</strong> instead of the envelope.</p>
+<p><img loading="lazy" alt="Carnatic Music Recital: sanctioned, with one line cut by the Dean" src="img/treasurer-09-sanctioned.png" /></p>
+<h2 id="after-the-event-enter-spend-and-attach-receipts">After the event: enter spend and attach receipts</h2>
+<p>Once the budget is <strong>Sanctioned</strong> and the event has run, the budget page has a <strong>Spend and
+receipts</strong> section with one block per line. Each block shows that line's sanctioned amount.</p>
+<ol>
+<li>Open the budget (button <strong>Settle</strong> on the Budget page).</li>
+<li>For each line, type the amount actually spent in <strong>Spent (₹)</strong> and press <strong>Save</strong>. Enter 0
+   for a line you did not use.</li>
+<li>If a line went over its sanctioned amount, it gets a red <strong>Over sanctioned</strong> label, and the
+   <strong>Note</strong> field becomes <strong>Why it went over (required)</strong>. Write the reason there and press
+   <strong>Save</strong>.</li>
+<li><strong>Receipts are required for anything above ₹5,000.</strong> For each such line, press <strong>Choose
+   File</strong>, pick the bill (a PDF or a photo: JPEG, PNG, WebP or HEIC) and press <strong>Attach</strong>. The
+   receipt appears under the line as a chip showing its file name and amount. Click the chip to
+   open the receipt.</li>
+</ol>
+<p>Your figures are saved line by line, so you can enter them over several sittings.</p>
+<h2 id="settle-the-budget">Settle the budget</h2>
+<p>At the bottom of <strong>Spend and receipts</strong>, press <strong>Settle budget</strong>.</p>
+<p>If anything is missing, the app refuses and lists <strong>every</strong> problem at once, so you can fix
+them all in one go:</p>
+<p><img loading="lazy" alt="Settling blocked: three lines need receipts and one needs a reason for the overspend" src="img/treasurer-10-settle-blocked.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enter what was actually spent on at least one line.</td>
+<td>Fill in <strong>Spent (₹)</strong> on the lines and press <strong>Save</strong>.</td>
+</tr>
+<tr>
+<td>"…" is over 5,000, so it needs a receipt.</td>
+<td>Attach a receipt to that line.</td>
+</tr>
+<tr>
+<td>"…" is … over sanctioned. Record what caused it.</td>
+<td>Write the reason in <strong>Why it went over (required)</strong> and press <strong>Save</strong>.</td>
+</tr>
+</tbody>
+</table>
+<p>When the list is gone, press <strong>Settle budget</strong> again.</p>
+<p><img loading="lazy" alt="All problems fixed: receipts attached, overspend explained, ready to settle" src="img/treasurer-11-ready-to-settle.png" /></p>
+<p>A settled budget shows <strong>Settled on</strong> with the date. Its spend and receipts can no longer be
+changed, and the figures count towards the <strong>Settled</strong> total on your envelope card.</p>
+<p><img loading="lazy" alt="A settled budget: spend per line, receipts and the &quot;Settled on&quot; date" src="img/treasurer-12-settled.png" /></p>
+<p>You cannot settle too early. Instead of a list of problems, the page shows one of these notes:</p>
+<ul>
+<li><em>Not yet. The budget has to be sanctioned before spend is recorded against it.</em> The approvers
+  have not finished yet.</li>
+<li><em>Not yet. Settle after the event has run…</em> The event has not happened yet. Settlement opens
+  once the event is live, completed or reported.</li>
+</ul>
+<h2 id="good-to-know">Good to know</h2>
+<ul>
+<li><strong>Who can do what.</strong> The President, Vice-President and Treasurer can all price budgets, enter
+  spend, attach receipts and settle. Ordinary members cannot see budgets at all.</li>
+<li><strong>Amounts freeze during review.</strong> You cannot edit requested amounts while the Cultural
+  Society, Dean or Vice-Chancellor holds the budget. If it comes back <strong>Returned for changes</strong>,
+  you can edit it again.</li>
+<li><strong>₹50,000 limit.</strong> Above it, the Vice-Chancellor must also sanction. Fest events always need
+  the Vice-Chancellor.</li>
+<li><strong>₹5,000 receipt rule.</strong> Every line where you spent more than ₹5,000 needs a receipt before
+  settling. Smaller lines do not, but you can still attach one.</li>
+<li><strong>Overspending a line</strong> is allowed, but you must explain why before you can settle.</li>
+<li><strong>Sanctioned can be lower than requested.</strong> Approvers can cut individual lines. Plan your
+  spending on the sanctioned figure.</li>
+<li><strong>Mistake after settling?</strong> A settled budget is closed. Ask the Dean to reopen it.</li>
+<li><strong>No club role approves its own budget.</strong> This holds even when someone also holds an approval
+  role.</li>
+</ul>
+<h2 id="known-issues">Known issues</h2>
+<ul>
+<li><strong>Raw technical details in the settle error.</strong> When <strong>Settle budget</strong> is refused, the red box
+  shows <code>422 · BUDGET_SETTLEMENT_INCOMPLETE</code>, and every message starts with an internal field path
+  such as <code>lines.25189b4d-….receipts:</code>. The friendly list above the button already says the
+  same thing. The red box should hide the code and the field paths (see screenshot 10).</li>
+<li><strong>The Settle button is clickable while problems remain.</strong> It is enabled as soon as the event
+  has run, even when the list of problems is not empty, so pressing it only produces the error
+  above. Disabling it until the list is empty, or explaining why it is disabled, would be clearer.</li>
+<li><strong>Contingency does not follow edits.</strong> The 8 % contingency line is fixed when the template is
+  applied. If you add ₹2,500 of new lines, the contingency stays the same. This may be
+  intentional, but nothing on the page says so.</li>
+<li><strong>A rejected budget still looks editable.</strong> For a rejected proposal (Late-Night Improv
+  Marathon), the Budget list shows <strong>Price it</strong>, and the budget page still offers <strong>Edit</strong>,
+  <strong>Remove</strong> and <strong>Add an entry</strong>, even though the proposal can never be sent again. The server
+  treats <code>rejected</code> as editable (<code>Budget.is_editable</code>). It should probably be read-only.</li>
+<li><strong>Spend entry is offered before the event has run.</strong> On a sanctioned budget whose event is
+  still upcoming (Carnatic Music Recital), the <strong>Spent (₹)</strong> fields, <strong>Save</strong> and <strong>Attach</strong> are
+  already shown. Underneath, the note says <em>"Not yet. Settle after the event has run — spend
+  recorded against an event that has not happened is spend against nothing."</em> I did not try
+  saving spend there, because that budget belongs to the shared demo.</li>
+</ul></main></div>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+mermaid.initialize({startOnLoad:true,theme:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"default"});
+</script></body></html>
