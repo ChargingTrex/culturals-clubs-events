@@ -52,7 +52,7 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 | F-03 | Organiser scan station: camera read, seven verdicts, offline queue, PRN lookup, roster | W5 | verified | Playwright: scan pass → checked in; same again → duplicate | — merged 2026-11-03; vitest: scan→checked-in, repeat→duplicate, offline queue→sync, PRN lookup; live: station + roster load for Lens president. QA review pending
 | F-04 | Club screens: new event, budget, events, roster/roles, join requests, handover | W6 | verified | Playwright: treasurer prices and submits | — merged 2026-11-03; vitest: treasurer adds line + submits, roster/join/role change, new-event POST; live: every club page loads for member/secretary/treasurer/president. QA review pending
 | F-05 | Staff screens: three queues, line sanction, venues + reassign, overview, report | W6 | verified | Playwright: Society → Dean → VC on a >50k event | — merged 2026-11-03; live Playwright: Society → Dean (line sanction, approve, publish) on Drishti Street Play; VC leg (>50k) covered only by vitest. QA review pending
-| F-06 | Clubs directory `/clubs` (F-06.1): every active club as a card grouped by category, search + category chips, Member/role/Requested badges, "You're in n of 3" strip, Join / Request to join / Leave; backend `MAX_CLUB_MEMBERSHIPS` cap (`CLUBS_MEMBERSHIP_LIMIT`), `POST /clubs/{id}/leave`, `ClubOut.my_join_request_state`, `capabilities.my_clubs_count/max_club_memberships` | W-A | verified | student joins two clubs, is refused at the cap with the API's message, leaves one; office bearer's Leave is refused | — club page `/clubs/:slug` (F-06.2) not built
+| F-06 | Clubs directory `/clubs` (F-06.1): every active club as a card grouped by category, search + category chips, Member/role/Requested badges, "You're in n of 5" strip (cap raised from 3 to 5 on 2026-11-06, C-01), Join / Request to join / Leave; backend `MAX_CLUB_MEMBERSHIPS` cap (`CLUBS_MEMBERSHIP_LIMIT`), `POST /clubs/{id}/leave`, `ClubOut.my_join_request_state`, `capabilities.my_clubs_count/max_club_memberships` | W-A | verified | student joins two clubs, is refused at the cap with the API's message, leaves one; office bearer's Leave is refused | — club page `/clubs/:slug` (F-06.2) not built
 | F-07 | Feed `/feed` (F-07.1 card, F-07.2 page): poster on the club's accent, status line Upcoming/Live/Ended, capacity bar, my-state pills, server-side `search=`, back-to-top; `GET /events?mine=true`, `search=`, `ordering=feed` | W-A | verified | with `personalised_feed` on, a Music Club member sees Music Club's events above the rest; off, plain date order | — pull-to-refresh skipped; announcements out of scope (D-4)
 | F-08 | Profile tabs QR · My clubs · Attendance · Settings (F-08.2): memberships with role + Leave, pending requests, attended passes, "Personalised feed" switch on `GET/PATCH /module/auth/preferences` (optimistic, reverts on error), Sign out | W-A | verified | toggle persists across reload; a Leave refused for an office bearer shows the API message | — ID card (F-08.1) not built; attendance is the own `my-passes` list filtered to attended
 | H-01 | Backend on Vercel + Neon (seeded), React on Vercel, web-app on Netlify, `docs/HOSTING.md` | W7 | done-unverified | URLs reachable; `/api/v1/module/auth/mode` answers | — config + docs/HOSTING.md written; deploy needs the user's Neon/Vercel/Netlify accounts
@@ -63,19 +63,41 @@ Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. Reac
 
 ## D. Later waves (not yet assigned)
 
+D-01, D-02, D-05 and D-11 are planned in detail in `POST_EVENT_REPORTING_PLAN.md` (2026-11-05).
+
+### Wave 4 — post-event reporting (started 2026-11-05, branch `wave4/reporting`)
+
+| Id | Plan step | Feature | Owner | Status | Acceptance |
+|---|---|---|---|---|---|
+| R-01 | 1 (§3.1) | `EventPhoto`, `EventSocialPost`, `EventReport` tables; `Club.linkedin_handle`; `photo_count`/`social_links` become computed; `seed_demo` seeds photos + posts | W-backend | in-progress | migrate + seed_demo clean; existing suite green |
+| R-02 | 2 (§3.2) | Photo upload/list/edit/remove/file, removal request, social posts add/remove, report auto-draft, close with outcomes; social threshold | W-backend | todo | upload type refusal; close without photo 409; social threshold 409; removal request notifies officers; prefill numbers |
+| R-03 | 2 (§3.4) | `complete-ended` job + cron; feedback request to attendees at close | W-backend | todo | job flips only ended events; one notification per attendee |
+| R-04 | 3 (§3.3) | Overview: missing report, social activity, clubs without recent post; semester report highlights, gallery, outreach; CSV outreach row | W-backend | todo | tests for each list; VC sees no PRNs |
+| R-05 | 4 (§3.5) | React: club report panel, student consent + gallery + removal, staff overview/report additions, print to PDF | W-frontend | todo | vitest for panel, gallery, overview |
+| R-06 | 5 | Robot API + UI coverage for upload → post → close | QA | todo | `./run.sh api` / `ui` green |
+| R-07 | 6 | S3-compatible `FileStore` for Vercel | W-hosting | todo (needs bucket credentials) | receipts and photos survive redeploy |
+
+### Wave 4b — calendar and booking rules (started 2026-11-06, branch `wave4/calendar`)
+
+| Id | Feature | Owner | Status | Acceptance |
+|---|---|---|---|---|
+| C-01 | Membership cap 3 → 5 (`MAX_CLUB_MEMBERSHIPS`), UI fallback, mocks, docs | ORCH | in-progress | sixth join refused `CLUBS_MEMBERSHIP_LIMIT`; strip reads "n of 5" |
+| C-02 | Events booked in whole India-time hours (create + edit validation); clash = sharing an hour in one venue (`VENUE_BUFFER_MINUTES` default 0); seed on India hours; hour selects on New event | ORCH | todo | 18:30 → 422 `starts_at`; 18:00 → 201; back-to-back hours do not clash; overlapping hours do |
+| C-03 | `/staff/calendar` for Cultural Society, Dean, admin: week strip, venue × 1-hour grid, clash cells and list; `from`/`to` on `/venue-calendar` | ORCH + W-frontend | todo | Society 200 / student 403; vitest grid fills hours and marks clash; nav shows Calendar for Society |
+
 | Id | PRD § | Feature | Existing |
 |---|---|---|---|
-| D-01 | 5.10 | EventPhoto rows, object-store upload, highlights, captions, consent notice + removal | PARTIAL (count only) |
-| D-02 | 5.14 | EventSocialPost rows (platform, url, date, who, screenshot), per-club activity, mandatory-link config | PARTIAL (JSON links) |
+| D-01 | 5.10 | EventPhoto rows, object-store upload, highlights, captions, consent notice + removal | PARTIAL (count only) | → wave 4 R-01..R-05
+| D-02 | 5.14 | EventSocialPost rows (platform, url, date, who, screenshot), per-club activity, mandatory-link config | PARTIAL (JSON links) | → wave 4 R-01..R-05
 | D-03 | 5.11 | Event templates with task checklist, clone past event, reminders | PARTIAL (budget template only) |
 | D-04 | 5.12.1 | Custom registration forms (JSONB), team registration, volunteer roster/shifts, speakers, sponsors | MISSING |
-| D-05 | 5.12.3 | Auto-drafted event report, certificates, learnings, vendor record | MISSING |
+| D-05 | 5.12.3 | Auto-drafted event report, certificates, learnings, vendor record | MISSING | → wave 4 R-01..R-04 (certificates, vendor rating not planned)
 | D-06 | 5.15 | Fest sub-events, roll-ups, fest page, FestRole, fest budget envelope | PARTIAL (Fest model) |
 | D-07 | 5.15.5 | External participant public registration, QR by email, purge job | PARTIAL (model) |
 | D-08 | 5.12.2 | Session-level check-in | MISSING |
 | D-09 | 5.9 | Exam blackout periods, per-venue timeline, pressure view, utilisation, schedule export | MISSING |
 | D-10 | 5.5 | Personalised feed, per-user notification preferences | MISSING |
-| D-11 | 6.1, 6.4 | PDF + PPTX report with photos, trend vs previous semester, Management dashboard | MISSING |
+| D-11 | 6.1, 6.4 | PDF + PPTX report with photos, trend vs previous semester, Management dashboard | MISSING | → wave 4 R-04/R-05 (browser print; PPTX not planned)
 | D-12 | 5.1 | New-club registration workflow with Dean approval | MISSING |
 | D-13 | 4 | Student Life Office role (venues, calendar, templates, club records) | MISSING |
 | D-14 | 8 | WCAG 2.1 AA audit; load test (registration burst, scan throughput) | not tested |
