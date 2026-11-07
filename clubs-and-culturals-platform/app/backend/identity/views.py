@@ -366,17 +366,17 @@ def _first_student_without_club_role():
 
 
 class DemoPersonasView(APIView):
-    """The personas a demo can switch between. 404 when DEMO_MODE is off."""
+    """The personas a demo can switch between. 404 unless PILOT_ACCOUNTS (or DEMO_MODE)."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    @extend_schema(responses=DemoPersonasSerializer, summary="Demo personas (DEMO_MODE only)")
+    @extend_schema(responses=DemoPersonasSerializer, summary="Pilot accounts (PILOT_ACCOUNTS or DEMO_MODE only)")
     def get(self, request):
-        if not settings.DEMO_MODE:
+        if not (settings.PILOT_ACCOUNTS or settings.DEMO_MODE):
             raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
-                                detail="Demo mode is not enabled.")
-        # Demo mode only (404 otherwise): the pilot accounts are public test
+                                detail="Pilot accounts are not enabled.")
+        # PILOT_ACCOUNTS only (404 otherwise): the pilot accounts are public test
         # accounts, so the sign-in page can list them and fill the form. Signing in
         # still goes through the real login, including the second factor.
         from identity.management.commands.seed_demo import PASSWORD as DEMO_PASSWORD
@@ -390,7 +390,7 @@ class DemoPersonasView(APIView):
                         "email": user.email if user else None,
                         "password": DEMO_PASSWORD if user else None,
                         "mfa_required": user_needs_mfa(user) if user else False})
-        return Response({"demo_mode": True, "personas": out})
+        return Response({"demo_mode": settings.DEMO_MODE, "personas": out})
 
 
 class DemoLoginView(APIView):

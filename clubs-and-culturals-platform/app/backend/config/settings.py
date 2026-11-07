@@ -291,6 +291,13 @@ if DEMO_MODE and not DEBUG:
         "password; on a production host that is an open door, not a convenience."
     )
 
+# The sign-in page lists the seeded pilot accounts (email + the shared demo
+# password) as buttons. Unlike DEMO_MODE this mints nothing: signing in still runs
+# the real password and second-factor checks, so it may run with DEBUG=0 on a
+# public prototype host. Anyone with the URL can then sign in as any pilot role,
+# so only turn it on over seeded demo data.
+PILOT_ACCOUNTS = _env_bool("PILOT_ACCOUNTS", False)
+
 # Overridable so a DEBUG=0 test host without an SMTP relay (Vercel) can log mail
 # to the function console instead of silently failing to connect to localhost.
 EMAIL_BACKEND = _env(

@@ -11,7 +11,7 @@ urlpatterns = [
     path("auth/preferences", views.PreferencesView.as_view(), name="auth-preferences"),
     path("directory/students", views.StudentLookupView.as_view(), name="directory-students"),
     path("semesters", views.SemesterView.as_view(), name="semesters"),
-    # Demo mode only; both 404 when DEMO_MODE is off.
+    # personas: PILOT_ACCOUNTS or DEMO_MODE; the passwordless login: DEMO_MODE only.
     path("auth/demo/personas", views.DemoPersonasView.as_view(), name="demo-personas"),
     path("auth/demo/<str:persona>", views.DemoLoginView.as_view(), name="demo-login"),
 ]

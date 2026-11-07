@@ -1848,7 +1848,7 @@ paths:
     get:
       operationId: module_auth_demo_personas_retrieve
       description: The personas a demo can switch between. 404 when DEMO_MODE is off.
-      summary: Demo personas (DEMO_MODE only)
+      summary: Pilot accounts (PILOT_ACCOUNTS or DEMO_MODE only)
       tags:
       - module
       security:
