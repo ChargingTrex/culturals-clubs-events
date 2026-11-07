@@ -7,7 +7,8 @@ President and Vice-President can do the same budget work, so a budget can still 
 the treasurer is away.
 
 If you have not signed in yet, read [Getting started](getting-started.md) first. Screenshots use
-the demo accounts of Kavya (Music Club treasurer) and Deepa (Dance Club treasurer).
+the demo accounts of Kavya (Music Club treasurer), Deepa (Dance Club treasurer), Harini
+(Photography Club treasurer) and the Theatre Club treasurer.
 
 ## What you see after signing in
 
@@ -59,17 +60,15 @@ declared nil (see below). **Settlement due** means it is time to settle.
 
 ## How the budget size affects approval
 
-Who has to approve a budget depends on the club and on the total requested:
-
-1. **Cultural Society**: only for clubs that fall under the Cultural Society.
-2. **Dean of Student Affairs**: always.
-3. **Vice-Chancellor**: only when the total requested is **above ₹50,000**, or when the event is
-   part of a fest.
+The chain is: the Cultural Society (only for cultural and literary clubs), then the Dean
+(always), then the Vice-Chancellor (only when the total requested is **above ₹50,000**, or the
+event is part of a fest). The [approval flow](README.md#approval-flow) diagram shows the whole
+chain.
 
 When a budget is over the limit, its page shows a yellow note: **Above ₹50,000 — the
 Vice-Chancellor signs too**. Expect the approval to take one more step.
 
-![A ₹69,120 budget waiting with the Dean. The note says the Vice-Chancellor must sign too](img/treasurer-02-vc-budget.png)
+![A ₹69,120 budget waiting with the Cultural Society. The note says the Vice-Chancellor must sign too](img/treasurer-02-vc-budget.png)
 
 While an approver has the budget, the page says **Amounts are frozen while an approver holds the
 budget.** An approver can sanction less than you asked for on any line. That line then shows a
@@ -132,6 +131,55 @@ Approvers then see your reason and your name instead of a set of figures, and th
 shows **No budget required**. To price the event after all, press **Withdraw — price it
 instead**. You can only declare nil when no line has an amount, so remove any priced lines first.
 
+## When your budget comes back
+
+Instead of approving, an approver can **return** a budget for changes or **reject** it, and they
+must leave a comment either way. Read the comment under **Approval trail** on the event page. To get there,
+click **event page** under the budget's title.
+
+### Returned for changes: revise and resubmit
+
+**Short Film Screening** (Photography Club) is an example of a returned budget. The Dean
+returned it with this comment: *"Publicity looks high for an 80-seat screening, and the
+screening licence is missing. Trim publicity and add the licence, then resubmit."*
+
+![Approval trail: the Dean's return comment, then the resubmitted round](img/treasurer-06-returned-trail.png)
+
+What the treasurer did:
+
+1. Opened the budget. While it is **Returned for changes**, the budget can be edited again.
+2. Pressed **Edit** on Publicity and lowered it to ₹600.
+3. Added a **Screening licence** entry of ₹2,500 under **Add an entry**.
+4. Pressed **Send for approval** on the budget (or on the event under **Club events**).
+
+The resubmitted budget starts again at the first approver. The approval trail keeps the
+returned round with the Dean's comment, and shows the new round under it. While the new round
+is under review, the amounts are frozen again.
+
+![Short Film Screening after the changes: Publicity ₹600 and a new Screening licence line](img/treasurer-07-returned-budget.png)
+
+The contingency line did not change when the lines were edited (see the note under *Price a
+draft budget*), so check it before you resubmit.
+
+### Rejected: final
+
+**Late-Night Improv Marathon** (Theatre Club) was rejected by the Dean: *"Runs past the 10 pm
+campus curfew and has no security plan for 300 people. Not approved this semester."* A
+rejected proposal cannot be sent again. If you still want to hold the event, propose a new event
+that deals with the reasons in the comment. Rejected proposals can be removed with **Delete** on
+the event page.
+
+![Approval trail of a rejected proposal, with the Dean's reason](img/treasurer-08-rejected-trail.png)
+
+## Once it is sanctioned: an example
+
+**Carnatic Music Recital** went through the Cultural Society and the Dean and is now
+**Sanctioned**. The Dean cut Sound & lighting from ₹12,000 to ₹10,800 (marked **A**), so the
+sanctioned total is ₹35,520 against ₹36,720 requested. Plan your spending on the sanctioned
+figures. The card on the right now shows **Spend against sanction** instead of the envelope.
+
+![Carnatic Music Recital: sanctioned, with one line cut by the Dean](img/treasurer-09-sanctioned.png)
+
 ## After the event: enter spend and attach receipts
 
 Once the budget is **Sanctioned** and the event has run, the budget page has a **Spend and
@@ -157,7 +205,7 @@ At the bottom of **Spend and receipts**, press **Settle budget**.
 If anything is missing, the app refuses and lists **every** problem at once, so you can fix
 them all in one go:
 
-![Settling blocked: three lines need receipts and one needs a reason for the overspend](img/treasurer-06-settle-blocked.png)
+![Settling blocked: three lines need receipts and one needs a reason for the overspend](img/treasurer-10-settle-blocked.png)
 
 | Message | What to do |
 |---|---|
@@ -167,12 +215,12 @@ them all in one go:
 
 When the list is gone, press **Settle budget** again.
 
-![All problems fixed: receipts attached, overspend explained, ready to settle](img/treasurer-07-ready-to-settle.png)
+![All problems fixed: receipts attached, overspend explained, ready to settle](img/treasurer-11-ready-to-settle.png)
 
 A settled budget shows **Settled on** with the date. Its spend and receipts can no longer be
 changed, and the figures count towards the **Settled** total on your envelope card.
 
-![A settled budget: spend per line, receipts and the "Settled on" date](img/treasurer-08-settled.png)
+![A settled budget: spend per line, receipts and the "Settled on" date](img/treasurer-12-settled.png)
 
 You cannot settle too early. Instead of a list of problems, the page shows one of these notes:
 
@@ -203,11 +251,20 @@ You cannot settle too early. Instead of a list of problems, the page shows one o
 
 - **Raw technical details in the settle error.** When **Settle budget** is refused, the red box
   shows `422 · BUDGET_SETTLEMENT_INCOMPLETE`, and every message starts with an internal field path
-  such as `lines.f06583f2-….receipts:`. The friendly list above the button already says the
-  same thing. The red box should hide the code and the field paths (see screenshot 06).
+  such as `lines.25189b4d-….receipts:`. The friendly list above the button already says the
+  same thing. The red box should hide the code and the field paths (see screenshot 10).
 - **The Settle button is clickable while problems remain.** It is enabled as soon as the event
   has run, even when the list of problems is not empty, so pressing it only produces the error
   above. Disabling it until the list is empty, or explaining why it is disabled, would be clearer.
 - **Contingency does not follow edits.** The 8 % contingency line is fixed when the template is
   applied. If you add ₹2,500 of new lines, the contingency stays the same. This may be
   intentional, but nothing on the page says so.
+- **A rejected budget still looks editable.** For a rejected proposal (Late-Night Improv
+  Marathon), the Budget list shows **Price it**, and the budget page still offers **Edit**,
+  **Remove** and **Add an entry**, even though the proposal can never be sent again. The server
+  treats `rejected` as editable (`Budget.is_editable`). It should probably be read-only.
+- **Spend entry is offered before the event has run.** On a sanctioned budget whose event is
+  still upcoming (Carnatic Music Recital), the **Spent (₹)** fields, **Save** and **Attach** are
+  already shown. Underneath, the note says *"Not yet. Settle after the event has run — spend
+  recorded against an event that has not happened is spend against nothing."* I did not try
+  saving spend there, because that budget belongs to the shared demo.

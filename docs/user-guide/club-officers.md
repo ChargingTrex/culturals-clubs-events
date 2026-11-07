@@ -79,7 +79,7 @@ Click **Open** on a card. The event page shows:
 - **Clash check**: click **Check clashes** to see other events in the same venue at the same time,
   and which venues are free in that slot.
 
-![Culturals Night 2026: approved by the Cultural Society, now waiting with the Dean. The amber "Needs the Vice-Chancellor" tag and the reason "budget over 50000" explain the extra gate](img/club-05-event-detail.png)
+![Culturals Night 2026: waiting with the Cultural Society; the Dean and the Vice-Chancellor come next. The amber "Needs the Vice-Chancellor" tag and the reason "budget over 50000" explain the extra gate](img/club-05-event-detail.png)
 
 After the event has run and been reported, the page shows how much of the sanctioned budget was
 spent and the full trail of approvals:
@@ -108,7 +108,9 @@ cannot.
    - **Title** and **Kind** (Performance, Workshop, Competition, Exhibition or Talk).
    - **Venue**. Each venue shows its seats, e.g. "Seminar Hall B · seats 120".
    - **Description** (shown to students).
-   - **Starts** and **Ends** (date and time). The end must be after the start.
+   - **Start date** and **Start hour**, **End date** and **End hour**. Venues are booked in whole
+     hours (for example 18:00 to 20:00); the end date follows the start date unless you change it.
+     The end must be after the start.
    - **Capacity** (how many students can register; it cannot be more than the venue's seats) and
      **Expected attendance** (cannot be more than the capacity).
 3. Under **Budget**, choose a **Template**: Competition, Exhibition, Performance or Workshop. The
@@ -129,7 +131,7 @@ cannot.
    on and the button reads **Propose and send**. Turn the switch off to keep it as a draft; the
    button changes to **Save draft**.
 
-   ![The filled form for "Guide Demo: Acoustic Evening": Seminar Hall B, 4 Dec 2026 6–8 pm, 80 expected, ₹28,944 requested, "Society and Dean only", switch off, ready to Save draft](img/club-10-new-event-filled.png)
+   ![The filled form for "Guide Demo: Acoustic Evening": Seminar Hall B, 4 Dec 2026 18:00 to 20:00, 80 expected, ₹28,944 requested, "Society and Dean only", switch off, ready to Save draft](img/club-10-new-event-filled.png)
 
 5. Click **Save draft** (or **Propose and send**). You land on the new event's page.
 
@@ -137,12 +139,13 @@ cannot.
 
 The app checks the venue when you save:
 
-- **Venue already booked**: another event already approved or published uses the same venue at an
-  overlapping time. A 30-minute buffer before and after each event counts as part of the booking.
-  Nothing is saved; pick another venue or time and try again. The venue field names the event in
-  the way.
+- **Venue already booked**: another event already approved or published uses the same venue in
+  one of your hours. Nothing is saved; pick another venue or time and try again. The message gives
+  the other event's times, and the venue field names the event in the way. On the demo server a
+  30-minute buffer is also kept around each booking, so an event ending at 17:00 blocks one starting
+  at 17:00 in the same venue.
 
-  ![The proposal is refused: "Venue already booked — Seminar Hall B is booked for Literary Quiz…, including a 30-minute buffer"](img/club-11-venue-booked.png)
+  ![The proposal is refused: "Venue already booked — Seminar Hall B is booked for Literary Quiz from 15:00 to 17:00 that day, including a 30-minute buffer"](img/club-11-venue-booked.png)
 
 - **Soft clash**: another club has a request for the same venue and time that is still awaiting
   approval. Your proposal is accepted and the message says how many soft clashes were noted. The
@@ -172,8 +175,9 @@ To delete a proposal, open it and use **Delete** in the **Delete this proposal**
 
 ### How the approval chain works
 
-Each proposal passes through the gates in order. Each approver can approve, return it to you with a
-comment, or reject it.
+In short: Cultural Society (cultural and literary clubs) → Dean (always) → Vice-Chancellor (over
+₹50,000 or part of a fest) → Published. The [approval flow](README.md#approval-flow) diagram shows it
+in full. Each approver can approve, return it to you with a comment, or reject it.
 
 1. **Cultural Society**: only for clubs in the **cultural** or **literary** category, such as the
    Music Club. Technical clubs skip this gate.
@@ -186,8 +190,66 @@ comment, or reject it.
 
 The approval trail on the event page always shows where it is ("With Cultural Society", "Waiting ·
 2 days") and every decision so far. A **Past SLA** tag means it has waited at one gate longer than
-it should. If an approver returns it, read their comment in the trail, fix the issue, and click
-**Send for approval** again.
+it should.
+
+## What happens after you submit
+
+Every proposal ends one of four ways. Each example below is the event page as its own club's
+President sees it.
+
+### Still with an approver
+
+Folk Fusion Evening (Dance Club) has been approved by the Cultural Society and is waiting with the
+Dean. The status stays **Awaiting approval**; the trail shows a tick for each gate passed and a
+clock on the current one, with how many days it has waited.
+
+![Folk Fusion Evening: Awaiting approval. Club submitted, Cultural Society approved, Dean of Student Affairs "Waiting · 0 days"](img/club-14-outcome-with-dean.png)
+
+**What to do:** nothing; wait. The approvers are notified. If it shows **Past SLA**, it has waited
+too long at one gate; you can follow up with that office.
+
+### Approved and published
+
+Carnatic Music Recital (Music Club) passed the Cultural Society and the Dean, who sanctioned
+₹35,520 of the ₹36,720 requested. It is **Published**: students can see it on What's on and
+register. The Budget card now shows sanctioned, spent and remaining, and **Go live** and
+**Scan station** appear for the day itself.
+
+![Carnatic Music Recital: Published. Every gate approved, Dean sanctioned ₹35,520; Go live and Scan station buttons at the top](img/club-15-outcome-published.png)
+
+**What to do:** publicise it, run it on the day (**Go live**, then scan passes), close it with
+evidence, and have the Treasurer record the spend. See the [Treasurer guide](treasurer.md) and the
+[Organiser & scan station guide](organiser.md).
+
+### Returned for changes
+
+Short Film Screening (Photography Club) was returned by the Dean with the comment "Publicity looks
+high for an 80-seat screening, and the screening licence is missing. Trim publicity and add the
+licence, then resubmit." The club lowered Publicity, added a Screening licence line under
+**Budget**, and sent it again. The page keeps both rounds: the first trail ends at **Returned** with
+the Dean's comment; the second shows the new submission, which starts again at the Cultural Society.
+
+![Short Film Screening: the first round returned by the Dean with the comment; the second round, sent again, waiting with the Cultural Society](img/club-16-outcome-returned.png)
+
+**What to do after a return:**
+
+1. Open the event and read the approver's comment in the **Approval trail**.
+2. Fix what they asked. Budget changes (lines and amounts) are made under **Budget**, by the
+   President, Vice-President or Treasurer. See the [Treasurer guide](treasurer.md).
+3. Click **Send for approval** on the event page (or its card under **Drafts** on Club events). The
+   proposal goes through every gate again from the first one.
+
+### Rejected
+
+Late-Night Improv Marathon (Theatre Club) was rejected by the Dean: "Runs past the 10 pm campus
+curfew and has no security plan for 300 people. Not approved this semester." The status is
+**Rejected** and there is no **Send for approval** button.
+
+![Late-Night Improv Marathon: Rejected by the Dean with the comment; only Delete this proposal is offered](img/club-17-outcome-rejected.png)
+
+**What to do after a rejection:** the proposal is closed and cannot be sent again. If the idea can
+be changed to meet the objection (here: an earlier finish and a security plan), propose it as a
+**New event**. You can remove the rejected one with **Delete** to tidy your list.
 
 ## Members & roles
 
@@ -200,7 +262,7 @@ the club is **Open to join** or **Joining needs approval**.
 The President and Vice-President see a role menu on every row, plus **Join requests** and
 **Handover** panels.
 
-![Music Club members as the President: a role menu on every row, Join requests ("Nobody is waiting") and the Handover form](img/club-14-roster-president.png)
+![Music Club members as the President: a role menu on every row, Join requests ("Nobody is waiting") and the Handover form](img/club-18-roster-president.png)
 
 - **Change a role**: pick a new role from the member's menu (President, Vice-President, Treasurer,
   Secretary, Core team, Member). **The change is saved the moment you pick it**; there is no
@@ -223,7 +285,7 @@ Member removes it.
 
 Secretaries, Treasurers, Core team and members see the same list with each role as a read-only tag:
 
-![Music Club members as Sneha, a member: the list with read-only role tags and no panels](img/club-15-roster-member.png)
+![Music Club members as Sneha, a member: the list with read-only role tags and no panels](img/club-19-roster-member.png)
 
 ## What the President sees of the budget
 
@@ -232,7 +294,7 @@ envelope for the year, the total sanctioned and settled, and one row per event b
 number of lines, and the amounts requested, sanctioned and spent. **Price it** opens a draft budget
 to add lines; **Open** shows the rest.
 
-![The Music Club Budget page: sanctioned ₹30,336, settled ₹28,819, and four event budgets with their stages](img/club-16-budget-president.png)
+![The Music Club Budget page: sanctioned ₹30,336, settled ₹28,819, and one row per event budget with its stage](img/club-20-budget-president.png)
 
 Pricing lines, recording spend, receipts and settling are covered in the
 [Treasurer guide](treasurer.md). The Secretary, Core team and members cannot see budgets.
@@ -244,7 +306,8 @@ Pricing lines, recording spend, receipts and settling are covered in the
   roles**: President and Vice-President only.
 - **The ₹50,000 line** is on the total requested, contingency included.
 - A **draft holds no venue slot**. Another club can book the hall before you send yours.
-- A **returned** proposal can be sent again; a **rejected** one cannot.
+- A **returned** proposal can be fixed and sent again (it restarts at the first gate); a
+  **rejected** one cannot. Propose a new event instead.
 - There is no screen to edit an event's title, time or venue after saving. To change them, delete the
   draft and propose it again. The budget lines can be changed under **Budget** while it is a draft or
   returned.
@@ -254,11 +317,10 @@ Pricing lines, recording spend, receipts and settling are covered in the
 
 For the maintainer; found while writing this chapter on the demo server.
 
-1. **Seeded event times are 5½ hours late.** The seed builds times in local hours but stores them as
-   UTC, so e.g. Open Mic Night (meant 4–6 pm) shows 09:30 pm–11:30 pm and Culturals Night 10:30 pm–
-   03:30 am. Events created in the app show correctly.
-2. **"Venue already booked" shows the other event's times in UTC** ("from 15:00 to 17:00" for an
-   event shown as 08:30–10:30 pm) and shows the technical line "409 · EVENTS_VENUE_UNAVAILABLE".
+1. **The New event form's hint contradicts the buffer.** It says "Two events in one venue clash if
+   they share an hour", but the demo server runs with a 30-minute buffer
+   (`VENUE_BUFFER_MINUTES=30`), so back-to-back bookings (17:00 end, 17:00 start) are refused too.
+2. **"Venue already booked" shows a technical line**: "409 · EVENTS_VENUE_UNAVAILABLE".
 3. **Vice-Chancellor reason is raw text**: "budget over 50000" (no ₹ or thousands separator).
 4. **Draft toast is misleading** when a template was used: "Saved as a draft — the Treasurer can price
    it now", although the template already priced it.

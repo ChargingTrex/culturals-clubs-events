@@ -16,17 +16,35 @@ Start with **[Getting started](getting-started.md)**, then open the chapter for 
 | The Dean of Student Affairs | [Dean guide](dean.md) |
 | The Vice-Chancellor / management | [Vice-Chancellor guide](vice-chancellor.md) |
 
-## How an event moves through the app
+## Approval flow
 
+```mermaid
+flowchart LR
+    A[Club proposes<br/>event + budget] --> B{Cultural or<br/>literary club?}
+    B -- yes --> CS[Cultural Society]
+    B -- no --> D[Dean of<br/>Student Affairs]
+    CS -- approve --> D
+    D -- approve --> V{Over ₹50,000<br/>or part of a fest?}
+    V -- yes --> VC[Vice-Chancellor]
+    V -- no --> P([Published])
+    VC -- approve --> P
+    CS & D & VC -. return for changes .-> E[Club edits<br/>and resubmits]
+    E -.-> B
+    CS & D & VC -. reject .-> R([Rejected])
 ```
-Club proposes event + budget
-  → Cultural Society (cultural and literary clubs only)
-  → Dean of Student Affairs (always)
-  → Vice-Chancellor (only above the budget threshold or for a fest)
-  → Published: students register and get a pass
-  → Live: organisers scan passes at the door
-  → Reported: treasurer enters actual spend and receipts, then settles
-```
+
+Every approver can **Approve**, **Return for changes** (the club edits and sends it again, and it
+starts from the first gate) or **Reject** (final). Returning and rejecting need a comment. The Dean can
+sanction less than a budget line asks for, never more.
+
+After it is published: students register and get a pass → on the day, organisers scan passes at the
+door (**Live**) → afterwards the organiser closes the event (**Reported**) and the treasurer enters
+actual spend and receipts, then settles the budget.
+
+The demo data has one event in each state, so you can see them all: **Folk Fusion Evening**
+(pending with the Dean), **Carnatic Music Recital** (approved and published), **Late-Night Improv
+Marathon** (rejected by the Dean) and **Short Film Screening** (returned by the Dean, edited by the
+club and resubmitted).
 
 Screenshots were taken on the demo server with its seeded sample data (names, clubs and events
 are fictional).

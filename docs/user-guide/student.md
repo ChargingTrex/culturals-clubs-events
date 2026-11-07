@@ -1,7 +1,7 @@
 # Student guide
 
 This chapter is for every student. In Culturals you can see what is happening on campus,
-register for events, get in at the door with a QR code, and join up to three clubs. Most
+register for events, get in at the door with a QR code, and join up to five clubs. Most
 students use it on their phone, so most screenshots here are from a phone.
 
 If you have not signed in yet, read [Getting started](getting-started.md) first.
@@ -33,9 +33,10 @@ On a computer, the cards are laid out in a grid:
 ![The Feed on a desktop](img/student-02-feed-desktop.png)
 
 **Search the feed:** type a word into **Search events and clubs** and press Enter. The feed
-then shows only matching events. Clear the box to see everything again.
+then shows only matching events. Clear the box to see everything again. Searching for
+"carnatic", for example, leaves just the Music Club's **Carnatic Music Recital**:
 
-![Searching the feed for "quiz"](img/student-03-feed-search.png)
+![Searching the feed for "carnatic"](img/student-03-feed-search.png)
 
 If you haven't joined a club yet, a note says *"Nothing from your clubs yet — you haven't
 joined one."* Tap **Explore clubs** to go to the club directory.
@@ -57,10 +58,14 @@ switch off to go back to date order. This only helps once you are a member of a 
 
 1. Tap **What's on**.
 2. Narrow the list with the filters if you like:
-   - **Club**: one club, or **All clubs**.
+   - **Club**: tap the field to open a list of clubs grouped by category (on a phone it
+     slides up from the bottom). Type in **Find a club** to search it, then tap a club. Pick
+     **All clubs** to see every club again.
    - **Category**: for example Cultural, Literary, Technical or Sports.
    - **Date**: only events that start on that day.
 3. Tap an event's title to open its details.
+
+![The club picker on a phone: search at the top, clubs grouped by category](img/student-05-club-picker.png)
 
 Each event shows its date, club, venue, times, a status chip (**Published** or **Live now**)
 and how many places are taken. Events you have registered for show **Registered** and a
@@ -69,23 +74,28 @@ and how many places are taken. Events you have registered for show **Registered*
 On a computer you can also use the search box in the top bar. It finds events by title or
 club name. Tap **Clear search** to remove it.
 
-![What's on on a phone: filters at the top, then the event list](img/student-05-whats-on.png)
+![What's on on a phone: the event list, with Carnatic Music Recital at the bottom](img/student-06-whats-on.png)
 
-Only approved events appear here. If the list says *"Nothing published yet"*, no event has
-been approved yet.
+Only approved events appear here. A club's event is checked by the Cultural Society (for
+cultural and literary clubs), the Dean and, for big budgets, the Vice-Chancellor before it is
+published (see the [approval flow](README.md#approval-flow)). If the list says *"Nothing
+published yet"*, no event has been approved yet.
 
 ## Register for an event
+
+In this example the student registers for the **Carnatic Music Recital** (Music Club, Main
+Auditorium, 19 Nov, 600 places), which has just been approved and published.
 
 1. Open the event from **What's on** (or tap its title on the **Feed**).
 2. Check **When and where**, **Places taken** and **Left**.
 3. In the **Register** panel, tap **Register**.
 
-![An event's details, with the Register button at the bottom](img/student-06-event-register.png)
+![Carnatic Music Recital: 0 of 600 places taken, with the Register button](img/student-07-event-register.png)
 
 The panel changes to **You are registered** with a **Pass ready** chip, and a message
 confirms it. Your pass is now under **My passes**. Tap **View pass** to go straight to it.
 
-![After registering: "You are registered" with a View pass button](img/student-07-registered.png)
+![After registering: 1 of 600 places taken, "You are registered" with a View pass button](img/student-08-registered.png)
 
 You can only hold one registration per event. If the button says **Not open**, the event is
 not taking registrations at the moment (for example, it has not been published yet, or it is
@@ -113,9 +123,9 @@ To leave the waitlist, tap **Cancel registration** on the event page, the same w
 2. At the entrance, tap the QR code. It fills the screen so it is easy to scan. Tap
    **Close** when you are done.
 
-![My passes: a valid pass for the Literary Quiz](img/student-08-passes.png)
+![My passes: the new pass for the Carnatic Music Recital](img/student-09-passes.png)
 
-![A pass shown full screen for scanning at the door](img/student-09-pass-fullscreen.png)
+![A pass shown full screen for scanning at the door](img/student-10-pass-fullscreen.png)
 
 What the chip on a pass means:
 
@@ -128,12 +138,12 @@ You can also skip the pass and show your **Profile QR** at the door (see below).
 
 ## Cancel a registration
 
-1. Open the event (from **What's on**, or **View pass** → the event).
+1. Open the event from **What's on** or the **Feed**.
 2. In the **You are registered** panel, tap **Cancel registration**.
 3. The app asks *"Cancel it? Your pass stops working immediately."* Tap **Yes, cancel** to
    confirm, or **Keep it** to change your mind.
 
-![Confirming a cancellation](img/student-10-cancel-confirm.png)
+![Cancel registration asks for confirmation (here the student tapped Keep it)](img/student-11-cancel-confirm.png)
 
 The place goes to the first person on the waitlist, if there is one. You can register again
 later if places are left. You can't cancel once you have been checked in: the button is
@@ -150,7 +160,7 @@ Tap **Profile QR**. The **QR** tab shows your personal code.
   stops working at the door at once, and the version number (`v1`, `v2` …) goes up. Your
   event passes are not affected.
 
-![Profile QR on a phone](img/student-11-profile-qr.png)
+![Profile QR on a phone](img/student-12-profile-qr.png)
 
 The other tabs on this page:
 
@@ -162,7 +172,7 @@ The other tabs on this page:
 ## Join a club
 
 1. Tap **Clubs**. The strip at the top shows how many clubs you are in, for example
-   *"You're in 0 of 3 clubs."*
+   *"You're in 0 of 5 clubs."*
 2. Find a club. Search by name or tag, or tap a category (**Cultural**, **Literary**,
    **Technical**, **Sports**, **Social service**, **Committees**).
 3. Each card says how members get in:
@@ -170,22 +180,22 @@ The other tabs on this page:
    - **By approval**: tap **Request to join**. The card then shows **Requested** until the
      club's officers accept or decline you.
 
-![The Clubs directory with the membership count at the top](img/student-12-clubs.png)
+![The Clubs directory: "You're in 0 of 5 clubs" at the top](img/student-13-clubs.png)
 
-![After "Request to join": the card shows Requested](img/student-13-requested.png)
+![After "Request to join" on Astronomy Club: the card shows Requested](img/student-14-requested.png)
 
 Your request also appears under **Profile QR → My clubs → Pending requests**:
 
-![My clubs with a pending request](img/student-14-my-clubs-pending.png)
+![My clubs with a pending request](img/student-15-my-clubs-pending.png)
 
 When you are accepted, the club card shows a **Member** chip (or your role, such as
 Secretary) and the club appears under **My clubs**.
 
-### The three-club limit
+### The five-club limit
 
-You can belong to at most **three** clubs at a time. When you reach three, the strip says
-*"You're in 3 of 3 clubs — leave one to join another."* and the **Join** and **Request to
-join** buttons are greyed out. If a club accepts your request after you have reached three,
+You can belong to at most **five** clubs at a time. When you reach five, the strip says
+*"You're in 5 of 5 clubs — leave one to join another."* and the **Join** and **Request to
+join** buttons are greyed out. If a club accepts your request after you have reached five,
 the request stays pending until you leave a club.
 
 ## Leave a club
@@ -201,14 +211,15 @@ or Treasurer), you can't leave until your office is handed over. The app explain
 - **One registration per event**, one pass per registration, and a pass works once.
 - **Your Profile QR works everywhere.** If your pass won't load, show your Profile QR instead.
 - **Waitlisted means no pass yet.** You get one automatically if a place frees up.
-- **Three clubs at most.** Leave one to join another.
+- **Five clubs at most.** Leave one to join another.
 - **"Live" on the Feed** depends on the clock: an event shows Live only between its start
-  and end times.
+  and end times, and Ended after that. **What's on** shows the event's status instead, which
+  stays **Live now** until the organisers close the event.
 - **Feedback after an event:** you can't leave feedback in the app yet.
 
 ## Known issues
 
-For the maintainer. Found while writing this chapter (demo server, 7 Nov 2026).
+For the maintainer. Found while writing this chapter (reseeded demo server, 7 Nov 2026).
 
 1. **No feedback screen.** The API supports feedback on an attended event, but no student
    page lets you leave it.
@@ -221,9 +232,10 @@ For the maintainer. Found while writing this chapter (demo server, 7 Nov 2026).
 4. **Attendance tab loses past events** (from the code). The tab reads the passes list, which
    only includes published or live events. Once an event is closed, the check-in drops off
    **Attendance**.
-5. **Live vs Upcoming disagree.** *Heritage Photowalk* (7 Nov, 9:30 pm) showed **Live now**
-   on What's on (its status) but **Upcoming** on the Feed (the Feed goes by the clock), at
-   the same moment.
+5. **Live vs Ended after an event finishes.** With the corrected times, *Heritage Photowalk*
+   (4–6 pm) read **Live** on both pages at 5:44 pm, so the earlier mismatch is gone. At
+   8:14 pm the Feed said **Ended** (from the clock), but What's on still said **Live now**,
+   because nobody had closed the event. Minor, but students may be confused.
 6. **Seeded data limits.** Every seeded club is *By approval* and no event is full. So the
-   **Join** button, the three-club limit, **Leave** and the waitlist couldn't be shown in
+   **Join** button, the club limit, **Leave** and the waitlist couldn't be shown in
    screenshots. They are described from the UI text and code.

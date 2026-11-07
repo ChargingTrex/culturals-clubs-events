@@ -25,8 +25,8 @@ On a phone the bottom bar shows the student pages. Tap **More** to reach **Club 
 
 ## Open the scan station for your event
 
-The station opens for your club's events once they are **Published** or **Live**. You can get there
-two ways:
+The station opens for your club's events once they are **Published** (that is, approved through
+the [approval flow](README.md#approval-flow)) or **Live**. You can get there two ways:
 
 - From the event: **Club events** → open the event → **Scan station** (top right). If the event is
   still **Published**, the officers also see **Go live**; press it when doors open, so the event
@@ -39,7 +39,7 @@ two ways:
 2. Under **Event at this door**, pick the event. Only events you are allowed to run a door for are
    listed, and the earliest one is picked for you, so check it every time you open the page.
 3. Check the line under the title: the event status, club, venue and time, and the connection chip
-   (**Online**). The short code after it (for example `station web-e1c5bcf9`) names this device; it
+   (**Online**). The short code after it (for example `station web-df53aae6`) names this device; it
    appears in "first scanned at … at web-…" messages so you can tell which door scanned someone.
 4. The big panel says **Ready to scan**. You are ready.
 
@@ -84,7 +84,7 @@ checked in, as long as places are left. The verdict says **Manual entry by PRN l
 
 ![Camera panel with Start camera, the Pass code box and the PRN box](img/organiser-06-camera-and-manual.png)
 
-![Verdict after a PRN lookup: Registered and checked in, Deepa A, Manual entry by PRN lookup](img/organiser-07-prn-walk-in.png)
+![Verdict after a PRN lookup: Registered and checked in, Deepa A, Manual entry by PRN lookup](img/organiser-13-prn-walk-in.png)
 
 ## What each verdict means
 
@@ -105,13 +105,17 @@ double buzz otherwise.
 | **Code not recognised** | red | Not a Culturals code at all, or mistyped. | Re-scan or retype; otherwise use the PRN. |
 | **Saved offline** | amber | The server could not be reached. See the next section. | Admit only if the pass looks right. |
 
-![Already checked in: Vikram Sundar, first scanned at 11:53 at a named station](img/organiser-08-verdict-already.png)
+![Checked in: Vikram Sundar, 23ME1048, BTech-MECH, Year 3](img/organiser-07-verdict-checked-in.png)
 
-![Wrong event: Pass is for "Literary Quiz"](img/organiser-09-verdict-wrong-event.png)
+![Already checked in: Vikram Sundar, first scanned at 14:43 at a named station](img/organiser-08-verdict-already.png)
 
-![Pass was replaced: Deepa A, A newer pass was issued](img/organiser-10-verdict-replaced.png)
+![Registered and checked in: Vishnu Subramanian, a walk-in admitted with his profile QR](img/organiser-09-verdict-walk-in.png)
 
-![Code not recognised](img/organiser-11-verdict-unknown.png)
+![Wrong event: Pass is for "Literary Quiz"](img/organiser-10-verdict-wrong-event.png)
+
+![Pass was replaced: Deepa A, A newer pass was issued](img/organiser-11-verdict-replaced.png)
+
+![Code not recognised](img/organiser-12-verdict-unknown.png)
 
 Every scan is recorded, including the red ones and every PRN lookup.
 
@@ -125,15 +129,15 @@ If the station cannot reach the server, a scan is kept on the device instead of 
    (network is back but the scans are still waiting).
 3. The **Offline queue** card shows how many scans are waiting.
 
-![Saved offline verdict with the Online · 1 to sync chip](img/organiser-12-offline-phone.png)
+![Saved offline verdict with the Online · 1 to sync chip](img/organiser-14-offline-phone.png)
 
-![Offline queue card: 1 waiting, with the Sync now button](img/organiser-13-offline-queue.png)
+![Offline queue card: 1 waiting, with the Sync now button](img/organiser-15-offline-queue.png)
 
 When the connection returns, the waiting scans are sent automatically. You can also tap **Sync now**.
 A message reports the result, for example "Synced 1: 0 checked in, 1 duplicate". If two stations
 scanned the same student while offline, the earlier scan counts and the later one becomes a duplicate.
 
-![Message after syncing: Synced 1, 0 checked in, 1 duplicate](img/organiser-14-synced.png)
+![Message after syncing: Synced 1, 0 checked in, 1 duplicate](img/organiser-16-synced.png)
 
 Waiting scans are stored in that browser on that device. Do not clear the browser's data or use a
 private window for the station, and do not sign out until the queue shows **0 waiting**.
@@ -149,9 +153,12 @@ The **At the door** card updates every few seconds:
   ran, not of turnout.
 
 **Recent scans** lists the last eight scans with their verdict and time, marked "offline" if they
-came in through the queue.
+came in through the queue. Each row also says how the student got in, for example **Registered at
+the door and checked in** for a walk-in.
 
-![At the door card: 9 checked in of 40 registered, capture rate 45%](img/organiser-15-at-the-door.png)
+![At the door card: 9 checked in of 40 registered, capture rate 60%](img/organiser-17-at-the-door.png)
+
+![Recent scans: the verdicts from this chapter, newest first](img/organiser-18-recent-scans.png)
 
 ## See who is in and who is not yet
 
@@ -166,9 +173,9 @@ The **Attendees** list at the bottom of the scan station shows everyone register
 Only the event's organisers and door team (and the Dean, for oversight) see this list, because it
 shows names and PRNs.
 
-![Attendees filtered to Checked in; Vishnu Subramanian is marked At the door](img/organiser-16-roster-in.png)
+![Attendees filtered to Checked in; Vishnu Subramanian is marked At the door](img/organiser-19-roster-in.png)
 
-![Attendees filtered to Not yet, searching for Aditya](img/organiser-17-roster-not-yet.png)
+![Attendees filtered to Not yet, searching for Aditya](img/organiser-20-roster-not-yet.png)
 
 ## After the event: attendance on the event page
 
@@ -176,7 +183,7 @@ Open **Club events** → your event. The four figures at the top are **Capacity*
 **Registered** and **Attended**. **Attended** is the number checked in at the door; it is not typed in
 anywhere else. Compare it with **Registered** to see the turnout (here 9 of 40).
 
-![Event page after the door opened: Registered 40, Attended 9](img/organiser-18-event-page-after.png)
+![Event page after the door opened: Registered 40, Attended 9](img/organiser-21-event-page-after.png)
 
 When the event is over, a president, vice-president or secretary closes it from the same page, in
 the **Close the event** panel:
@@ -187,7 +194,7 @@ the **Close the event** panel:
    what goes into the report. The treasurer then enters the actual spend (see the
    [Treasurer guide](treasurer.md)).
 
-![Close the event panel with Photos taken, Social posts and Close event](img/organiser-19-close-event.png)
+![Close the event panel with Photos taken, Social posts and Close event](img/organiser-22-close-event.png)
 
 ## Good to know
 
@@ -204,25 +211,19 @@ the **Close the event** panel:
 
 ## Known issues
 
-For the maintainer; found while writing this chapter on 7 Nov 2026.
+For the maintainer; found while writing this chapter on 7 Nov 2026, rechecked on the reseeded server the same day.
 
 1. **Station freezes on "Checking…" when the device itself is offline.** With the browser offline
    (chip shows **Offline · 0 queued**), pressing **Check code** leaves the viewfinder on "Checking…",
-   no **Saved offline** verdict appears, nothing is queued, and **Check code** stays disabled, so the
+   no **Saved offline** verdict appears, nothing is queued (0 waiting after 10 s), and **Check code** stays disabled, so the
    door cannot take further scans. Cause: TanStack Query mutations default to `networkMode: 'online'`
    and pause instead of failing, so the `NETWORK_ERROR` → `enqueue` path in
    `organiser/ScanPage.tsx` never runs. The queue works only when the device thinks it is online but
-   the API is unreachable (that is how screenshots 12–14 were produced, by blocking the scan request).
+   the API is unreachable (that is how screenshots 14–16 were produced, by blocking the scan request).
    Likely fix: `networkMode: 'always'` on the scan mutation.
-2. **Duplicate message shows server time, not local time.** "First scanned at 11:53" (UTC) for a
-   check-in the roster shows as "In · 05:23 pm" (IST). `participation/services.py` `_duplicate()`
+2. **Duplicate message shows server time, not local time.** "First scanned at 14:43" (UTC) for a
+   check-in the roster shows as "In · 08:13 pm" (IST). `participation/services.py` `_duplicate()`
    formats with `timezone.localtime`, which is the server zone (UTC).
 3. **Cancelled registrations show "Pass was replaced".** Cancelling revokes the pass, so scanning it
    returns "Pass was replaced — A newer pass was issued", which is misleading; the
    **Registration cancelled** branch in `resolve()` is unreachable for a normal cancellation.
-4. **Demo data**: seeded check-ins for Heritage Photowalk are timestamped 09:35–09:40 pm, later than
-   the real scans, so **Recent scans** and the roster show check-ins "in the future" and push real
-   scans out of the last-eight list.
-5. **No screenshot of the plain "Checked in" verdict.** It was produced (23ME1048, 11:53 UTC) but the
-   first capture was hidden by the sticky header, and the allowed demo students are now all checked
-   in, so it cannot be retaken without reseeding.
