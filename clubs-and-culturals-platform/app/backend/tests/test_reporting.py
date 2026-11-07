@@ -46,9 +46,8 @@ class UniqueVersusTotalTests(TestCase):
                 services.resolve(services.live_pass(reg).token, event,
                                  operator=self.organiser.user, station_id="G1")
             event.status = EventStatus.REPORTED
-            event.photo_count = 3
-            event.social_links = ["https://example.com/p/1"]
             event.save()
+            f.evidence(event, photos=3, links=["https://example.com/p/1"])
 
     def test_total_and_unique_are_different_numbers(self):
         from reporting.services import semester_report

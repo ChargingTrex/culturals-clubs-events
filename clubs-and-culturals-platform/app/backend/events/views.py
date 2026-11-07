@@ -17,6 +17,7 @@ from budget.services import create_lines, ensure_budget, seed_from_template
 from clubs.models import Club, Membership
 from common import roles as R
 from common.errors import Conflict, ProblemDetail
+from events.evidence_views import EventEvidenceMixin, operates
 from events.models import SLOT_HOLDING, Event, EventOrganiser, EventStatus, Venue
 from events.serializers import (
     ClashesSerializer, CloseEventSerializer, EventCreatedSerializer, EventCreateSerializer,
@@ -74,7 +75,7 @@ def _soft_clash_payload(soft):
                      description="Model field to order by (default `starts_at`), or `feed`: "
                                  "the caller's clubs' events first, then the rest, each by date."),
 ]))
-class EventViewSet(viewsets.ModelViewSet):
+class EventViewSet(EventEvidenceMixin, viewsets.ModelViewSet):
     serializer_class = EventSerializer
     # Schema hint only: drf-spectacular types the `id` path parameter from the
     # model. Every request goes through get_queryset(), which scopes it.
@@ -94,7 +95,7 @@ class EventViewSet(viewsets.ModelViewSet):
         ctx = self.request.auth_context
         base = (Event.objects
                 .select_related("club", "venue", "budget")
-                .prefetch_related("budget__lines",
+                .prefetch_related("budget__lines", "photos", "social_posts",
                                   Prefetch("registrations",
                                            queryset=Registration.objects.filter(
                                                cancelled_at__isnull=True))))
@@ -308,19 +309,18 @@ class EventViewSet(viewsets.ModelViewSet):
     def close(self, request, pk=None):
         event = self.get_object()
         ctx = request.auth_context
-        allowed = (ctx.has_club_role(event.club_id, *R.EVENT_OPERATORS)
-                   or str(event.id) in ctx.organiser_events()
-                   or ctx.is_dean())
-        if not allowed:
+        if not operates(ctx, event):
             raise ProblemDetail(code="EVENTS_CLOSE_DENIED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Only the organiser or the club's office bearers may close this event.")
         data = CloseEventSerializer(data=request.data)
         data.is_valid(raise_exception=True)
-        close_event(event, photo_count=data.validated_data["photo_count"],
-                    social_links=data.validated_data.get("social_links", []), actor=ctx)
+        event = close_event(event, outcomes=data.validated_data["outcomes"],
+                            learnings=data.validated_data["learnings"], actor=ctx)
+        event = self.get_queryset().get(pk=event.pk)   # fresh, with the prefetches
         audit_sink().record(actor=ctx, action="event.closed", target=event,
                             after={"photo_count": event.photo_count,
+                                   "social_posts": len(event.social_links),
                                    "attended": event.attended_count()})
         return Response(EventSerializer(event, context={"request": request}).data)
 

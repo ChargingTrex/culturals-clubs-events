@@ -14,7 +14,7 @@ class ClubSerializer(serializers.ModelSerializer):
     class Meta:
         model = Club
         fields = ("id", "name", "slug", "tag", "category", "description",
-                  "instagram_handle", "status", "join_mode", "last_activity_at",
+                  "instagram_handle", "linkedin_handle", "status", "join_mode", "last_activity_at",
                   "member_count", "my_role", "my_join_request_state")
         read_only_fields = ("id", "slug", "last_activity_at")
 

@@ -76,9 +76,8 @@ class Event(UUIDModel):
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancelled_reason = models.CharField(max_length=280, blank=True)
 
-    # Evidence, captured at close. Link capture only — no social API calls.
-    photo_count = models.PositiveIntegerField(default=0)
-    social_links = models.JSONField(default=list, blank=True)
+    # Evidence lives in EventPhoto / EventSocialPost / EventReport (PRD §5.10,
+    # §5.14, §5.12.3); `photo_count` and `social_links` below are read from them.
     closed_at = models.DateTimeField(null=True, blank=True)
 
     submitted_at = models.DateTimeField(null=True, blank=True)
@@ -114,6 +113,14 @@ class Event(UUIDModel):
 
     def attended_count(self):
         return self.registrations.filter(attended=True, cancelled_at__isnull=True).count()
+
+    @property
+    def photo_count(self):
+        return sum(1 for p in self.photos.all() if p.removed_at is None)
+
+    @property
+    def social_links(self):
+        return [p.url for p in self.social_posts.all()]
 
     def registered_count(self):
         # Waitlisted rows are queue entries, not places (PRD §5.6, B-01).
@@ -203,3 +210,86 @@ class EventOrganiser(UUIDModel):
     def active_event_ids(cls, student, now=None):
         """Event ids this student currently organises — the token's scopes."""
         return list(cls.active(now).filter(student=student).values_list("event_id", flat=True))
+
+
+class EventPhoto(UUIDModel):
+    """
+    One photo in an event's gallery (PRD §5.10). The raw material of the
+    semester report, so it is a row with a file key, never the bytes
+    (AGENT_PROMPT §2) — same shape as budget.ReceiptDocument.
+
+    Removal is soft: `removed_at` hides the photo everywhere (gallery, report,
+    file route) while the row records that it existed and was taken down.
+    shortcut: the bytes stay in the store because FileStore has no delete;
+    add one when a consent removal must erase the file itself.
+    """
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="photos")
+    file_key = models.CharField(max_length=400)
+    file_name = models.CharField(max_length=200)
+    content_type = models.CharField(max_length=80)
+    byte_size = models.PositiveIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, blank=True)
+    caption = models.CharField(max_length=300, blank=True)
+    # Marked by the organiser for the semester report's highlights and gallery.
+    is_highlight = models.BooleanField(default=False)
+    uploaded_by_sub = models.UUIDField(null=True, blank=True)
+    # PRD §5.10 consent: a student pictured can ask for a specific image to go.
+    removal_requested_by_sub = models.UUIDField(null=True, blank=True)
+    removal_requested_at = models.DateTimeField(null=True, blank=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        indexes = [models.Index(fields=["event", "removed_at"])]
+
+    def __str__(self):
+        return self.file_name
+
+
+class EventSocialPost(UUIDModel):
+    """
+    A link to a post promoting the event (PRD §5.14). Link capture only: the URL
+    is stored, never fetched, and no platform API is called. `created_at` is the
+    capture date, which matters because links decay.
+    """
+
+    class Platform(models.TextChoices):
+        INSTAGRAM = "instagram", "Instagram"
+        LINKEDIN = "linkedin", "LinkedIn"
+        OTHER = "other", "Other"
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="social_posts")
+    platform = models.CharField(max_length=16, choices=Platform.choices)
+    url = models.URLField(max_length=500)
+    # Optional, since posts get deleted or archived (PRD §5.14.1).
+    screenshot_key = models.CharField(max_length=400, blank=True)
+    screenshot_content_type = models.CharField(max_length=80, blank=True)
+    added_by_sub = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        constraints = [
+            models.UniqueConstraint(fields=["event", "url"], name="one_row_per_event_post_url"),
+        ]
+
+    def __str__(self):
+        return self.url
+
+
+class EventReport(UUIDModel):
+    """
+    The organiser's words about an event (PRD §5.12.3, DB §3.15). The numbers —
+    attendance, registrations, money — are never typed in; they are read from
+    the records when the report is shown.
+    """
+
+    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name="report")
+    outcomes = models.TextField()
+    # What worked, what to change: carried forward when the event is cloned (D-03).
+    learnings = models.TextField(blank=True)
+    submitted_by_sub = models.UUIDField(null=True, blank=True)
+    submitted_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"report on {self.event_id}"

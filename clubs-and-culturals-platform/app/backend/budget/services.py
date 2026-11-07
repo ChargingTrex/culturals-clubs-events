@@ -346,27 +346,19 @@ def settle(budget, *, actor):
 
 def receipt_location(receipt):
     """
-    Where the bytes of a receipt are, through the FileStore seam.
-
-    Local mode keeps the module's own bucket on disk, so the view can stream
-    the file itself. Platform mode only knows a URL (`url_for`), so the view
-    redirects to it. Either way the DB holds a key, never the bytes.
+    Where the bytes of a receipt are, through the FileStore seam (see
+    integrations.files.file_location). Either way the DB holds a key, never the bytes.
 
     Returns {"kind": "file", "path": Path} or {"kind": "redirect", "url": str}.
     """
-    from integrations.files import LocalFileStore
-    from integrations.registry import file_store
+    from integrations.files import file_location
 
-    store = file_store()
-    if isinstance(store, LocalFileStore):
-        root = store.root.resolve()
-        path = (root / receipt.file_key).resolve()
-        if root not in path.parents:
-            # A key that escapes the bucket was not written by this module.
-            raise ProblemDetail(code="BUDGET_RECEIPT_FILE_MISSING", title="File not found",
-                                status_code=404, detail="The stored file cannot be located.")
-        return {"kind": "file", "path": path}
-    return {"kind": "redirect", "url": store.url_for(receipt.file_key)}
+    location = file_location(receipt.file_key)
+    if location is None:
+        # A key that escapes the bucket was not written by this module.
+        raise ProblemDetail(code="BUDGET_RECEIPT_FILE_MISSING", title="File not found",
+                            status_code=404, detail="The stored file cannot be located.")
+    return location
 
 
 # --------------------------------------------------------------------------

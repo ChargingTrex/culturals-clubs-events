@@ -7,12 +7,16 @@ reaching 600 both give total_participation = 1600, and only the DISTINCT count
 separates them. tests/test_reporting.py checks it against a dataset with known,
 deliberate overlap rather than assuming the query is right because it runs.
 """
+from datetime import timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from django.db.models import Count, Q, Sum
+from django.conf import settings
+from django.db.models import Count, Max, Q, Sum
+from django.utils import timezone
 
-from events.models import REPORTABLE, SLOT_HOLDING, Event
+from events.models import REPORTABLE, SLOT_HOLDING, Event, EventReport, EventSocialPost, EventStatus
+from events.serializers import photo_file_url
 from participation.models import ACCEPTING, Registration, ScanRecord
 
 _ATTENDED = Q(registrations__attended=True, registrations__cancelled_at__isnull=True)
@@ -23,7 +27,21 @@ def _reportable_events(semester):
         status__in=REPORTABLE,
         starts_at__date__gte=semester.starts_on,
         starts_at__date__lte=semester.ends_on,
-    ).select_related("club", "venue")
+    ).select_related("club", "venue").prefetch_related("photos", "social_posts")
+
+
+def _live_photos(event):
+    return [p for p in event.photos.all() if p.removed_at is None]
+
+
+def _highlight(event):
+    """The event's first highlight photo, else its first photo, else None."""
+    photos = _live_photos(event)
+    return next((p for p in photos if p.is_highlight), photos[0] if photos else None)
+
+
+def _platforms(event):
+    return {p.platform for p in event.social_posts.all()}
 
 
 def _attended(events):
@@ -80,6 +98,42 @@ def semester_report(semester):
         spent=Sum("budget__lines__amount_spent"),
     )
 
+    listed = list(events.select_related("budget").order_by("starts_at"))
+    attended_by_event = dict(attended.values("event_id").annotate(n=Count("id"))
+                             .values_list("event_id", "n"))
+    reports = {r.event_id: r for r in _reports(listed)}
+
+    # PRD §6.1 "club-wise summary ... with one highlight photo": the club's
+    # best-attended event that has a photo supplies it.
+    club_photo = {}
+    for e in sorted(listed, key=lambda e: -attended_by_event.get(e.id, 0)):
+        if e.club_id not in club_photo and (photo := _highlight(e)):
+            club_photo[e.club_id] = photo_file_url(photo)
+
+    # PRD §6.1 "event highlights": a photo-led spread of the major events.
+    highlights = [
+        {"id": str(e.id), "title": e.title, "club": e.club.name, "starts_at": e.starts_at,
+         "attended": attended_by_event.get(e.id, 0),
+         "outcomes": (reports[e.id].outcomes[:200] if e.id in reports else ""),
+         "photo_url": photo_file_url(_highlight(e))}
+        for e in sorted(listed, key=lambda e: -attended_by_event.get(e.id, 0)) if _highlight(e)
+    ][:6]
+    gallery = [
+        {"event_id": str(e.id), "event": e.title, "club": e.club.name,
+         "caption": p.caption, "photo_url": photo_file_url(p)}
+        for e in listed for p in _live_photos(e) if p.is_highlight
+    ]
+
+    # PRD §5.14.2: a short outreach line. Presence, never engagement.
+    promoted = [e for e in listed if e.social_links]
+    outreach = {
+        "events_promoted": len(promoted),
+        "events_completed": len(listed),
+        "instagram": sum(1 for e in promoted if EventSocialPost.Platform.INSTAGRAM in _platforms(e)),
+        "linkedin": sum(1 for e in promoted if EventSocialPost.Platform.LINKEDIN in _platforms(e)),
+        "clubs": sorted({e.club.name for e in promoted}),
+    }
+
     return {
         "semester": {"id": str(semester.id), "name": semester.name,
                      "starts_on": semester.starts_on, "ends_on": semester.ends_on},
@@ -91,7 +145,8 @@ def semester_report(semester):
         "by_club": [
             {"club_id": str(row["club__id"]), "club": row["club__name"],
              "tag": row["club__tag"], "category": row["club__category"],
-             "events_run": row["events_run"], "attendance": row["attendance"]}
+             "events_run": row["events_run"], "attendance": row["attendance"],
+             "highlight_photo_url": club_photo.get(row["club__id"])}
             for row in by_club
         ],
         "by_category": [
@@ -112,8 +167,11 @@ def semester_report(semester):
              "social_links": e.social_links,
              "sanctioned": str(getattr(getattr(e, "budget", None), "total_sanctioned", 0) or 0),
              "spent": str(getattr(getattr(e, "budget", None), "total_spent", 0) or 0)}
-            for e in events.order_by("starts_at")
+            for e in listed
         ],
+        "highlights": highlights,
+        "gallery": gallery,
+        "outreach": outreach,
         # Legacy rule from the platform prompt §5: historical activity is not
         # reconstructed, so the first period on the platform is caveated rather
         # than presented as a complete picture.
@@ -121,6 +179,7 @@ def semester_report(semester):
             "Figures are counted at the door from attendance records, not estimated.",
             "Own students and external participants are counted separately and never summed.",
             "Activity that ran outside the system is not included, so totals understate the real figure.",
+            "Social post figures show that a post was recorded, not who saw it.",
         ],
     }
 
@@ -136,7 +195,8 @@ def dean_overview(semester):
     in_semester = Event.objects.filter(
         starts_at__date__gte=semester.starts_on, starts_at__date__lte=semester.ends_on
     )
-    done = list(in_semester.filter(status__in=REPORTABLE).select_related("club"))
+    done = list(in_semester.filter(status__in=REPORTABLE).select_related("club")
+                .prefetch_related("photos", "social_posts"))
     # Evidence chasing (PRD §6.3): a closed event with no photos or no post link
     # is the gap that makes a semester report thinner than the semester was.
     # `missing_evidence` is the combined list; the two per-gap lists let the
@@ -149,6 +209,12 @@ def dean_overview(semester):
     ]
     events_missing_photos = [_chase(e) for e in done if not e.photo_count]
     events_missing_social_links = [_chase(e) for e in done if not e.social_links]
+    # Event_Flows §5.5: completed (ended, the job flipped it) but not closed in time.
+    report_due = timezone.now() - timedelta(days=settings.REPORT_DUE_DAYS)
+    events_missing_report = [
+        {**_chase(e), "ended_at": e.ends_at}
+        for e in done if e.status == EventStatus.COMPLETED and e.ends_at < report_due
+    ]
 
     active_club_ids = {e.club_id for e in done}
     clubs = list(Club.objects.filter(status=Club.Status.ACTIVE))
@@ -171,12 +237,49 @@ def dean_overview(semester):
         "missing_evidence": missing_evidence,
         "events_missing_photos": events_missing_photos,
         "events_missing_social_links": events_missing_social_links,
+        "events_missing_report": events_missing_report,
+        **social_activity(done, clubs),
         "venue_use": list(
             Event.objects.filter(status__in=SLOT_HOLDING)
             .values("venue__name").annotate(bookings=Count("id")).order_by("-bookings")
         ),
         "capture": capture_metrics(done),
     }
+
+
+def _reports(events):
+    return EventReport.objects.filter(event__in=events)
+
+
+def social_activity(done, clubs):
+    """
+    PRD §5.14.2, per club: share of completed events with a post link, the
+    latest recorded post, and the platform split. A prompt for a conversation,
+    not a compliance score (§5.14.3) — so it is a table, not a ranking.
+    """
+    last_post = dict(EventSocialPost.objects.values("event__club_id")
+                     .annotate(at=Max("created_at")).values_list("event__club_id", "at"))
+    rows = []
+    for club in clubs:
+        own = [e for e in done if e.club_id == club.id]
+        if not own:
+            continue
+        platforms = [_platforms(e) for e in own]
+        with_post = sum(1 for p in platforms if p)
+        rows.append({
+            "club_id": str(club.id), "club": club.name,
+            "events_completed": len(own), "events_with_post": with_post,
+            "share": round(with_post / len(own), 3),
+            "instagram": sum(1 for p in platforms if EventSocialPost.Platform.INSTAGRAM in p),
+            "linkedin": sum(1 for p in platforms if EventSocialPost.Platform.LINKEDIN in p),
+            "both": sum(1 for p in platforms if {EventSocialPost.Platform.INSTAGRAM,
+                                                 EventSocialPost.Platform.LINKEDIN} <= p),
+            "last_post_at": last_post.get(club.id),
+        })
+    # PRD §6.3: clubs with no recorded post in a configurable window.
+    quiet_since = timezone.now() - timedelta(days=settings.DORMANCY_DAYS)
+    quiet = [c.name for c in clubs if (last_post.get(c.id) or quiet_since) <= quiet_since]
+    return {"social_activity": rows, "clubs_without_recent_post": quiet}
 
 
 def _chase(event):

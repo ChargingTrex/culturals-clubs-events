@@ -51,6 +51,9 @@ def semester_report_csv(report):
         w.writerow(["totals", key, report[key]])
     for key, value in report["money"].items():
         w.writerow(["money", key, value])
+    outreach = report["outreach"]
+    for key in ("events_promoted", "events_completed", "instagram", "linkedin"):
+        w.writerow(["outreach", key, outreach[key]])
 
     w.writerow([])
     w.writerow(["section", "club_id", "club", "tag", "category", "events_run", "attendance"])

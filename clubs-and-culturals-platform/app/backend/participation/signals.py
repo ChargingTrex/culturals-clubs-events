@@ -13,7 +13,7 @@ in this codebase, and through the NotificationSender seam only.
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from events.models import Event, EventStatus
+from events.models import REPORTABLE, Event, EventStatus
 
 _BEFORE = "_participation_before"
 _WATCHED = {"status", "venue", "venue_id"}
@@ -52,6 +52,13 @@ def tell_registered_students(sender, instance, created=False, raw=False, **kwarg
                   f"{instance.venue.name} is confirmed and on the calendar."),
             kind="event.published",
         )
+    # PRD §5.12.3 / §5.8: feedback opens when the event is completed or closed,
+    # so that transition is when attendees are asked — whichever path made it
+    # (the complete-ended job or the close action).
+    if old_status not in REPORTABLE and instance.status in REPORTABLE:
+        from participation.services import ask_attendees_for_feedback
+
+        ask_attendees_for_feedback(instance)
     if old_venue_id != instance.venue_id:
         notify_registered_students(
             instance,

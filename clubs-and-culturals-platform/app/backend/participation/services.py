@@ -187,6 +187,18 @@ def notify_registered_students(event, *, subject, body, kind):
                       link=_event_link(event))
 
 
+def ask_attendees_for_feedback(event):
+    """Everyone checked in, and only them (rule 6): the absent have nothing to rate."""
+    registrations = (Registration.objects
+                     .filter(event=event, cancelled_at__isnull=True, attended=True,
+                             student__isnull=False)
+                     .select_related("student__user"))
+    for registration in registrations:
+        _tell_student(registration.student, subject=f"How was “{event.title}”?",
+                      body="You attended this event. Rate it in under a minute; organisers never see who said what.",
+                      kind="feedback.requested", link=f"/events/{event.id}")
+
+
 @transaction.atomic
 def register_student(event, student, *, source=Registration.Source.PRE_REGISTERED):
     """

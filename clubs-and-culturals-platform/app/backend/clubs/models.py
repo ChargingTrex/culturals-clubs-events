@@ -33,6 +33,7 @@ class Club(UUIDModel):
     description = models.TextField(blank=True)
     # Link capture only. AGENT_PROMPT §2: no Instagram or LinkedIn API calls, ever.
     instagram_handle = models.CharField(max_length=64, blank=True)
+    linkedin_handle = models.CharField(max_length=64, blank=True)
     # Soft delete via status (§4). Rows are never removed: a club's past events
     # and attendance are part of semesters that have already been reported.
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)

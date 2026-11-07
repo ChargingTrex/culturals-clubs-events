@@ -285,17 +285,19 @@ class TreasurerBudgetRequestTests(TestCase):
         """
         event = f.event(self.club, self.venue, days=-1, status=EventStatus.LIVE,
                         title="Ran already")
+        f.evidence(event, photos=3)
         f.as_user(self.client, "treas@college.edu")
         response = self.client.post(f"/api/v1/events/{event.id}/close",
-                                    {"photo_count": 3}, format="json")
+                                    {"outcomes": "Ran well."}, format="json")
         self.assertEqual(response.status_code, 403)
 
     def test_the_vice_president_can_close_an_event(self):
         event = f.event(self.club, self.venue, days=-1, status=EventStatus.LIVE,
                         title="Ran already")
+        f.evidence(event, photos=3)
         f.as_user(self.client, "vp@college.edu")
         response = self.client.post(f"/api/v1/events/{event.id}/close",
-                                    {"photo_count": 3}, format="json")
+                                    {"outcomes": "Ran well."}, format="json")
         self.assertEqual(response.status_code, 200)
 
     def test_the_vice_president_can_record_spend(self):

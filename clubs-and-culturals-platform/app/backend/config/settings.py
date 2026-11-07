@@ -260,6 +260,11 @@ ORGANISER_GRACE_HOURS = _env_int("ORGANISER_GRACE_HOURS", 4)
 # hour in one venue and no setup buffer is needed. A positive value adds one back.
 VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 0)
 CONTINGENCY_PERCENT = _env_int("CONTINGENCY_PERCENT", 8)
+# PRD §5.14.1: closing needs a social post link only when more than this many
+# attended; 0 = never required (the PRD's caution against box-ticking).
+SOCIAL_POST_REQUIRED_ABOVE = _env_int("SOCIAL_POST_REQUIRED_ABOVE", 0)
+# Event_Flows §5.5: a completed event with no report after this many days is chased.
+REPORT_DUE_DAYS = _env_int("REPORT_DUE_DAYS", 7)
 
 # Approval chain, in order, before the value-based VC gate.
 # DEVIATION from AGENT_PROMPT §2, which fixes "Dean only". `cultural_society`

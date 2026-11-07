@@ -57,6 +57,8 @@ class ReportByClubSerializer(serializers.Serializer):
     category = serializers.CharField()
     events_run = serializers.IntegerField()
     attendance = serializers.IntegerField()
+    highlight_photo_url = serializers.CharField(
+        allow_null=True, help_text="A photo from the club's best-attended event that has one.")
 
 
 class ReportByCategorySerializer(serializers.Serializer):
@@ -92,6 +94,34 @@ class ReportEventSerializer(serializers.Serializer):
     spent = serializers.CharField()
 
 
+class ReportHighlightSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    club = serializers.CharField()
+    starts_at = serializers.DateTimeField()
+    attended = serializers.IntegerField()
+    outcomes = serializers.CharField(allow_blank=True, help_text="First 200 characters.")
+    photo_url = serializers.CharField()
+
+
+class ReportGalleryPhotoSerializer(serializers.Serializer):
+    event_id = serializers.UUIDField()
+    event = serializers.CharField()
+    club = serializers.CharField()
+    caption = serializers.CharField(allow_blank=True)
+    photo_url = serializers.CharField()
+
+
+class ReportOutreachSerializer(serializers.Serializer):
+    """PRD §5.14.2: how many events were publicly promoted, and by which clubs."""
+
+    events_promoted = serializers.IntegerField(help_text="Completed events with at least one post link.")
+    events_completed = serializers.IntegerField()
+    instagram = serializers.IntegerField(help_text="Events with an Instagram post link.")
+    linkedin = serializers.IntegerField(help_text="Events with a LinkedIn post link.")
+    clubs = serializers.ListField(child=serializers.CharField())
+
+
 class SemesterReportSerializer(serializers.Serializer):
     """GET /reporting/reports/semester — aggregates only, no individual records."""
 
@@ -107,6 +137,10 @@ class SemesterReportSerializer(serializers.Serializer):
     by_department = ReportByDepartmentSerializer(many=True)
     money = ReportMoneySerializer()
     events = ReportEventSerializer(many=True)
+    highlights = ReportHighlightSerializer(many=True,
+                                           help_text="Up to six best-attended events with a photo.")
+    gallery = ReportGalleryPhotoSerializer(many=True, help_text="Every photo marked as a highlight.")
+    outreach = ReportOutreachSerializer()
     caveats = serializers.ListField(child=serializers.CharField())
 
 
@@ -131,6 +165,22 @@ class MissingEvidenceSerializer(ChaseEventSerializer):
     missing = serializers.ListField(child=serializers.CharField())
 
 
+class MissingReportSerializer(ChaseEventSerializer):
+    ended_at = serializers.DateTimeField()
+
+
+class SocialActivitySerializer(serializers.Serializer):
+    club_id = serializers.UUIDField()
+    club = serializers.CharField()
+    events_completed = serializers.IntegerField()
+    events_with_post = serializers.IntegerField()
+    share = serializers.FloatField(help_text="events_with_post / events_completed.")
+    instagram = serializers.IntegerField()
+    linkedin = serializers.IntegerField()
+    both = serializers.IntegerField()
+    last_post_at = serializers.DateTimeField(allow_null=True)
+
+
 class VenueUseSerializer(serializers.Serializer):
     venue__name = serializers.CharField()
     bookings = serializers.IntegerField()
@@ -151,5 +201,10 @@ class DeanOverviewSerializer(serializers.Serializer):
     missing_evidence = MissingEvidenceSerializer(many=True)
     events_missing_photos = ChaseEventSerializer(many=True)
     events_missing_social_links = ChaseEventSerializer(many=True)
+    events_missing_report = MissingReportSerializer(
+        many=True, help_text="Completed more than REPORT_DUE_DAYS ago and still not closed.")
+    social_activity = SocialActivitySerializer(many=True)
+    clubs_without_recent_post = serializers.ListField(
+        child=serializers.CharField(), help_text="Active clubs with no post link in DORMANCY_DAYS.")
     venue_use = VenueUseSerializer(many=True)
     capture = CaptureMetricsSerializer()
