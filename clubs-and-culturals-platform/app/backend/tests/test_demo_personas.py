@@ -65,8 +65,26 @@ class PilotAccountsTests(TestCase):
         self.assertEqual(response.data["code"], "AUTH_MFA_REQUIRED")
 
 
-@override_settings(DEMO_MODE=False)
+@override_settings(DEMO_MODE=False, PILOT_ACCOUNTS=False)
 class PilotAccountsOffTests(TestCase):
     def test_outside_demo_mode_there_is_no_account_list(self):
         response = APIClient().get(URL)
+        self.assertEqual(response.status_code, 404)
+
+
+@override_settings(DEMO_MODE=False, PILOT_ACCOUNTS=True, DEBUG=False)
+class PilotAccountsOnAPublicHostTests(TestCase):
+    """A prototype host: the list is offered with DEBUG off, the passwordless login is not."""
+
+    def setUp(self):
+        make_user("dean@college.edu", [R.DEAN])
+
+    def test_the_list_is_offered_without_demo_mode(self):
+        response = APIClient().get(URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["demo_mode"])
+        self.assertTrue(any(p["available"] and p["email"] for p in response.data["personas"]))
+
+    def test_the_passwordless_demo_login_stays_closed(self):
+        response = APIClient().post("/api/v1/module/auth/demo/student")
         self.assertEqual(response.status_code, 404)
