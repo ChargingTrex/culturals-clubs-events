@@ -322,8 +322,8 @@ describe('F-04 club screens', () => {
 
     await user.type(await screen.findByLabelText('Title'), 'Monsoon Unplugged');
     await user.selectOptions(await screen.findByLabelText('Venue'), 'venue-1');
-    fireEvent.change(screen.getByLabelText('Starts'), { target: { value: '2026-12-05T18:00' } });
-    fireEvent.change(screen.getByLabelText('Ends'), { target: { value: '2026-12-05T21:00' } });
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-12-05' } });
+    await user.selectOptions(screen.getByLabelText('End hour'), '21');
     await user.selectOptions(await screen.findByLabelText('Template'), 'Cultural night');
     expect(await screen.findByTestId('template-total')).toHaveTextContent('₹13,200');
     await user.click(screen.getByRole('button', { name: 'Propose and send' }));
@@ -340,6 +340,8 @@ describe('F-04 club screens', () => {
       submit: true,
     });
     expect(posted!.starts_at).toBe(new Date('2026-12-05T18:00').toISOString());
+    // The end date followed the start date; only the hour was changed.
+    expect(posted!.ends_at).toBe(new Date('2026-12-05T21:00').toISOString());
     expect(await screen.findByRole('heading', { name: 'Monsoon Unplugged' })).toBeInTheDocument();
   });
 

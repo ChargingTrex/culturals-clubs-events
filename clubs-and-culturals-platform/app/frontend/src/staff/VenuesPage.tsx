@@ -17,13 +17,9 @@ import {
   type VenueCalendar,
   type VenueReassignment,
 } from './api';
+import { dayKey } from './calendarTime';
 
 type EventClash = components['schemas']['EventClash'];
-
-const dayKey = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 /** What the Dean needs to know about a booking to move it. */
 interface Movable {
@@ -206,7 +202,7 @@ function BookingRow({
 }
 
 /** One clashing pair: both events side by side, each movable by the Dean. */
-function ClashPair({
+export function ClashPair({
   venue,
   events,
   canMove,

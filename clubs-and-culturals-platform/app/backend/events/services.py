@@ -2,6 +2,7 @@
 Venue clash detection and atomic reassignment.
 """
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import transaction
@@ -80,12 +81,15 @@ def assert_bookable(*, venue_id, starts_at, ends_at, exclude_id=None):
                              exclude_id=exclude_id))
     if hard:
         other = hard[0]
+        local = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+        buffer = (f", including a {settings.VENUE_BUFFER_MINUTES}-minute buffer"
+                  if settings.VENUE_BUFFER_MINUTES else "")
         raise Conflict(
             code="EVENTS_VENUE_UNAVAILABLE",
             title="Venue already booked",
             detail=(f"{other.venue.name} is booked for “{other.title}” from "
-                    f"{other.starts_at:%H:%M} to {other.ends_at:%H:%M} that day, "
-                    f"including a {settings.VENUE_BUFFER_MINUTES}-minute buffer."),
+                    f"{other.starts_at.astimezone(local):%H:%M} to "
+                    f"{other.ends_at.astimezone(local):%H:%M} that day{buffer}."),
             errors=[{"field": "venue", "code": "UNAVAILABLE", "message": other.title}],
         )
     return list(soft_clashes(venue_id=venue_id, starts_at=starts_at, ends_at=ends_at,

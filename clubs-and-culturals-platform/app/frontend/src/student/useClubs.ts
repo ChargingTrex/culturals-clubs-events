@@ -31,7 +31,7 @@ export function clubRoleLabel(role: string): string {
 /**
  * Join or leave one club. Club roles travel in the token, so the session is
  * refreshed before `me`, the club list and the feed are re-read — otherwise
- * `my_role` and the "n of 3" strip would lag until the next refresh.
+ * `my_role` and the "n of 5" strip would lag until the next refresh.
  */
 export function useClubMembership(club: ClubOut) {
   const queryClient = useQueryClient();

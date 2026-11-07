@@ -15,14 +15,14 @@ describe('clubs directory (F-06.1)', () => {
   it('joins an open club and shows the new standing', async () => {
     const user = userEvent.setup();
     renderAt('/clubs', { roles: ['student'] });
-    expect(await screen.findByTestId('membership-strip')).toHaveTextContent("You're in 0 of 3");
+    expect(await screen.findByTestId('membership-strip')).toHaveTextContent("You're in 0 of 5");
     await user.click(await screen.findByRole('button', { name: 'Join Lens' }));
     await screen.findByText('You joined Lens');
     expect(state.roles).toContain('club_member:club-lens');
     const card = await screen.findByText('Lens').then((n) => n.closest('li')!);
     await waitFor(() => expect(within(card).getByText('Member')).toBeInTheDocument());
     expect(within(card).getByRole('button', { name: 'Leave Lens' })).toBeInTheDocument();
-    expect(screen.getByTestId('membership-strip')).toHaveTextContent("You're in 1 of 3");
+    expect(screen.getByTestId('membership-strip')).toHaveTextContent("You're in 1 of 5");
   });
 
   it('marks an approval club "Requested" after asking to join', async () => {
@@ -37,10 +37,17 @@ describe('clubs directory (F-06.1)', () => {
 
   it('at the cap: every Join is disabled and the strip says why', async () => {
     renderAt('/clubs', {
-      roles: ['student', 'club_member:c-1', 'club_member:c-2', 'club_member:c-3'],
+      roles: [
+        'student',
+        'club_member:c-1',
+        'club_member:c-2',
+        'club_member:c-3',
+        'club_member:c-4',
+        'club_member:c-5',
+      ],
     });
     expect(await screen.findByTestId('membership-strip')).toHaveTextContent(
-      "You're in 3 of 3 clubs — leave one to join another.",
+      "You're in 5 of 5 clubs — leave one to join another.",
     );
     expect(await screen.findByRole('button', { name: 'Join Lens' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Request to join Byte' })).toBeDisabled();
@@ -54,7 +61,7 @@ describe('clubs directory (F-06.1)', () => {
           409,
           'CLUBS_MEMBERSHIP_LIMIT',
           'Club limit reached',
-          'You can be a member of up to 3 clubs. Leave one to join another.',
+          'You can be a member of up to 5 clubs. Leave one to join another.',
         ),
       ),
     );

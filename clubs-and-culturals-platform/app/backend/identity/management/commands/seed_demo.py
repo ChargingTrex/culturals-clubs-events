@@ -214,9 +214,9 @@ class Command(BaseCommand):
 
         # ---- events ---------------------------------------------------
         def at(days_from_today, hour, minute=0):
+            # On the campus clock (C-02): a spec of 18 is 18:00 in India, not UTC.
             local = datetime.combine(today + timedelta(days=days_from_today),
                                      time(hour, minute))
-            # Hours in the specs are campus (IST) hours; storage stays UTC.
             return timezone.make_aware(local, ZoneInfo(settings.DISPLAY_TIME_ZONE))
 
         specs = [

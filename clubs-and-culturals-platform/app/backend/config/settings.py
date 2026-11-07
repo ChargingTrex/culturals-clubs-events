@@ -251,12 +251,14 @@ DELEGATION_MAX_DAYS = _env_int("DELEGATION_MAX_DAYS", 30)
 # PRD §5.1: a club with no activity for this long is flagged dormant.
 DORMANCY_DAYS = _env_int("DORMANCY_DAYS", 180)
 # ADDITIONAL_REQUIREMENTS F-06: active memberships one student may hold at once.
-MAX_CLUB_MEMBERSHIPS = _env_int("MAX_CLUB_MEMBERSHIPS", 3)
+MAX_CLUB_MEMBERSHIPS = _env_int("MAX_CLUB_MEMBERSHIPS", 5)
 # MASTER_SPEC §3.3: an organiser's attendee-list access is time-bound to the
 # event plus a limited window. A grant with no explicit end expires this many
 # hours after the event ends; no grant may run past event end + 7 days.
 ORGANISER_GRACE_HOURS = _env_int("ORGANISER_GRACE_HOURS", 4)
-VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 30)
+# Events are booked in whole hours (C-02), so a clash is two bookings sharing an
+# hour in one venue and no setup buffer is needed. A positive value adds one back.
+VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 0)
 CONTINGENCY_PERCENT = _env_int("CONTINGENCY_PERCENT", 8)
 
 # Approval chain, in order, before the value-based VC gate.

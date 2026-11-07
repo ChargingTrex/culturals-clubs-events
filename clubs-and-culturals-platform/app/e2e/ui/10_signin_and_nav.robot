@@ -44,13 +44,13 @@ Organiser of the live event
 Cultural Society
     Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}
     Wait For Heading    Cultural Society approvals
-    Pages Should Be    Society approvals    This semester    Semester report
+    Pages Should Be    Society approvals    Calendar    This semester    Semester report
 
 Dean
     [Tags]    smoke
     Sign In As    ${DEAN_EMAIL}    ${MFA_CODE}
     Wait For Heading    Dean approvals
-    Pages Should Be    Dean approvals    Venues    This semester    Semester report
+    Pages Should Be    Dean approvals    Venues    Calendar    This semester    Semester report
 
 Vice-Chancellor
     Sign In As    ${VC_EMAIL}    ${MFA_CODE}

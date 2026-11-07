@@ -28,16 +28,21 @@ interface FormState {
   kind: EventKind;
   description: string;
   venue: string;
-  starts_at: string;
-  ends_at: string;
+  start_date: string;
+  start_hour: string;
+  end_date: string;
+  end_hour: string;
   capacity: string;
   expected_attendance: string;
   budget_template: string;
   submit: boolean;
 }
 
-/** `datetime-local` value → ISO with the browser's offset applied. */
-const toIso = (local: string): string => (local ? new Date(local).toISOString() : '');
+/** Events are booked in whole hours (C-02): a date plus an hour, in the browser's zone. */
+const toIso = (date: string, hour: string): string =>
+  date ? new Date(`${date}T${hour}:00`).toISOString() : '';
+
+const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'));
 
 function FieldError({ error, field }: { error: ApiError | null; field: string }) {
   const hit = error?.errors.find((e) => e.field === field);
@@ -60,8 +65,10 @@ export function NewEventPage() {
     kind: 'performance',
     description: '',
     venue: '',
-    starts_at: '',
-    ends_at: '',
+    start_date: '',
+    start_hour: '18',
+    end_date: '',
+    end_hour: '20',
     capacity: '100',
     expected_attendance: '80',
     budget_template: NO_TEMPLATE,
@@ -111,8 +118,8 @@ export function NewEventPage() {
       kind: form.kind,
       description: form.description.trim(),
       venue: form.venue,
-      starts_at: toIso(form.starts_at),
-      ends_at: toIso(form.ends_at),
+      starts_at: toIso(form.start_date, form.start_hour),
+      ends_at: toIso(form.end_date, form.end_hour),
       capacity: Number(form.capacity),
       expected_attendance: Number(form.expected_attendance),
       ...(form.budget_template ? { budget_template: form.budget_template } : {}),
@@ -235,31 +242,84 @@ export function NewEventPage() {
             />
           </div>
           <div>
-            <label className="label" htmlFor="ne-start">
-              Starts
-            </label>
-            <input
-              id="ne-start"
-              type="datetime-local"
-              className="field"
-              value={form.starts_at}
-              onChange={(e) => set('starts_at', e.target.value)}
-            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="label" htmlFor="ne-start">
+                  Start date
+                </label>
+                <input
+                  id="ne-start"
+                  type="date"
+                  className="field"
+                  value={form.start_date}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    // The end date follows the start until it is set on its own.
+                    setForm((f) => ({
+                      ...f,
+                      start_date: date,
+                      end_date: f.end_date && f.end_date !== f.start_date ? f.end_date : date,
+                    }));
+                  }}
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="ne-start-hour">
+                  Start hour
+                </label>
+                <select
+                  id="ne-start-hour"
+                  className="field"
+                  value={form.start_hour}
+                  onChange={(e) => set('start_hour', e.target.value)}
+                >
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>
+                      {h}:00
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <FieldError error={err} field="starts_at" />
           </div>
           <div>
-            <label className="label" htmlFor="ne-end">
-              Ends
-            </label>
-            <input
-              id="ne-end"
-              type="datetime-local"
-              className="field"
-              value={form.ends_at}
-              onChange={(e) => set('ends_at', e.target.value)}
-            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="label" htmlFor="ne-end">
+                  End date
+                </label>
+                <input
+                  id="ne-end"
+                  type="date"
+                  className="field"
+                  value={form.end_date}
+                  onChange={(e) => set('end_date', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="ne-end-hour">
+                  End hour
+                </label>
+                <select
+                  id="ne-end-hour"
+                  className="field"
+                  value={form.end_hour}
+                  onChange={(e) => set('end_hour', e.target.value)}
+                >
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>
+                      {h}:00
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <FieldError error={err} field="ends_at" />
           </div>
+          <p className="text-body-md text-ink-muted sm:col-span-2">
+            Venues are booked in whole hours. Two events in one venue clash if they share an hour.
+          </p>
           <div>
             <label className="label" htmlFor="ne-capacity">
               Capacity

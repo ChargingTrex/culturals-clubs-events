@@ -19,8 +19,9 @@ Treasurer: New event priced later, two budget entries, send for approval
     Fill Field    Title    E2E UI Monsoon Set
     Select Option    Venue    Music Room · seats 40
     ${day}=    Evaluate    (datetime.date.today() + datetime.timedelta(days=50)).isoformat()    modules=datetime
-    Fill Field    Starts    ${day}T18:00
-    Fill Field    Ends    ${day}T20:00
+    Fill Field    Start date    ${day}
+    Select Option    Start hour    18:00
+    Select Option    End hour    20:00
     Fill Field    Capacity    30
     Fill Field    Expected attendance    25
     Click Button    Save draft

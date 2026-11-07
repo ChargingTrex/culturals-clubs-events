@@ -7,6 +7,7 @@
 import type { Screen } from '../shared/nav/screens';
 import { ApprovalDetailPage } from './ApprovalDetailPage';
 import { ApprovalQueuePage } from './ApprovalQueuePage';
+import { CalendarPage } from './CalendarPage';
 import { OverviewPage } from './OverviewPage';
 import { ReportPage } from './ReportPage';
 import { VenuesPage } from './VenuesPage';
@@ -16,6 +17,7 @@ export const SCREENS: Screen[] = [
   ['/staff/approvals/dean', <ApprovalQueuePage key="q-dean" stage="dean" />],
   ['/staff/approvals/vc', <ApprovalQueuePage key="q-vc" stage="vc" />],
   ['/staff/venues', <VenuesPage key="venues" />],
+  ['/staff/calendar', <CalendarPage key="calendar" />],
   ['/staff/overview', <OverviewPage key="overview" />],
   ['/staff/report', <ReportPage key="report" />],
 ];

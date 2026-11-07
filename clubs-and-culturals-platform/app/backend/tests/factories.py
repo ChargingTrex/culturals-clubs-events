@@ -50,9 +50,20 @@ def semester():
                                    ends_on=today + timedelta(days=60), is_current=True)
 
 
+def slot(days=7, hour=18):
+    """An hour-aligned start on the campus clock (C-02), `days` from today."""
+    from zoneinfo import ZoneInfo
+
+    from django.conf import settings
+
+    local = timezone.now().astimezone(ZoneInfo(settings.DISPLAY_TIME_ZONE))
+    return local.replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=days)
+
+
 def event(club_obj, venue_obj, *, title="Test Event", days=7, hour=18, duration=2,
-          status=EventStatus.DRAFT, expected=100, capacity=None, fest=None):
-    starts = timezone.now().replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=days)
+          status=EventStatus.DRAFT, expected=100, capacity=None, fest=None, starts=None):
+    if starts is None:
+        starts = timezone.now().replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=days)
     return Event.objects.create(
         title=title, club=club_obj, venue=venue_obj, starts_at=starts,
         ends_at=starts + timedelta(hours=duration), capacity=capacity or venue_obj.capacity,

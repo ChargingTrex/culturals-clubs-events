@@ -77,7 +77,7 @@ export function ClubsPage() {
   const [category, setCategory] = useState<string>('');
 
   const count = capabilities?.my_clubs_count ?? 0;
-  const max = capabilities?.max_club_memberships ?? 3;
+  const max = capabilities?.max_club_memberships ?? 5;
   const atCap = count >= max;
 
   const needle = q.trim().toLowerCase();

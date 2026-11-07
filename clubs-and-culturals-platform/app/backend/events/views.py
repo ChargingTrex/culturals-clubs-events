@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -6,7 +7,7 @@ from django.db.models import Exists, OuterRef, Prefetch, ProtectedError, Q
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -491,8 +492,14 @@ class VenueCalendarView(APIView):
     """
 
     @extend_schema(
-        parameters=[OpenApiParameter("date", OpenApiTypes.DATE, OpenApiParameter.QUERY,
-                                     description="Bookings starting on this day only.")],
+        parameters=[
+            OpenApiParameter("date", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                             description="Bookings starting on this day only."),
+            OpenApiParameter("from", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                             description="Bookings starting on or after this day (campus time)."),
+            OpenApiParameter("to", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                             description="Bookings starting on or before this day (campus time)."),
+        ],
         responses=VenueCalendarSerializer,
         summary="Master venue calendar with clashes flagged (staff only)",
     )
@@ -506,9 +513,23 @@ class VenueCalendarView(APIView):
                   .select_related("club", "venue").order_by("starts_at"))
         if day := request.query_params.get("date"):
             events = events.filter(starts_at__date=day)
+        # C-03: a week of the calendar. Day boundaries are the campus clock's, so
+        # a 01:00 booking in India (19:30 UTC the day before) lands on its own day.
+        local = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+        day_field = serializers.DateField()
+        if first := request.query_params.get("from"):
+            start = datetime.combine(day_field.to_internal_value(first), time.min, local)
+            events = events.filter(starts_at__gte=start)
+        if last := request.query_params.get("to"):
+            end = datetime.combine(day_field.to_internal_value(last), time.min, local) + timedelta(days=1)
+            events = events.filter(starts_at__lt=end)
+        events = list(events)
+        in_range = {e.id for e in events}
         clash_ids = set()
         pairs = []
         for a, b in all_clashes():
+            if a.id not in in_range and b.id not in in_range:
+                continue
             clash_ids.update({str(a.id), str(b.id)})
             pairs.append({
                 "venue": a.venue.name,

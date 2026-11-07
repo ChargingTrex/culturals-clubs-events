@@ -2325,6 +2325,7 @@ export interface components {
             readonly department: string;
             readonly programme: string;
             readonly year: number;
+            /** @default pending */
             readonly state: components["schemas"]["JoinRequestStateEnum"];
             readonly note: string;
             readonly decided_by_label: string;
@@ -5157,6 +5158,10 @@ export interface operations {
             query?: {
                 /** @description Bookings starting on this day only. */
                 date?: string;
+                /** @description Bookings starting on or after this day (campus time). */
+                from?: string;
+                /** @description Bookings starting on or before this day (campus time). */
+                to?: string;
             };
             header?: never;
             path?: never;

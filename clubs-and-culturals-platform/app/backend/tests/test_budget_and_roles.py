@@ -247,7 +247,7 @@ class TreasurerBudgetRequestTests(TestCase):
 
     def propose(self, email):
         f.as_user(self.client, email)
-        starts = f.timezone.now() + f.timedelta(days=14)
+        starts = f.slot(days=14)
         return self.client.post("/api/v1/events", {
             "title": "Monsoon Ragas", "club": str(self.club.id), "kind": "performance",
             "venue": str(self.venue.id),
@@ -347,7 +347,7 @@ class BudgetBuildingTests(TestCase):
 
     def create_event(self, email="pres@college.edu", submit=False):
         f.as_user(self.client, email)
-        starts = f.timezone.now() + f.timedelta(days=20)
+        starts = f.slot(days=20)
         response = self.client.post("/api/v1/events", {
             "title": "Unpriced Recital", "club": str(self.club.id), "kind": "performance",
             "venue": str(self.venue.id), "starts_at": starts.isoformat(),
@@ -480,7 +480,7 @@ class NilBudgetTests(TestCase):
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
 
         f.as_user(self.client, "pres@college.edu")
-        starts = f.timezone.now() + f.timedelta(days=20)
+        starts = f.slot(days=20)
         self.client.post("/api/v1/events", {
             "title": "Book Club Meetup", "club": str(self.club.id), "kind": "talk",
             "venue": str(self.venue.id), "starts_at": starts.isoformat(),
