@@ -343,6 +343,7 @@ class Command(BaseCommand):
             Event.objects.filter(pk=event.pk).update(status=was)
 
         # ---- close the past events, with evidence ---------------------
+        from events.models import EventPhoto, EventSocialPost
         from events.services import close_event
 
         for title in ("Unplugged Evening", "Dance Showcase", "Annual Poetry Slam",
@@ -350,8 +351,16 @@ class Command(BaseCommand):
             event, _, club_name = events[title]
             event.refresh_from_db()
             if event.status in (EventStatus.PUBLISHED, EventStatus.LIVE):
-                close_event(event, photo_count=rng.randint(6, 30),
-                            social_links=["https://www.instagram.com/p/demo"],
+                # shortcut: photo rows without stored bytes, so galleries list them but
+                # the image files 404; upload real images if the demo needs pictures.
+                EventPhoto.objects.bulk_create(
+                    EventPhoto(event=event, file_key=f"demo/{event.pk}-{i}.jpg",
+                               file_name=f"photo-{i + 1}.jpg", content_type="image/jpeg",
+                               is_highlight=i == 0)
+                    for i in range(rng.randint(6, 30)))
+                EventSocialPost.objects.create(event=event, url="https://www.instagram.com/p/demo",
+                                               platform=EventSocialPost.Platform.INSTAGRAM)
+                close_event(event, outcomes=f"{title} ran as planned with a full house.",
                             actor=ctx_for(club_officers[club_name]["president"].user))
 
         # ---- settle one budget so the report shows spend --------------
