@@ -33,6 +33,7 @@ export const STAFF_KEYS = {
   queue: (escalated: boolean) => ['staff', 'queue', { escalated }] as const,
   approval: (id: string) => ['staff', 'approval', id] as const,
   calendar: (date: string) => ['staff', 'calendar', date] as const,
+  calendarWeek: (from: string) => ['staff', 'calendar-week', from] as const,
   overview: ['staff', 'overview'] as const,
   report: ['staff', 'report'] as const,
 };
@@ -58,6 +59,9 @@ export const staffApi = {
     }),
   calendar: (date?: string) =>
     request<VenueCalendar>('/venue-calendar', { query: { date: date || undefined } }),
+  /** One week, `from` and `to` inclusive, as campus-clock dates (C-03). */
+  calendarWeek: (from: string, to: string) =>
+    request<VenueCalendar>('/venue-calendar', { query: { from, to } }),
   reassign: (eventId: string, body: { to_venue: string; reason: string }) =>
     request<VenueReassignment>(`/events/${encodeURIComponent(eventId)}/reassign`, {
       method: 'POST',

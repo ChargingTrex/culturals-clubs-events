@@ -9,6 +9,7 @@ looks correct whether or not the DISTINCT count is right.
 import random
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -213,9 +214,10 @@ class Command(BaseCommand):
 
         # ---- events ---------------------------------------------------
         def at(days_from_today, hour, minute=0):
+            # On the campus clock (C-02): a spec of 18 is 18:00 in India, not UTC.
             local = datetime.combine(today + timedelta(days=days_from_today),
                                      time(hour, minute))
-            return timezone.make_aware(local)
+            return timezone.make_aware(local, ZoneInfo(settings.DISPLAY_TIME_ZONE))
 
         specs = [
             # title, club, offset, start, end, venue, template, expected, status

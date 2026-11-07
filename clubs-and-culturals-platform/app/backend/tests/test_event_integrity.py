@@ -25,7 +25,7 @@ from tests import factories as f
 
 
 def _slot(days=7, hour=16):
-    return timezone.now().replace(hour=hour, minute=0, second=0, microsecond=0) + timedelta(days=days)
+    return f.slot(days=days, hour=hour)
 
 
 class EventDeleteTests(TestCase):
@@ -145,14 +145,14 @@ class VenueBookingLockTests(TestCase):
         }, format="json")
 
     def test_a_hard_clash_is_still_refused(self):
-        f.event(self.natya, self.hall, days=7, hour=17, status=EventStatus.PUBLISHED, title="Taken")
+        f.event(self.natya, self.hall, starts=_slot(days=7, hour=17), status=EventStatus.PUBLISHED, title="Taken")
         response = self.propose()
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.data["code"], "EVENTS_VENUE_UNAVAILABLE")
         self.assertFalse(Event.objects.filter(title="Open Mic").exists())
 
     def test_a_soft_clash_is_still_accepted_and_flagged(self):
-        f.event(self.natya, self.hall, days=7, hour=17, status=EventStatus.SUBMITTED, title="Pending")
+        f.event(self.natya, self.hall, starts=_slot(days=7, hour=17), status=EventStatus.SUBMITTED, title="Pending")
         response = self.propose()
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual([c["title"] for c in response.data["soft_clashes"]], ["Pending"])
@@ -161,7 +161,7 @@ class VenueBookingLockTests(TestCase):
         """A draft that sat for weeks is checked again when it is finally sent."""
         draft = self.propose(submit=False)
         self.assertEqual(draft.status_code, 201, draft.data)
-        f.event(self.natya, self.hall, days=7, hour=17, status=EventStatus.PUBLISHED, title="Taken")
+        f.event(self.natya, self.hall, starts=_slot(days=7, hour=17), status=EventStatus.PUBLISHED, title="Taken")
         response = self.client.post(f"/api/v1/events/{draft.data['id']}/submit", {}, format="json")
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.data["code"], "EVENTS_VENUE_UNAVAILABLE")
@@ -169,7 +169,7 @@ class VenueBookingLockTests(TestCase):
 
     def test_submission_reports_soft_clashes(self):
         draft = self.propose(submit=False)
-        f.event(self.natya, self.hall, days=7, hour=17, status=EventStatus.SUBMITTED, title="Pending")
+        f.event(self.natya, self.hall, starts=_slot(days=7, hour=17), status=EventStatus.SUBMITTED, title="Pending")
         response = self.client.post(f"/api/v1/events/{draft.data['id']}/submit", {}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual([c["title"] for c in response.data["soft_clashes"]], ["Pending"])
@@ -188,12 +188,12 @@ class VenueExclusionConstraintTests(TransactionTestCase):
     def test_two_confirmed_bookings_cannot_overlap(self):
         f.event(self.club, self.hall, days=7, hour=16, status=EventStatus.PUBLISHED)
         with self.assertRaises(IntegrityError), transaction.atomic():
-            f.event(self.natya, self.hall, days=7, hour=17, status=EventStatus.PUBLISHED)
+            f.event(self.natya, self.hall, starts=_slot(days=7, hour=17), status=EventStatus.PUBLISHED)
 
     def test_a_pending_request_may_overlap_a_confirmed_one(self):
         """Submitted is advisory (soft clash); only confirmed statuses are excluded."""
         f.event(self.club, self.hall, days=7, hour=16, status=EventStatus.PUBLISHED)
-        f.event(self.natya, self.hall, days=7, hour=17, status=EventStatus.SUBMITTED)
+        f.event(self.natya, self.hall, starts=_slot(days=7, hour=17), status=EventStatus.SUBMITTED)
 
     def test_back_to_back_bookings_are_allowed_by_the_constraint(self):
         """The buffer is the application's job; the constraint is the floor."""

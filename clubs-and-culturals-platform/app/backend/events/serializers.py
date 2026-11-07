@@ -1,3 +1,6 @@
+from zoneinfo import ZoneInfo
+
+from django.conf import settings
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -6,6 +9,26 @@ from common import roles as R
 from common.serializers import EventRefSerializer
 from participation.services import live_pass
 from events.models import Event, EventOrganiser, EventStatus, Fest, Venue, VenueReassignment
+
+
+HOUR_SLOT_MESSAGE = "Events are booked in whole hours: start and end on the hour, for example 18:00."
+
+
+def assert_hour_slots(attrs):
+    """
+    C-02: bookings are whole 1-hour slots, on the hour as the campus clock reads
+    it. India is UTC+5:30, so "on the hour" must be checked in DISPLAY_TIME_ZONE;
+    a UTC-aligned time is :30 on every screen.
+    """
+    local = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+    errors = {}
+    for field in ("starts_at", "ends_at"):
+        if field in attrs:
+            clock = attrs[field].astimezone(local)
+            if (clock.minute, clock.second, clock.microsecond) != (0, 0, 0):
+                errors[field] = HOUR_SLOT_MESSAGE
+    if errors:
+        raise serializers.ValidationError(errors)
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -54,6 +77,15 @@ class EventSerializer(serializers.ModelSerializer):
                   "submitted_at", "closed_at")
         read_only_fields = ("id", "status", "photo_count", "social_links", "submitted_at",
                             "closed_at")
+
+    def validate(self, attrs):
+        # Edits to a draft or returned proposal come through here (perform_update).
+        assert_hour_slots(attrs)
+        starts = attrs.get("starts_at", getattr(self.instance, "starts_at", None))
+        ends = attrs.get("ends_at", getattr(self.instance, "ends_at", None))
+        if starts and ends and ends <= starts:
+            raise serializers.ValidationError({"ends_at": "The end time must be after the start time."})
+        return attrs
 
     @extend_schema_field(serializers.IntegerField())
     def get_registered(self, event):
@@ -197,6 +229,7 @@ class EventCreateSerializer(serializers.ModelSerializer):
                   "budget_lines", "submit")
 
     def validate(self, attrs):
+        assert_hour_slots(attrs)
         if attrs["ends_at"] <= attrs["starts_at"]:
             raise serializers.ValidationError({"ends_at": "The end time must be after the start time."})
         venue = attrs["venue"]

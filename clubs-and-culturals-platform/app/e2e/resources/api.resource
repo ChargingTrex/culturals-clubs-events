@@ -95,13 +95,13 @@ Approve Through Every Gate
     Decide    ${dean}    ${approval}[id]    approve
 
 Create Draft Event
-    [Documentation]    A priced-later draft: empty budget, not submitted. Starts `days_ahead` days out at 04:00 UTC.
+    [Documentation]    A priced-later draft: empty budget, not submitted. Starts `days_ahead` days out at 10:00 India time (04:30 UTC): bookings are whole campus-clock hours.
     [Arguments]    ${token}    ${title}    ${venue_name}    ${days_ahead}    ${capacity}=50    ${expected}=40    ${club}=${None}
     IF    $club is None
         ${club}=    My First Club    ${token}
     END
     ${venue}=    Find Venue    ${token}    ${venue_name}
-    ${starts}=    Evaluate    (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=int($days_ahead))).replace(hour=4, minute=0, second=0, microsecond=0)    modules=datetime
+    ${starts}=    Evaluate    (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=int($days_ahead))).replace(hour=4, minute=30, second=0, microsecond=0)    modules=datetime
     ${ends}=    Evaluate    $starts + datetime.timedelta(hours=2)    modules=datetime
     # Finding: the docs call `kind` optional, but omitting it is a 500 (events/views.py create: payload["kind"]).
     ${body}=    Create Dictionary    title=${title}    club=${club}    venue=${venue}[id]    kind=performance

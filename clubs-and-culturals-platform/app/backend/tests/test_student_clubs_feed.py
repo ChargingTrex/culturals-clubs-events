@@ -12,6 +12,24 @@ from governance.models import AuditEntry
 from tests import factories as f
 
 
+class DefaultMembershipCapTests(TestCase):
+    """The shipped default is five clubs (C-01, raised from three on 2026-11-06)."""
+
+    def test_the_sixth_open_join_is_refused(self):
+        client = APIClient()
+        f.student("stu@college.edu", prn="23CS1001")
+        clubs = [f.club(f"Club {i}") for i in range(6)]
+        f.as_user(client, "stu@college.edu")
+        for club in clubs:
+            club.join_mode = Club.JoinMode.OPEN
+            club.save(update_fields=["join_mode"])
+        codes = [client.post(f"/api/v1/clubs/{c.id}/join", {}, format="json").status_code
+                 for c in clubs]
+        self.assertEqual(codes, [201] * 5 + [409])
+        caps = client.get("/api/v1/module/auth/me").data["capabilities"]
+        self.assertEqual((caps["my_clubs_count"], caps["max_club_memberships"]), (5, 5))
+
+
 @override_settings(MAX_CLUB_MEMBERSHIPS=2)
 class MembershipCapTests(TestCase):
     def setUp(self):

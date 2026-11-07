@@ -56,7 +56,7 @@ export function capabilitiesFromRoles(roles: string[]): Capabilities {
     organiser_events: scopes(['event_organiser']),
     approval_stages: (Object.keys(STAGE_ROLE) as ApprovalStage[]).filter((s) => has(STAGE_ROLE[s])),
     my_clubs_count: scopes(CLUB_ROLES).length,
-    max_club_memberships: 3,
+    max_club_memberships: 5,
   };
 }
 

@@ -14,8 +14,8 @@ const EXPECTED: Record<PersonaKey, string[]> = {
   treasurer: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles'],
   president: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Scan station'],
   organiser: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Scan station'],
-  society: ['Society approvals', 'This semester', 'Semester report'],
-  dean: ['Dean approvals', 'Venues', 'This semester', 'Semester report'],
+  society: ['Society approvals', 'Calendar', 'This semester', 'Semester report'],
+  dean: ['Dean approvals', 'Venues', 'Calendar', 'This semester', 'Semester report'],
   vc: ['Above-threshold', 'Semester report'],
 };
 
@@ -27,7 +27,7 @@ describe('role-scoped page offers', () => {
     });
   }
 
-  it('matches the web-app page counts plus Feed and Clubs (5 / 7 / 9 / 9 / 10 / 10 / 3 / 4 / 2)', () => {
+  it('matches the web-app page counts plus Feed, Clubs and Calendar (5 / 7 / 9 / 9 / 10 / 10 / 4 / 5 / 2)', () => {
     const counts = Object.fromEntries(
       (Object.keys(PERSONAS) as PersonaKey[]).map((k) => [
         k,
@@ -41,8 +41,8 @@ describe('role-scoped page offers', () => {
       treasurer: 9,
       president: 10,
       organiser: 10,
-      society: 3,
-      dean: 4,
+      society: 4,
+      dean: 5,
       vc: 2,
     });
   });

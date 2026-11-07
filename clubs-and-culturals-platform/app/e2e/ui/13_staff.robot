@@ -45,6 +45,21 @@ Dean resolves the clash from the Venues page
     # The seed's own clash may still be listed; ours must be gone.
     Wait For Elements State    [aria-label="Venue clashes"] >> text=${clash_b}    detached
 
+Society sees the seeded clash in the hour grid
+    [Documentation]    C-03. The seed books Open Mic Night 16:00–18:00 and the Contemporary Dance
+    ...               Workshop 17:00–19:00 in Seminar Hall A, 16 days out: they share the 17:00 slot.
+    Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}
+    Wait For Heading    Cultural Society approvals
+    Click Link    Calendar
+    Wait For Heading    Calendar
+    ${weeks}=    Evaluate    ((datetime.date.today() + datetime.timedelta(days=16)) - (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday()))).days // 7    modules=datetime
+    FOR    ${i}    IN RANGE    ${weeks}
+        Click Button    Next week
+    END
+    Click    [aria-label="Week"] >> button[aria-label$=", clash"] >> nth=0
+    Wait For Elements State    [data-testid="slot"][data-venue="Seminar Hall A"][data-hour="17"][data-clash="true"]    visible
+    Snapshot    13-society-calendar
+
 Vice-Chancellor sees two pages and the report's unique-student figure
     Sign In As    ${VC_EMAIL}    ${MFA_CODE}
     Wait For Heading    Vice-Chancellor approvals

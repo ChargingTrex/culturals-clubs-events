@@ -2536,6 +2536,18 @@ paths:
           type: string
           format: date
         description: Bookings starting on this day only.
+      - in: query
+        name: from
+        schema:
+          type: string
+          format: date
+        description: Bookings starting on or after this day (campus time).
+      - in: query
+        name: to
+        schema:
+          type: string
+          format: date
+        description: Bookings starting on or before this day (campus time).
       tags:
       - venue-calendar
       security:
@@ -4743,6 +4755,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/JoinRequestStateEnum'
           readOnly: true
+          default: pending
         note:
           type: string
           readOnly: true

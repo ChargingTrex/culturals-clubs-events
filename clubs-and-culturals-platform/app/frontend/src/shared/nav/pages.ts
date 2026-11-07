@@ -173,6 +173,16 @@ export const PAGES: readonly PageDef[] = [
     slice: 'F-05',
   },
   {
+    path: '/staff/calendar',
+    icon: 'calendar',
+    title: 'Calendar',
+    group: 'Staff',
+    // Dean, admin and the Cultural Society (C-03); read-only for the Society.
+    need: 'can_see_overview',
+    probe: '/venue-calendar',
+    slice: 'F-05',
+  },
+  {
     path: '/staff/overview',
     icon: 'eye',
     title: 'This semester',
