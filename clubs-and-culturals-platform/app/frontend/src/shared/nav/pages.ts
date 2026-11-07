@@ -177,7 +177,7 @@ export const PAGES: readonly PageDef[] = [
     icon: 'calendar',
     title: 'Calendar',
     group: 'Staff',
-    // Dean, admin and the Cultural Society (C-03); read-only for the Society.
+    // Dean, admin, the Cultural Society and the VC (C-03); read-only except for the Dean.
     need: 'can_see_overview',
     probe: '/venue-calendar',
     slice: 'F-05',

@@ -16,7 +16,7 @@ const EXPECTED: Record<PersonaKey, string[]> = {
   organiser: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Scan station'],
   society: ['Society approvals', 'Calendar', 'This semester', 'Semester report'],
   dean: ['Dean approvals', 'Venues', 'Calendar', 'This semester', 'Semester report'],
-  vc: ['Above-threshold', 'Semester report'],
+  vc: ['Above-threshold', 'Calendar', 'This semester', 'Semester report'],
 };
 
 describe('role-scoped page offers', () => {
@@ -27,7 +27,7 @@ describe('role-scoped page offers', () => {
     });
   }
 
-  it('matches the web-app page counts plus Feed, Clubs and Calendar (5 / 7 / 9 / 9 / 10 / 10 / 4 / 5 / 2)', () => {
+  it('matches the web-app page counts plus Feed, Clubs and Calendar (5 / 7 / 9 / 9 / 10 / 10 / 4 / 5 / 4)', () => {
     const counts = Object.fromEntries(
       (Object.keys(PERSONAS) as PersonaKey[]).map((k) => [
         k,
@@ -43,7 +43,7 @@ describe('role-scoped page offers', () => {
       organiser: 10,
       society: 4,
       dean: 5,
-      vc: 2,
+      vc: 4,
     });
   });
 
@@ -59,10 +59,10 @@ describe('role-scoped page offers', () => {
     }
   });
 
-  it('keeps Management on aggregates: no roster, no individual records page', () => {
+  it('keeps Management on aggregates: overview and report, no roster or individual records', () => {
     const caps = capabilitiesFromRoles(['vice_chancellor']);
     expect(caps.can_see_individual_records).toBe(false);
-    expect(allowedPages(caps).map((p) => p.title)).toEqual(['Above-threshold', 'Semester report']);
+    expect(allowedPages(caps).map((p) => p.title)).toEqual(['Above-threshold', 'Calendar', 'This semester', 'Semester report']);
   });
 
   it('lands each persona on its first offered page', () => {
