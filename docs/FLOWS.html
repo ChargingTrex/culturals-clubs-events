@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Culturals Flows — user journeys, approval chain, conditions</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a fixed contents rail on the left at desktop widths; one column on phones.
+   Each numbered section is a chapter: heading, prose, diagram in a scroll frame, tables. */
+:root {
+  --bg: #f7f6f2;          /* warm paper, biased toward the ink hue */
+  --surface: #ffffff;
+  --fg: #1d2430;
+  --muted: #5a6474;
+  --rule: #d9d6cd;
+  --accent: #1f6f78;      /* deep teal, the approval-gate colour used in the web-app */
+  --accent-soft: #e4f0f1;
+  --code-bg: #eeece6;
+  --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --body: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191f; --surface: #1c2129; --fg: #e6e4de; --muted: #9aa3b0; --rule: #2d343e;
+  --accent: #6fc2c9; --accent-soft: #1d3338; --code-bg: #242b35; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15191f; --surface: #1c2129; --fg: #e6e4de; --muted: #9aa3b0; --rule: #2d343e;
+  --accent: #6fc2c9; --accent-soft: #1d3338; --code-bg: #242b35; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 17px/1.55 var(--body); margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px;
+        display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 40px; }
+@media (max-width: 880px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+header.top { grid-column: 1 / -1; padding-block: 40px 24px; border-bottom: 1px solid var(--rule); margin-bottom: 24px; }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 500 clamp(30px, 4vw, 44px)/1.1 var(--display); margin: 10px 0 14px; text-wrap: balance; letter-spacing: -.01em; }
+header p { max-width: 68ch; color: var(--muted); margin: 0 0 8px; }
+header p strong { color: var(--fg); }
+
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); align-self: start; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--rule); }
+nav.toc li a { display: flex; gap: 10px; padding: 6px 12px; color: var(--muted); text-decoration: none; font-size: 15px; line-height: 1.35; border-left: 2px solid transparent; margin-left: -2px; }
+nav.toc li a:hover, nav.toc li a:focus-visible { color: var(--fg); border-left-color: var(--accent); outline: none; }
+nav.toc .num { font: 500 13px/1.6 var(--mono); color: var(--accent); min-width: 1.6em; font-variant-numeric: tabular-nums; }
+@media (max-width: 880px) { nav.toc { position: static; margin-bottom: 24px; }
+  nav.toc ol { border-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; }
+  nav.toc li a { padding: 4px 0; border-left: 0; margin-left: 0; } }
+
+main { min-width: 0; }
+section { padding-block: 8px 36px; border-bottom: 1px solid var(--rule); }
+section:last-child { border-bottom: 0; }
+h2 { font: 600 clamp(24px, 3vw, 30px)/1.2 var(--display); margin: 20px 0 14px; text-wrap: balance; display: flex; gap: 14px; align-items: baseline; }
+h2 .num { font: 500 15px/1 var(--mono); color: var(--accent); background: var(--accent-soft); padding: 6px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+p, li { max-width: 72ch; }
+p.lead { font-weight: 600; margin-bottom: 6px; }
+ul { padding-left: 1.2em; }
+li { margin-block: 4px; }
+code { font: 500 .88em/1.4 var(--mono); background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+a { color: var(--accent); }
+blockquote { margin: 16px 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--surface); color: var(--muted); max-width: 72ch; }
+blockquote code { color: var(--fg); }
+
+.tablewrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 600 12px/1.3 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--bg); position: sticky; top: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+.diagram { overflow-x: auto; margin: 18px 0; padding: 18px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+.diagram pre.mermaid { margin: 0; min-width: 0; font: 13px/1.4 var(--mono); color: var(--muted); }
+.diagram svg { max-width: none; }
+
+footer { grid-column: 1 / -1; color: var(--muted); font-size: 14px; padding-top: 16px; border-top: 1px solid var(--rule); }
+footer code { font-size: .85em; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Clubs &amp; Events module · reference</div>
+  <h1>Flows: user journeys, approval chain, conditions</h1>
+  <p>Generated 2026-10-21 from the running code (<code>clubs-and-culturals-platform/app/backend</code>, <code>web-app/src</code>), cross-checked against MASTER_SPEC §5–§7, Event_Flows_V2 and AGENT_PROMPT, and revised after wave 1 (backend commit <code>6f3d300</code>: waitlist, feedback, join requests, handover, organiser grants, delegation, SLA, envelope, jobs, CSV export).</p>
+  <p>Where the code and the documents differ, <strong>the diagram shows the code</strong> and the note says what the document wanted.</p>
+</header>
+<nav class="toc" aria-label="Contents"><ol>
+<li><a href="#s1"><span class="num">1</span>Roles at a glance</a></li>
+<li><a href="#s2"><span class="num">2</span>End-to-end journey</a></li>
+<li><a href="#s3"><span class="num">3</span>Event status machine</a></li>
+<li><a href="#s4"><span class="num">4</span>Approval chain — routing conditions</a></li>
+<li><a href="#s5"><span class="num">5</span>A decision at a gate</a></li>
+<li><a href="#s6"><span class="num">6</span>Budget lifecycle and settlement gates</a></li>
+<li><a href="#s7"><span class="num">7</span>Student journey</a></li>
+<li><a href="#s8"><span class="num">8</span>Scan station — the seven branches</a></li>
+<li><a href="#s9"><span class="num">9</span>Offline station and replay</a></li>
+<li><a href="#s10"><span class="num">10</span>Venue clash resolution</a></li>
+<li><a href="#s11"><span class="num">11</span>Club lifecycle, join and handover</a></li>
+<li><a href="#s12"><span class="num">12</span>Semester report aggregation</a></li>
+<li><a href="#s13"><span class="num">13</span>Sign-in and session</a></li>
+</ol></nav>
+<main>
+<p>Generated 2026-10-21 from the running code (<code>clubs-and-culturals-platform/app/backend</code>, <code>web-app/src</code>) cross-checked against MASTER_SPEC §5–§7, Event_Flows_V2 and AGENT_PROMPT; revised after wave 1 (backend commit <code>6f3d300</code>: waitlist, feedback, join requests, handover, organiser grants, delegation, SLA, envelope, jobs, CSV export). Where the code and the documents differ, the diagram shows <strong>the code</strong> and the note says what the document wanted. Diagrams are Mermaid; GitHub, VS Code (with the Mermaid extension) and most wikis render them.</p>
+<section id="s1"><h2><span class="num">1</span>Roles at a glance</h2>
+<div class="tablewrap"><table><thead><tr><th style="text-align:left">Role</th><th style="text-align:left">Scope</th><th style="text-align:center">Proposes</th><th style="text-align:center">Builds budget</th><th style="text-align:center">Runs event / door</th><th style="text-align:center">Approves</th><th style="text-align:center">Sees money</th><th style="text-align:center">Sees names</th></tr></thead><tbody><tr><td style="text-align:left">Student</td><td style="text-align:left">self</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">no</td><td style="text-align:center">own only</td></tr><tr><td style="text-align:left">Club member</td><td style="text-align:left">one club</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center"><strong>no</strong></td><td style="text-align:center">no</td></tr><tr><td style="text-align:left">Secretary</td><td style="text-align:left">one club</td><td style="text-align:center">yes</td><td style="text-align:center">no</td><td style="text-align:center">yes</td><td style="text-align:center">–</td><td style="text-align:center">no</td><td style="text-align:center">own club</td></tr><tr><td style="text-align:left">Treasurer</td><td style="text-align:left">one club</td><td style="text-align:center">yes</td><td style="text-align:center"><strong>yes</strong></td><td style="text-align:center"><strong>no</strong></td><td style="text-align:center">–</td><td style="text-align:center">yes</td><td style="text-align:center">own club</td></tr><tr><td style="text-align:left">Vice-President</td><td style="text-align:left">one club</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">–</td><td style="text-align:center">yes</td><td style="text-align:center">own club</td></tr><tr><td style="text-align:left">President</td><td style="text-align:left">one club</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">–</td><td style="text-align:center">yes</td><td style="text-align:center">own club</td></tr><tr><td style="text-align:left">Organiser</td><td style="text-align:left"><strong>one event</strong>, time-bound (<code>EventOrganiser</code> grant, default event end + 4 h, max + 7 d)</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">door only</td><td style="text-align:center">–</td><td style="text-align:center">no</td><td style="text-align:center">own event</td></tr><tr><td style="text-align:left">Delegate (cover for a gate)</td><td style="text-align:left">one approval stage, ≤ 30-day window</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center"><strong>the delegated gate</strong>, MFA always</td><td style="text-align:center">no</td><td style="text-align:center">no</td></tr><tr><td style="text-align:left">Cultural Society</td><td style="text-align:left">cultural + literary clubs</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center"><strong>gate 1</strong></td><td style="text-align:center">yes</td><td style="text-align:center">no</td></tr><tr><td style="text-align:left">Dean of Student Affairs</td><td style="text-align:left">institution</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center"><strong>gate 2, always</strong></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td></tr><tr><td style="text-align:left">Vice-Chancellor / Management</td><td style="text-align:left">institution</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center"><strong>gate 3, conditional</strong></td><td style="text-align:center">aggregates</td><td style="text-align:center"><strong>never</strong></td></tr><tr><td style="text-align:left">Student Life Office</td><td style="text-align:left">institution</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">–</td><td style="text-align:center">– (role not built)</td></tr></tbody></table></div>
+<p>Two rules shape every row: <strong>no club role approves its own budget</strong>, and <strong>budget visibility begins at Treasurer</strong>.</p>
+</section>
+<section id="s2"><h2><span class="num">2</span>End-to-end journey</h2>
+<div class="diagram"><pre class="mermaid">flowchart LR
+  subgraph CLUB["Club (President / VP / Secretary / Treasurer)"]
+    A[Create event&lt;br/&gt;title, date, venue,&lt;br/&gt;expected attendance] --&gt; B{Budget}
+    B --&gt;|template| C[Lines seeded&lt;br/&gt;per-head × expected&lt;br/&gt;+ contingency]
+    B --&gt;|price later| D[Treasurer / Pres / VP&lt;br/&gt;add lines]
+    B --&gt;|free event| E[Declare nil&lt;br/&gt;reason required]
+    C --&gt; F[Submit]
+    D --&gt; F
+    E --&gt; F
+  end
+  F --&gt; G{{Route frozen&lt;br/&gt;at submission}}
+  G --&gt; H[Gate 1&lt;br/&gt;Cultural Society&lt;br/&gt;&lt;i&gt;only cultural / literary clubs&lt;/i&gt;]
+  G --&gt; I[Gate 2&lt;br/&gt;Dean&lt;br/&gt;&lt;b&gt;always&lt;/b&gt;]
+  H --&gt; I
+  I --&gt; J{amount &gt; ₹50,000&lt;br/&gt;OR part of a fest?}
+  J --&gt;|yes| K[Gate 3&lt;br/&gt;Vice-Chancellor&lt;br/&gt;MFA required]
+  J --&gt;|no| L
+  K --&gt; L[PUBLISHED&lt;br/&gt;budget SANCTIONED&lt;br/&gt;same transaction]
+  L --&gt; M[Students register&lt;br/&gt;→ one-time pass]
+  M --&gt; N[Organiser marks LIVE&lt;br/&gt;scan station runs]
+  N --&gt; O[Close with photos&lt;br/&gt;+ social links&lt;br/&gt;→ REPORTED]
+  O --&gt; P[Treasurer records spend,&lt;br/&gt;attaches receipts per line]
+  P --&gt; Q{Settlement&lt;br/&gt;blockers?}
+  Q --&gt;|all clear| R[SETTLED]
+  Q --&gt;|blocked| P
+  R --&gt; S[Semester report&lt;br/&gt;unique students first]
+  N --&gt; S</pre></div>
+</section>
+<section id="s3"><h2><span class="num">3</span>Event status machine</h2>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; draft : create (PROPOSERS)
+  draft --&gt; submitted : submit — budget priced or nil
+  returned --&gt; submitted : resubmit
+  submitted --&gt; returned : RETURN at any gate (comment required)
+  submitted --&gt; rejected : REJECT at any gate (comment required, terminal)
+  submitted --&gt; published : last gate APPROVES
+  published --&gt; live : go-live (EVENT_OPERATORS)
+  live --&gt; completed : event end
+  completed --&gt; reported : close with ≥1 photo (EVENT_OPERATORS)
+  live --&gt; reported : close with ≥1 photo
+  draft --&gt; cancelled : cancel (reason required)
+  published --&gt; cancelled : cancel (reason required)
+  rejected --&gt; [*]
+  reported --&gt; [*]
+  cancelled --&gt; [*]</pre></div>
+<p class="lead">Notes</p>
+<ul>
+<li><code>approved</code> exists in the PRD list but the code publishes in the same transaction as the final approval, so there is no "approved but not published" limbo.</li>
+<li>Registration is open only in <code>published</code> and <code>live</code> (409 <code>PARTICIPATION_NOT_OPEN</code> otherwise).</li>
+<li><code>DELETE /events/{id}</code> hard-deletes only a <code>draft</code>, <code>returned</code> or <code>rejected</code> proposal, and only for PROPOSERS of the owning club (409 <code>EVENT_NOT_DELETABLE</code> otherwise, 404 for outsiders). The <code>cancelled</code> transitions above are what the PRD wants; no endpoint sets <code>cancelled</code> yet.</li>
+<li>Only <code>completed</code> and <code>reported</code> events count in the semester report.</li>
+</ul>
+</section>
+<section id="s4"><h2><span class="num">4</span>Approval chain — routing conditions</h2>
+<p>The route is <strong>data, not branching</strong>: <code>governance/services.py:build_route</code> (backend) and <code>web-app/src/approvals.js:buildRoute</code> compute an ordered list of stages at submission and freeze it on the <code>ApprovalRequest</code>.</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  S([Submit proposal]) --&gt; B0{Budget priced&lt;br/&gt;or declared nil?}
+  B0 --&gt;|no| X1[409 GOVERNANCE_BUDGET_REQUIRED]
+  B0 --&gt;|yes| B1{Already submitted?}
+  B1 --&gt;|yes| X2[409 GOVERNANCE_ALREADY_SUBMITTED]
+  B1 --&gt;|no| C0[stages = []]
+  C0 --&gt; C1{APPROVAL_CHAIN contains&lt;br/&gt;cultural_society AND&lt;br/&gt;club.category ∈ {cultural, literary}?}
+  C1 --&gt;|yes| C2[push cultural_society]
+  C1 --&gt;|no| C3
+  C2 --&gt; C3[push dean — cannot be configured away]
+  C3 --&gt; C4{amount_requested &gt; VC_BUDGET_THRESHOLD&lt;br/&gt;default ₹50,000?}
+  C4 --&gt;|yes| C5[vc_reason += 'budget over threshold']
+  C4 --&gt;|no| C6
+  C5 --&gt; C6{event.fest_id set?}
+  C6 --&gt;|yes| C7[vc_reason += 'part of a fest']
+  C6 --&gt;|no| C8
+  C7 --&gt; C8{vc_reason non-empty?}
+  C8 --&gt;|yes| C9[push vc]
+  C8 --&gt;|no| D0
+  C9 --&gt; D0[ApprovalRequest&lt;br/&gt;state=pending&lt;br/&gt;current_stage=stages[0]&lt;br/&gt;amount_requested, requires_vc, vc_reason]
+  D0 --&gt; D1[event.status = submitted&lt;br/&gt;budget.stage = stage for gate 1]
+  D1 --&gt; D2[Notify holders of stage 1&lt;br/&gt;in-app + email only]
+  D2 --&gt; D3[Audit: event.submitted]</pre></div>
+<p>Routing truth table</p>
+<div class="tablewrap"><table><thead><tr><th style="text-align:left">Club category</th><th style="text-align:left">Amount</th><th style="text-align:left">Fest?</th><th style="text-align:left">Route</th></tr></thead><tbody><tr><td style="text-align:left">technical / sports / social service</td><td style="text-align:left">≤ 50,000</td><td style="text-align:left">no</td><td style="text-align:left">Dean</td></tr><tr><td style="text-align:left">technical / sports / social service</td><td style="text-align:left">&gt; 50,000</td><td style="text-align:left">–</td><td style="text-align:left">Dean → VC</td></tr><tr><td style="text-align:left">cultural / literary</td><td style="text-align:left">≤ 50,000</td><td style="text-align:left">no</td><td style="text-align:left">Society → Dean</td></tr><tr><td style="text-align:left">cultural / literary</td><td style="text-align:left">&gt; 50,000</td><td style="text-align:left">–</td><td style="text-align:left">Society → Dean → VC</td></tr><tr><td style="text-align:left">any</td><td style="text-align:left">any</td><td style="text-align:left">yes</td><td style="text-align:left">… → Dean → VC</td></tr><tr><td style="text-align:left">any, <strong>nil budget</strong></td><td style="text-align:left">0</td><td style="text-align:left">no</td><td style="text-align:left">(Society →) Dean — never reaches VC</td></tr><tr><td style="text-align:left"><code>APPROVAL_CHAIN=dean</code> (config)</td><td style="text-align:left">–</td><td style="text-align:left">–</td><td style="text-align:left">Society gate removed everywhere</td></tr></tbody></table></div>
+<p>Built in wave 1 and shown in §5: <strong>delegation</strong> when a gate holder is away (§11.3 — <code>governance.Delegation</code>, <code>POST /governance/delegations</code>) and <strong>SLA escalation</strong> (PRD §5.11 — <code>ApprovalRequest.stage_entered_at</code>, <code>age_hours</code>, <code>escalated</code> past <code>APPROVAL_SLA_HOURS</code> = 48, queue filter <code>?escalated=1</code>, Dean overview <code>escalated_approvals</code>, hourly <code>escalate-sla</code> job notifying the stage's holders, its active delegates and every Dean once per request+stage). The submit notification (D2 above) now also reaches the active delegates of stage 1.</p>
+<p>Not implemented, documented: a faculty-advisor gate (removed on purpose, MASTER_SPEC §9.2); per-request-type chains for venue and new club (PRD §5.13).</p>
+</section>
+<section id="s5"><h2><span class="num">5</span>A decision at a gate</h2>
+<p>Every rule <code>assert_can_decide</code> / <code>decide</code> applies, in order. The first failure wins. The view runs the unresolved-clash check first (before the transaction); <code>decide</code> then locks the request row and applies the rest.</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A([Approver or delegate POSTs decide&lt;br/&gt;decision ∈ approve, return, reject&lt;br/&gt;comment, sanctioned{line: amount}]) --&gt; V0{approve AND an unresolved&lt;br/&gt;venue clash exists?}
+  V0 --&gt;|yes| E5[409 GOVERNANCE_CLASH_UNRESOLVED&lt;br/&gt;Dean must move one event first&lt;br/&gt;— returning is still allowed]
+  V0 --&gt;|no| R0{request.state == pending?}
+  R0 --&gt;|no| E0[409 GOVERNANCE_ALREADY_RESOLVED]
+  R0 --&gt;|yes| R2{Caller holds the role for&lt;br/&gt;request.current_stage?}
+  R2 --&gt;|no| D1{Delegation in force for this stage&lt;br/&gt;naming the caller as delegate?&lt;br/&gt;window · not revoked · principal STILL holds the role}
+  D1 --&gt;|yes| R1
+  D1 --&gt;|no, but holds or is delegated a LATER stage| E2[409 GOVERNANCE_WRONG_STAGE&lt;br/&gt;names who holds it]
+  D1 --&gt;|no, nothing on this route| E3[403 GOVERNANCE_NOT_APPROVER]
+  R2 --&gt;|yes| R1{Caller holds a club role&lt;br/&gt;in the proposing club?}
+  R1 --&gt;|yes| E1[403 GOVERNANCE_SELF_APPROVAL&lt;br/&gt;club role wins over any approver role&lt;br/&gt;— and over any delegation]
+  R1 --&gt;|no| M0{acting as a delegate?}
+  M0 --&gt;|yes, and no mfa claim| E6a[403 GOVERNANCE_MFA_REQUIRED&lt;br/&gt;every delegated decision, any amount]
+  M0 --&gt;|no, or mfa present| R3{decision}
+  R3 --&gt;|return / reject| R4{comment present?}
+  R4 --&gt;|no| E4[422 GOVERNANCE_COMMENT_REQUIRED&lt;br/&gt;also a DB check constraint]
+  R4 --&gt;|yes| RET[status → returned / rejected&lt;br/&gt;budget reopens on return&lt;br/&gt;notify club · audit]
+  R3 --&gt;|approve| R6{stage == vc OR&lt;br/&gt;amount &gt; threshold?}
+  R6 --&gt;|yes| R7{session has mfa claim?}
+  R7 --&gt;|no| E6[403 GOVERNANCE_MFA_REQUIRED]
+  R7 --&gt;|yes| R8
+  R6 --&gt;|no| R8{sanctioned amounts&lt;br/&gt;— event row locked}
+  R8 --&gt;|unknown line id| E7[422 BUDGET_UNKNOWN_LINE]
+  R8 --&gt;|any amount &gt; requested| E8[422 BUDGET_SANCTION_EXCEEDS_REQUEST&lt;br/&gt;reduce, never raise]
+  R8 --&gt;|ok| R9[Untouched lines sanctioned AS REQUESTED&lt;br/&gt;never left null]
+  R9 --&gt; R10{More stages on the route?}
+  R10 --&gt;|yes| ADV[current_stage = next&lt;br/&gt;stage_entered_at = now — SLA clock restarts&lt;br/&gt;budget.stage = that review&lt;br/&gt;notify next gate + its delegates + club]
+  R10 --&gt;|no| L1[Lock the venue row&lt;br/&gt;re-run the hard-clash check]
+  L1 --&gt;|confirmed booking now overlaps&lt;br/&gt;or Postgres exclusion constraint fires| E9[409 GOVERNANCE_CLASH_UNRESOLVED&lt;br/&gt;step rolled back]
+  L1 --&gt;|free| PUB[event → published&lt;br/&gt;budget → sanctioned&lt;br/&gt;request → approved&lt;br/&gt;same transaction&lt;br/&gt;registered students told on commit]
+  ADV --&gt; AUD[ApprovalStep written&lt;br/&gt;on_behalf_of = principal when delegated&lt;br/&gt;AuditEntry]
+  PUB --&gt; AUD
+  RET --&gt; AUD</pre></div>
+<p>Delegation rules (<code>governance/services.create_delegation</code>, <code>Delegation.objects.in_force</code>):</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A([Role holder or admin POSTs&lt;br/&gt;/governance/delegations&lt;br/&gt;stage, delegate_user, starts_at, ends_at, reason]) --&gt; B{Caller holds the stage's role?&lt;br/&gt;or is admin naming principal_user}
+  B --&gt;|no| X1[403 GOVERNANCE_DELEGATION_DENIED]
+  B --&gt;|yes| C{Principal holds the role?}
+  C --&gt;|no| X2[422 GOVERNANCE_PRINCIPAL_NOT_HOLDER]
+  C --&gt;|yes| D{delegate ≠ principal · delegate active&lt;br/&gt;ends_at &gt; starts_at}
+  D --&gt;|no| X3[422 DELEGATE_IS_PRINCIPAL / DELEGATE_INACTIVE / DELEGATION_WINDOW]
+  D --&gt;|yes| E{ends_at − starts_at ≤ DELEGATION_MAX_DAYS = 30?}
+  E --&gt;|no| X4[422 GOVERNANCE_DELEGATION_TOO_LONG&lt;br/&gt;longer cover is a role change]
+  E --&gt;|yes| F{stage == vc AND delegate not staff&lt;br/&gt;is_staff or dean/admin role&lt;br/&gt;AND creator not admin?}
+  F --&gt;|yes| X5[422 GOVERNANCE_DELEGATE_NOT_STAFF]
+  F --&gt;|no| G[Delegation row · audit delegation.created&lt;br/&gt;delegate notified delegation.granted]
+  G --&gt; H{{In force at time t ⇔&lt;br/&gt;not revoked AND starts_at ≤ t &lt; ends_at&lt;br/&gt;AND principal is_active AND still holds the role}}
+  H --&gt; I[Delegate: sees pending requests at that stage,&lt;br/&gt;may decide them — MFA always,&lt;br/&gt;self-approval rule still applies.&lt;br/&gt;Gets NOTHING else: no venue moves, budgets, rosters]
+  H -.-&gt;|principal loses the role| J[Delegation inert at once — no revoke needed&lt;br/&gt;revives if the role returns inside the window]
+  G --&gt; K[POST /delegations/{id}/revoke&lt;br/&gt;principal or admin only · second revoke 409]
+  I --&gt; L[Login demands MFA for anyone&lt;br/&gt;with a delegation in force]</pre></div>
+<p>Invariants: one pending request per event (DB unique); the route is frozen at submission (a threshold change mid-flight cannot drop a gate already passed); budget lines are locked while an approver holds them (409 <code>BUDGET_LOCKED</code>); a delegate never holds the role, so cannot re-delegate; a step decided under cover names both actor and principal (<code>on_behalf_of</code>); the SLA clock (<code>stage_entered_at</code>) measures the gate holding the request, not the whole journey, and only a pending request can be <code>escalated</code>.</p>
+</section>
+<section id="s6"><h2><span class="num">6</span>Budget lifecycle and settlement gates</h2>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; draft : event created (empty shell)
+  draft --&gt; draft : add / edit / remove line (BUDGET_PREPARERS)
+  draft --&gt; draft : declare-nil (is_nil=true, reason ≥5 chars) / withdraw-nil
+  draft --&gt; society_review : submit (club is cultural/literary)
+  draft --&gt; dean_review : submit
+  society_review --&gt; dean_review : Society approves
+  society_review --&gt; returned : return
+  dean_review --&gt; vc_review : Dean approves AND (over threshold OR fest)
+  dean_review --&gt; sanctioned : Dean approves (final gate)
+  dean_review --&gt; returned : return
+  vc_review --&gt; sanctioned : VC approves (MFA)
+  vc_review --&gt; returned : return
+  returned --&gt; draft : lines editable again
+  society_review --&gt; rejected : reject
+  dean_review --&gt; rejected : reject
+  vc_review --&gt; rejected : reject
+  sanctioned --&gt; settled : settle — all blockers clear
+  sanctioned --&gt; settled : nil budget — nothing to settle</pre></div>
+<p>Settlement is the last step of a fixed sequence, and <code>settlement_waiting_on</code> names where it sits:</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  S([POST /budgets/{id}/settle]) --&gt; A{stage == sanctioned?}
+  A --&gt;|no| E1[409 BUDGET_NOT_SANCTIONED&lt;br/&gt;waiting_on = sanction]
+  A --&gt;|yes| B{event has run?&lt;br/&gt;status ∈ completed, reported}
+  B --&gt;|no| E2[409 BUDGET_EVENT_NOT_RUN&lt;br/&gt;waiting_on = event]
+  B --&gt;|yes| C[Collect ALL blockers at once]
+  C --&gt; C1{any line with amount_spent?}
+  C1 --&gt;|none| P1[no spend entered]
+  C --&gt; C2{line spent &gt; RECEIPT_THRESHOLD ₹5,000&lt;br/&gt;with no receipt?}
+  C2 --&gt;|yes| P2[receipt missing on head X]
+  C --&gt; C3{line spent &gt; sanctioned&lt;br/&gt;with no variance_note?}
+  C3 --&gt;|yes| P3[variance note missing on head Y]
+  P1 --&gt; D{any problems?}
+  P2 --&gt; D
+  P3 --&gt; D
+  D --&gt;|yes| E3[422 BUDGET_SETTLEMENT_INCOMPLETE&lt;br/&gt;settlement_problems: all of them]
+  D --&gt;|no| OK[stage → settled · settled_at · audit]</pre></div>
+<p>Receipts attach per line, never bundled; a replacement supersedes the old row (<code>superseded_by</code>), never overwrites it.</p>
+</section>
+<section id="s7"><h2><span class="num">7</span>Student journey</h2>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant St as Student
+  participant API as Module API
+  participant DB as Postgres
+  participant Org as Organiser (scan station)
+  St-&gt;&gt;API: GET /events (published + live only)
+  St-&gt;&gt;API: POST /participation/registrations {event}
+  API-&gt;&gt;DB: SELECT … FOR UPDATE on Event
+  API-&gt;&gt;DB: status ∈ {published, live}? else 409 PARTICIPATION_NOT_OPEN
+  API-&gt;&gt;DB: confirmed_count (active, not waitlisted) ≥ capacity?
+  alt place free
+    API-&gt;&gt;DB: INSERT Registration (waitlisted=false, source=pre_registered, snapshot dept/programme/year)
+    API-&gt;&gt;DB: INSERT EventPass row, mint token naming pass id, UPDATE token
+    API--&gt;&gt;St: 201 registration {waitlisted:false} + pass (QR rendered locally)
+    API-)St: on commit: registration.confirmed in-app + email
+  else event full
+    API-&gt;&gt;DB: INSERT Registration (waitlisted=true) — no pass, holds no place
+    API--&gt;&gt;St: 201 registration {waitlisted:true}
+    API-)St: on commit: registration.waitlisted in-app + email
+  end
+  DB--&gt;&gt;API: partial unique (event, student) WHERE cancelled_at IS NULL → 409 ALREADY_REGISTERED (queued or confirmed)
+  Note over St,DB: Someone else cancels: under the Event lock the row is re-read,&lt;br/&gt;pass revoked, and — if it held a place — the queue head (FIFO by created_at)&lt;br/&gt;gets waitlisted=false + a pass + registration.promoted on commit
+  Note over St,DB: Publication and venue moves reach every active registration&lt;br/&gt;(waitlist included) via the Event save hook — event.published / event.venue_changed, on commit
+  St-&gt;&gt;Org: shows pass (or profile QR)
+  Org-&gt;&gt;API: POST /participation/events/{id}/scan {code}
+  API-&gt;&gt;DB: resolve → accept, Registration.attended=true, checked_in_at, operator, station
+  API-&gt;&gt;DB: INSERT ScanRecord (every branch, failures included)
+  API--&gt;&gt;Org: verdict
+  Note over St,API: After close (completed/reported): POST /feedback/events/{id}&lt;br/&gt;rating 1–5, would_recommend, comment — attendees only, once (DB UNIQUE)&lt;br/&gt;organisers/Dean read aggregates + anonymous comments, never rows</pre></div>
+<p>Lost phone: reissue the profile QR (old token dies immediately) or reissue the pass (refused with 409 <code>PARTICIPATION_WAITLISTED</code> while queued — a queue entry gets no credential); the organiser can also look up by PRN. Cancelling a waitlisted registration promotes nobody; cancelling an already cancelled one is a no-op. There is <strong>no route for a student to mark themselves present</strong>.</p>
+</section>
+<section id="s8"><h2><span class="num">8</span>Scan station — the seven branches</h2>
+<p><code>participation/services.py:resolve</code> (backend) and <code>web-app/src/attendance.js</code> (mirror).</p>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  IN([Camera / paste reads a code]) --&gt; V{HMAC signature valid?&lt;br/&gt;constant-time compare}
+  V --&gt;|no / malformed| UNK[① UNKNOWN_CODE]
+  V --&gt;|yes| EXP{expired?}
+  EXP --&gt;|yes| EXPD[② EXPIRED]
+  EXP --&gt;|no| EV{token bound to&lt;br/&gt;THIS event?}
+  EV --&gt;|different event| WE[③ WRONG_EVENT]
+  EV --&gt;|yes / profile QR| PUR{purpose}
+  PUR --&gt;|event pass| PASS{pass state}
+  PASS --&gt;|used_at set| DUP1[④ DUPLICATE&lt;br/&gt;shows first check-in time]
+  PASS --&gt;|revoked, newer pass exists| UNK
+  PASS --&gt;|registration cancelled| CAN[⑥ CANCELLED]
+  PASS --&gt;|registration waitlisted&lt;br/&gt;a pass that should not exist| CAP
+  PASS --&gt;|fresh| ACC[⑤ ACCEPTED&lt;br/&gt;used_at, attended=true,&lt;br/&gt;checked_in_at, operator, station]
+  PUR --&gt;|profile QR| REG{student registered&lt;br/&gt;for this event?}
+  REG --&gt;|yes, confirmed, already attended| DUP2[④ DUPLICATE]
+  REG --&gt;|yes, confirmed, not attended| ACC
+  REG --&gt;|yes, WAITLISTED — holds no place| CAP
+  REG --&gt;|no| CAP{confirmed_count ≥ capacity?&lt;br/&gt;— Event row locked first}
+  CAP --&gt;|yes| NR[⑦ NOT_REGISTERED&lt;br/&gt;walk-in: no places left&lt;br/&gt;queued: on the waitlist, no place opened]
+  CAP --&gt;|no, walk-in| SPOT[⑤ SPOT_REGISTERED&lt;br/&gt;Registration source=spot&lt;br/&gt;+ check-in, one scan]
+  CAP --&gt;|no, queued| SPOTQ[⑤ SPOT_REGISTERED&lt;br/&gt;waitlisted=false FIRST, then attended&lt;br/&gt;— DB CHECK waitlisted_never_attended&lt;br/&gt;takes the place regardless of queue position]
+  SPOTQ --&gt; REC
+  UNK --&gt; REC
+  EXPD --&gt; REC
+  WE --&gt; REC
+  DUP1 --&gt; REC
+  DUP2 --&gt; REC
+  CAN --&gt; REC
+  ACC --&gt; REC
+  NR --&gt; REC
+  SPOT --&gt; REC[(ScanRecord written&lt;br/&gt;for EVERY branch)]</pre></div>
+<p>Who may scan: <code>DOOR_STAFF</code> = President, VP, Secretary, core team — plus the scoped <code>event_organiser:&lt;event_id&gt;</code> role via the station session.</p>
+<blockquote>X-4 closed (B-00c): <code>event_organiser:&lt;id&gt;</code> is granted in <code>local</code> mode by <code>POST /events/{id}/organisers</code> (President/VP), stored as an <code>EventOrganiser</code> row that ends at event end + <code>ORGANISER_GRACE_HOURS</code> (4) by default and never later than event end + 7 days; <code>roles_for</code> reads the live rows, so the scope appears at the next login/refresh and disappears the same way when the grant ends.</blockquote>
+<p><strong>Not</strong> the Treasurer (the response carries names and PRNs), not the Dean, not the VC, not the Society; IT admin only as break-glass. The station session token is bound to one event and lasts the event plus four hours.</p>
+<p>Manual fallback: PRN or name lookup by the organiser → <code>POST …/check-in</code>, still recorded with an operator and a ScanRecord (<code>source=manual</code>); a waitlisted student entered this way follows the same capacity branch as the profile QR. Lock order everywhere capacity is read: Event row first, then the registration/pass row — the same order <code>register</code>, <code>cancel</code> and <code>promote</code> use. Every roster read (<code>GET …/roster</code>) now writes an <code>AuditEntry</code> (<code>roster.read</code>) naming the reader.</p>
+</section>
+<section id="s9"><h2><span class="num">9</span>Offline station and replay</h2>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant S1 as Station A (offline)
+  participant S2 as Station B (offline)
+  participant API as POST …/scan/sync
+  Note over S1,S2: roster + valid tokens cached before signal is lost
+  S1-&gt;&gt;S1: queue scan {code, scanned_at=device clock, offline_ref}
+  S2-&gt;&gt;S2: queue scan of the SAME student, later device time
+  S1-&gt;&gt;API: replay queue on reconnect
+  API-&gt;&gt;API: sort by scanned_at (device clock, NOT arrival)
+  API-&gt;&gt;API: resolve each; set synced_at, was_offline=true
+  API--&gt;&gt;S1: "Synced 14 — 12 in, 2 duplicate"
+  S2-&gt;&gt;API: replay queue
+  API-&gt;&gt;API: earliest scanned_at already won → this one is DUPLICATE
+  S2-&gt;&gt;API: retry (response lost)
+  API--&gt;&gt;S2: no-op — offline_ref is unique; idempotent</pre></div>
+</section>
+<section id="s10"><h2><span class="num">10</span>Venue clash resolution</h2>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A([Proposal names venue + time]) --&gt; L0[SELECT … FOR UPDATE on the Venue row&lt;br/&gt;create · submit · reassign · final approve all take it&lt;br/&gt;event row first, then venue]
+  L0 --&gt; B{Overlaps an existing booking&lt;br/&gt;incl. VENUE_BUFFER_MINUTES=30?}
+  B --&gt;|no| OK[Booked]
+  B --&gt;|yes, other is CONFIRMED&lt;br/&gt;approved/published/live/completed/reported| REJ[409 EVENTS_VENUE_UNAVAILABLE&lt;br/&gt;hard clash refused at create and at submit]
+  B --&gt;|yes, other merely SUBMITTED| FLAG[Accept both, flag the clash&lt;br/&gt;— which club gets Friday is the Dean's call]
+  FLAG --&gt; Q[Dean sees it on the venue calendar&lt;br/&gt;and on the approval card]
+  Q --&gt; G{Dean tries to APPROVE}
+  G --&gt; X[409 GOVERNANCE_CLASH_UNRESOLVED]
+  Q --&gt; MV[POST /events/{id}/reassign&lt;br/&gt;new venue, reason REQUIRED]
+  MV --&gt; AT[Atomic: lock event, then target venue;&lt;br/&gt;release old slot and take new one&lt;br/&gt;in ONE transaction]
+  AT --&gt; N[Club officers AND every registered student&lt;br/&gt;notified in-app + email, on commit&lt;br/&gt;old and new venue shown]
+  N --&gt; UN[Approval unblocks]
+  G --&gt;|clash resolved| P{Final gate: lock event, then venue,&lt;br/&gt;re-check hard clash INSIDE decide}
+  P --&gt;|another approval landed first| X2[409 GOVERNANCE_CLASH_UNRESOLVED&lt;br/&gt;step rolled back]
+  P --&gt;|free| PUB[published — now a CONFIRMED booking]
+  PUB -.-&gt; PG[(PostgreSQL: EXCLUDE USING gist&lt;br/&gt;venue_id equal, tstzrange starts_at ends_at overlaps&lt;br/&gt;WHERE status confirmed&lt;br/&gt;venue_confirmed_bookings_do_not_overlap&lt;br/&gt;— IntegrityError mapped to the same 409)]
+  B -.-&gt;|exam blackout period| NB[NOT built]</pre></div>
+<p>Two layers (B-00b): the application check with the buffer runs under the venue row lock on every path that books or confirms a slot (<code>EventViewSet.create</code>, <code>submit</code>, <code>reassign_venue</code>, <code>governance.decide</code> at the last gate); PostgreSQL additionally enforces no literal overlap between <strong>confirmed</strong> bookings with the exclusion constraint from <code>events/migrations/0004</code> (no buffer, <code>btree_gist</code>, vendor-guarded — a no-op on SQLite, so the lock is all SQLite has). Submitted-but- unconfirmed proposals may overlap by design. Venue precedence (first-come, bigger event, fest first) is an open question, so the system never picks a winner. The Postgres-only concurrency tests are skipped on SQLite (CHECKLIST B-00b: "Postgres tests unexecuted locally").</p>
+</section>
+<section id="s11"><h2><span class="num">11</span>Club lifecycle, join and handover</h2>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; proposed : apply (Dean approval — NOT built as a flow; Dean/admin POST /clubs creates it active)
+  proposed --&gt; active : Dean approves
+  active --&gt; dormant : flag-dormant job (nightly) — last_activity_at older than DORMANCY_DAYS=180
+  dormant --&gt; active : any touch_activity — event submitted/published/run/closed, join, join accepted, role change, handover (audit club.reactivated)
+  active --&gt; archived : DELETE /clubs/{id} — soft delete, never hard
+  dormant --&gt; archived
+  note right of dormant : dormant clubs still accept joins — archived clubs refuse them (409 CLUBS_ARCHIVED)</pre></div>
+<div class="diagram"><pre class="mermaid">flowchart LR
+  subgraph JOIN["Join (PRD §5.2) — built: POST /clubs/{id}/join"]
+    J1[Student requests to join] --&gt; J2{club.join_mode&lt;br/&gt;default approval}
+    J2 --&gt;|open| J3[Membership active — 201&lt;br/&gt;audit club.joined]
+    J2 --&gt;|approval| J4[JoinRequest pending — 202&lt;br/&gt;one pending per student per club, DB partial unique&lt;br/&gt;current President / VP notified]
+    J4 --&gt; J5[President / VP&lt;br/&gt;POST join-requests/{id}/accept or /decline&lt;br/&gt;row locked · second decision 409]
+    J5 --&gt;|accept| J3
+    J5 --&gt;|decline| J6[declined · applicant notified]
+    J5 --&gt;|already a member by another route| J7[settled as accepted, note: Already a member]
+    J8[Dean sets join_mode open] --&gt; J9[every pending request accepted at once]
+  end
+  subgraph ROLE["Role assignment (built)"]
+    R1[President / VP&lt;br/&gt;POST /memberships/{id}/role] --&gt; R2[RoleChange recorded&lt;br/&gt;current terms closed, new term opened for an office]
+    R2 --&gt; R3[Permissions follow the TERM&lt;br/&gt;in the next token]
+    R4[Treasurer / Secretary tries] --&gt; R5[403]
+  end
+  subgraph HAND["Annual handover (PRD §5.3) — built: POST /clubs/{id}/handover"]
+    H1[President / VP names incoming bearers&lt;br/&gt;effective_at + assignments student, office] --&gt; H0{effective_at before a current&lt;br/&gt;holder's term start?}
+    H0 --&gt;|yes| HX[422 CLUBS_HANDOVER_BACKDATED]
+    H0 --&gt;|no| H2[One transaction, club row locked:&lt;br/&gt;outgoing terms end at effective_at&lt;br/&gt;incoming OfficeBearerTerm rows start there&lt;br/&gt;RoleChange per assignment · audit club.handover]
+    H2 --&gt; H3[On the date: token derives roles from the terms —&lt;br/&gt;outgoing LOSES club_president scope at next login/refresh]
+    H2 --&gt; H4[Incoming + outgoing bearers notified&lt;br/&gt;club.handover, on commit]
+    H2 --&gt;|effective_at ≤ now| H5[Membership rows rewritten now — apply_due_terms]
+    H2 --&gt;|future date| H6[Rows wait for apply_due_terms —&lt;br/&gt;no scheduled job yet, B-17 open]
+    H7[GET /clubs/{id}/office-bearers/history&lt;br/&gt;who held what, when]
+  end</pre></div>
+<p>Still open: the Dean/admin get 403 on the join queue and on handover, so a club whose President and VP have both gone has no recovery path (B-18); <code>apply_due_terms</code> runs only as a management command, so after a future-dated handover the roster shows the old <code>Membership.role</code> until it is run, although the token and every notification recipient list already follow the terms (B-17). Organiser grants are the event-level counterpart: <code>POST /events/{id}/organisers</code> (President/VP) gives <code>event_organiser:&lt;event_id&gt;</code> until event end + 4 h by default, never past + 7 days; <code>DELETE …/organisers/{student_id}</code> ends it now.</p>
+</section>
+<section id="s12"><h2><span class="num">12</span>Semester report aggregation</h2>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A([GET /reporting/reports/semester?semester=]) --&gt; B[Semester bounds from identity.Semester&lt;br/&gt;— read, never defined here]
+  B --&gt; C[Event WHERE status ∈ completed, reported&lt;br/&gt;AND starts_at BETWEEN bounds]
+  C --&gt; D1[events_run = COUNT events]
+  C --&gt; D2[total_participation = COUNT Registration WHERE attended]
+  C --&gt; D3[&lt;b&gt;unique_students&lt;/b&gt; = COUNT DISTINCT student_id&lt;br/&gt;WHERE attended — THE HEADLINE]
+  C --&gt; D4[external = COUNT DISTINCT external_participant_id&lt;br/&gt;WHERE attended — never summed with D3]
+  D1 --&gt; D5[avg_attendance = total / events_run]
+  C --&gt; D6[by_club — GROUP BY club&lt;br/&gt;by_category — GROUP BY club.category&lt;br/&gt;clubs_active = clubs with ≥1 completed event]
+  C --&gt; D7[by_department — the SNAPSHOT at registration]
+  C --&gt; D8[budget: Σ requested, Σ sanctioned, Σ spent]
+  D3 --&gt; OUT[Aggregates only — no PRN, no name&lt;br/&gt;readable by Dean and VC]
+  D4 --&gt; OUT
+  D5 --&gt; OUT
+  D6 --&gt; OUT
+  D7 --&gt; OUT
+  D8 --&gt; OUT
+  OUT --&gt; CSV[?format=csv or /reports/semester/csv&lt;br/&gt;same dict rendered as text/csv — BOM, section-tagged blocks,&lt;br/&gt;formula-leading cells neutralised, NO events block]
+  OUT -.-&gt; X[PDF / PPTX export — NOT built;&lt;br/&gt;computed in-request today, no Celery job]</pre></div>
+<p>Capture rate, the check on everything above, is now <strong>two metrics under two names</strong> (B-11,</p>
+<p class="lead"><code>reporting/services.capture_metrics</code>, on the Dean overview <code>capture</code> block):</p>
+<p><code>scan_success_rate</code> = accepted-or-spot scans / all scan attempts (what the code always computed; manual PRN entries write a ScanRecord too, so they count as attempts) and <code>scan_capture_rate</code> = attended registrations with <code>source != manual</code> / attended (the documents' definition). The old key <code>capture_rate</code> is kept as an alias of <code>scan_capture_rate</code>, so its meaning changed. The overview also carries <code>escalated_approvals</code> (SLA), <code>dormant_clubs</code>, <code>events_missing_photos</code> and <code>events_missing_social_links</code>.</p>
+</section>
+<section id="s13"><h2><span class="num">13</span>Sign-in and session</h2>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A([Sign in]) --&gt; B{INTEGRATION_MODE}
+  B --&gt;|local| C[POST /module/auth/login&lt;br/&gt;email + password]
+  B --&gt;|platform| D[Portal SSO JWT&lt;br/&gt;validated against JWKS&lt;br/&gt;no user lookup]
+  C --&gt; E{MFA demanded?&lt;br/&gt;staff role: dean, vc, cultural_society, admin&lt;br/&gt;OR is_staff account&lt;br/&gt;OR a Delegation in force naming this account as delegate}
+  E --&gt;|yes| F{MFA code present?}
+  F --&gt;|no| X[401 AUTH_MFA_REQUIRED&lt;br/&gt;errors: mfa_code REQUIRED]
+  F --&gt;|yes| G[claims: sub, roles global + scoped,&lt;br/&gt;mfa=true, 15-min access, refresh]
+  E --&gt;|no| G
+  D --&gt; G
+  G --&gt; H[GET /module/auth/me → capability payload:&lt;br/&gt;clubs_can_propose, clubs_can_operate_events,&lt;br/&gt;clubs_can_enter_spend, clubs_door_staff,&lt;br/&gt;can_see_individual_records, can_see_overview]
+  H --&gt; I[UI shows only pages the role can open&lt;br/&gt;— hiding is not the permission]
+  G --&gt; J[Scan-station session: bound to ONE event,&lt;br/&gt;event duration + 4 h]
+  G --&gt; K[Refresh rotation; reuse revokes the family]</pre></div>
+<p>The claim set is identical in both modes (Identity_Login §5.4), so switching to the portal's SSO changes only where the token comes from. Scoped roles in the claim set now come from the office-bearer terms (an expired President logs in as a member) and from live <code>EventOrganiser</code> rows (<code>event_organiser:&lt;event_id&gt;</code>), so a handover or an organiser grant takes effect at the next login or refresh — within the 15-minute access TTL. Standalone mode accepts any non-empty <code>mfa_code</code>; the refusal is <strong>401</strong>, not 403, in both this document and <code>API_DATA_MODELS.md</code> §6.</p>
+</section>
+</main>
+<footer>Source: <code>docs/FLOWS.md</code> in the project repository. Diagrams are Mermaid; the Markdown original renders the same diagrams in GitHub and VS Code.</footer>
+</div>
+<script>
+// Diagrams are rendered by Mermaid, loaded from a CDN (needs internet access the first time).
+(function () {
+  var s = document.createElement("script");
+  s.src = "https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js";
+  s.onload = function () {
+    var dark = document.documentElement.dataset.theme === "dark" ||
+      (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+  };
+  document.head.appendChild(s);
+})();
+</script>
+
+</body>
+</html>

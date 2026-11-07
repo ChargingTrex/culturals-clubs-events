@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Semester report — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, me, esc, inr } from "./demo.js";
+await page("vc-report.html", async main => {
+  const r = await api("/reporting/reports/semester");
+  const caps = (await me()).capabilities;
+  const maxC = Math.max(1, ...r.by_club.map(c => c.attendance));
+  const maxD = Math.max(1, ...r.by_department.map(d => d.students_reached));
+  main.innerHTML = `
+    <div class="head"><div><h1>${esc(r.semester.name)} report</h1>
+      <p class="muted">Counted at the door, not estimated. Generated from live data.</p></div>
+      <button class="btn" onclick="window.print()">Print or save as PDF</button></div>
+    <div class="big">
+      <div class="lead"><b>${r.unique_students}</b><span>unique students reached</span></div>
+      <div><b>${r.total_participation}</b><span>total attendance</span></div>
+      <div><b>${r.events_run}</b><span>events run</span></div>
+      <div><b>${r.avg_attendance}</b><span>average per event</span></div></div>
+    <p class="note" style="margin-top:14px">${r.total_participation} attendances came from
+      ${r.unique_students} different students — the same people coming back, which total
+      attendance alone would hide. External participants (${r.external_participants}) are
+      counted separately and never summed with the figure above.</p>
+    <div class="grid2" style="margin-top:18px;align-items:start">
+      <div class="panel"><h3>Attendance by club</h3><div style="margin-top:10px">
+        ${r.by_club.map(c => `<div class="bar"><span class="small">${esc(c.club)}</span>
+          <div class="meter"><i style="width:${c.attendance / maxC * 100}%"></i></div>
+          <em>${c.attendance}</em></div>`).join("")}</div></div>
+      <div class="panel"><h3>Students reached by department</h3>
+        <p class="small muted">Department at the time of each event</p>
+        <div style="margin-top:10px">${r.by_department.map(d =>
+          `<div class="bar"><span class="small">${esc(d.department)}</span>
+            <div class="meter"><i style="width:${d.students_reached / maxD * 100}%"></i></div>
+            <em>${d.students_reached}</em></div>`).join("")}</div></div></div>
+    <div class="panel" style="margin-top:18px"><h3>Events</h3>
+      <div class="table-wrap" style="margin-top:10px;border:0"><table>
+        <thead><tr><th>Event</th><th>Club</th><th class="num">Attended</th>
+          <th class="num">Photos</th><th class="num">Sanctioned</th><th class="num">Spent</th></tr></thead>
+        <tbody>${r.events.map(e => `<tr><td>${esc(e.title)}</td>
+          <td class="muted">${esc(e.club)}</td><td class="num">${e.attended}</td>
+          <td class="num">${e.photos}</td><td class="num">${inr(e.sanctioned)}</td>
+          <td class="num">${inr(e.spent)}</td></tr>`).join("")}
+        <tr><th>Total</th><th></th><th class="num">${r.total_participation}</th><th></th>
+          <th class="num">${inr(r.money.sanctioned)}</th>
+          <th class="num">${inr(r.money.spent)}</th></tr></tbody></table></div></div>
+    <ul class="list" style="margin-top:14px">${r.caveats.map(c =>
+      `<li class="small muted">${esc(c)}</li>`).join("")}</ul>
+    ${caps.is_vice_chancellor ? `<p class="note" style="margin-top:14px">You are viewing as
+      Management. This page is aggregates only — no attendee list, no roster and no PRN
+      lookup is reachable from this session. Try the club or organiser pages and the API
+      will refuse them.</p>` : ""}`;
+});
+</script></body></html>

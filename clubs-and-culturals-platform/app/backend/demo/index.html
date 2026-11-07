@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your pages — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { chrome, me, PAGES, allowedPages, esc } from "./demo.js";
+
+await chrome("index.html");
+const caps = (await me()).capabilities;
+const mine = allowedPages(caps);
+const hidden = PAGES.length - mine.length;
+
+const groups = [];
+for (const p of mine) {
+  const last = groups[groups.length - 1];
+  if (last && last.role === p.role) last.pages.push(p);
+  else groups.push({ role: p.role, pages: [p] });
+}
+
+const label = sessionStorage.getItem("culturals-demo-label") || "";
+
+document.querySelector("main").innerHTML = `
+  <div class="head"><div><h1>Your pages</h1>
+    <p class="muted">${esc(label)} — ${mine.length} page${mine.length === 1 ? "" : "s"}
+      you can open.${hidden
+        ? ` ${hidden} other${hidden === 1 ? " is" : "s are"} not shown, because this role
+            cannot open ${hidden === 1 ? "it" : "them"}.`
+        : ""}</p></div></div>
+  ${groups.map(g => `
+    <h2 style="margin:22px 0 10px;font-size:1rem;text-transform:uppercase;
+      letter-spacing:.06em;opacity:.55">${esc(g.role)}</h2>
+    <div class="page-grid">${g.pages.map(p => `
+      <a class="page-card" href="${p.file}">
+        <h3>${esc(p.title)}</h3><span>${esc(p.file)}</span></a>`).join("")}</div>`).join("")}
+  <p class="note" style="margin-top:26px">The sidebar and this list show only what
+    this role may open — but hiding a page is not a permission. Typing a hidden
+    page's address still reaches a real refusal from the API, which is what actually
+    enforces the boundary. Switch persona above to watch the list change.</p>`;
+</script></body></html>

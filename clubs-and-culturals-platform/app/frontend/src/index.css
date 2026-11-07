@@ -1,0 +1,131 @@
+@import 'tailwindcss';
+
+/* Fonts (SIL OFL), self-hosted. Plus Jakarta Sans's latin-ext subset carries ₹. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* THE global config: every colour, type style, space, radius and shadow. */
+@import './shared/ds/tokens.css';
+@import './shared/ds/components.css' layer(components);
+@import './shared/ds/domain.css' layer(components);
+@import './shared/ds/motion.css' layer(components);
+@import './shared/ds/charts.css' layer(components);
+
+/* Page-wide element styles. In the base layer so components and utilities win. */
+@layer base {
+  html {
+    height: 100%;
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+  }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body-lg);
+    line-height: var(--text-body-lg--line-height);
+    font-weight: var(--type-body-lg-weight);
+    letter-spacing: var(--text-body-lg--letter-spacing);
+    -webkit-font-smoothing: antialiased;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--link);
+  }
+
+  /* Headings follow the type scale: one large title per page (headline on phones). */
+  h1 {
+    font-family: var(--font-sans);
+    font-size: var(--text-large-title);
+    line-height: var(--text-large-title--line-height);
+    font-weight: var(--type-large-title-weight);
+    letter-spacing: var(--text-large-title--letter-spacing);
+  }
+  h2 {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    font-weight: var(--type-title-lg-weight);
+    letter-spacing: var(--text-title-lg--letter-spacing);
+  }
+  h3 {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-md);
+    line-height: var(--text-title-md--line-height);
+    font-weight: var(--type-title-md-weight);
+    letter-spacing: var(--text-title-md--letter-spacing);
+  }
+  @media (max-width: 47.99rem) {
+    h1 {
+      font-size: var(--text-headline);
+      line-height: var(--text-headline--line-height);
+    }
+  }
+}
+
+/* Shared classes used across every page, restyled onto the design system.
+   They only reference tokens, so tokens.css still drives them. */
+@layer components {
+  /* Outlined button by default; .btn-primary is the one filled action per view. */
+  .btn {
+    @apply relative inline-flex h-(--control-md) cursor-pointer items-center justify-center gap-2 rounded-md border border-line-strong bg-surface px-5 text-label-lg font-(--type-label-lg-weight) whitespace-nowrap text-primary no-underline transition-colors hover:bg-primary-soft focus-visible:shadow-focus focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-(--disabled) disabled:hover:bg-surface;
+  }
+  .btn-primary {
+    @apply border-primary bg-primary text-on-primary hover:bg-primary hover:brightness-110 disabled:hover:bg-primary;
+  }
+  .btn-tonal {
+    @apply border-transparent bg-primary-soft text-on-primary-soft hover:brightness-95;
+  }
+  .btn-quiet {
+    @apply h-auto border-transparent bg-transparent px-2 py-1 hover:bg-transparent hover:underline;
+  }
+  .btn-danger {
+    @apply border-danger bg-surface text-danger hover:bg-danger-soft;
+  }
+  .field {
+    @apply h-(--control-md) w-full rounded-sm border border-line-strong bg-surface px-3 text-body-md text-ink placeholder:text-ink-subtle focus-visible:border-primary focus-visible:shadow-focus focus-visible:outline-none;
+  }
+  textarea.field {
+    @apply h-auto py-2;
+  }
+  .label {
+    @apply mb-1.5 block text-label-md font-(--type-label-md-weight) text-ink-muted;
+  }
+  .panel {
+    @apply rounded-lg border border-line bg-surface p-5 shadow-elevation-1;
+  }
+  /* Chips. Prefer <Pill>/<StatusChip>, which add the status icon. */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full bg-neutral-soft px-2.5 py-1 text-label-md font-(--type-label-md-weight) whitespace-nowrap text-ink-muted;
+  }
+  .pill-ok {
+    @apply bg-success-soft text-success;
+  }
+  .pill-warn {
+    @apply bg-warning-soft text-warning;
+  }
+  .pill-bad {
+    @apply bg-danger-soft text-danger;
+  }
+  .pill-info {
+    @apply bg-primary-soft text-on-primary-soft;
+  }
+  .note {
+    @apply rounded-md border border-line bg-primary-soft px-4 py-3 text-body-md text-ink;
+  }
+  .meter {
+    @apply h-2.5 overflow-hidden rounded-full bg-neutral-soft;
+  }
+  .meter > i {
+    @apply block h-full bg-primary;
+  }
+  .tokenbox {
+    @apply rounded-sm bg-surface-sunken px-3 py-2 text-mono-sm break-all text-ink-muted;
+  }
+}

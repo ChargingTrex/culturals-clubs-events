@@ -1,0 +1,5 @@
+# Shared robot options; run.sh adds the suite folder and any tags you pass.
+--outputdir results
+--loglevel INFO
+--consolewidth 100
+--variablefile resources/variables.py

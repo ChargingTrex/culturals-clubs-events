@@ -1,0 +1,106 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scan station — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, me, esc, fmtTime, showError } from "./demo.js";
+await page("organiser-scan.html", async main => {
+  const caps = (await me()).capabilities;
+  const evs = await api("/events?status=live,published&ordering=starts_at");
+  // Only doors this persona may actually work: an event of a club where they are
+  // door staff, or one they hold an organiser scope for. Listing every live event
+  // would offer a Swara president the door of a Lens event and then collect a 403.
+  const candidates = evs.results.filter(e =>
+    caps.clubs_door_staff.includes(e.club) || caps.organiser_events.includes(e.id));
+  if (!candidates.length) {
+    const why = caps.clubs_door_staff.length
+      ? "You are door staff for your club, but none of its events is open right now."
+      : "Only an event's organisers and their club's door staff may work a check-in desk.";
+    throw Object.assign(new Error(why),
+      { status: 404, title: "No door to work" });
+  }
+  let evId = candidates[0].id;
+  const paint = async () => {
+    const s = await api(`/participation/events/${evId}/scan`);
+    main.innerHTML = `
+      <div class="head"><div><h1>Scan station</h1>
+        <p class="muted">${esc(s.event.title)} · ${esc(s.event.venue)} · station GATE-1</p></div>
+        <div style="min-width:240px"><label for="ev">Event</label>
+          <select id="ev">${candidates.map(e =>
+            `<option value="${e.id}" ${e.id === evId ? "selected" : ""}>${esc(e.title)}</option>`).join("")}</select></div></div>
+      <div class="grid2" style="align-items:start">
+        <div class="stack">
+          <div class="gate idle" id="gate" role="status" aria-live="assertive">
+            <div class="verdict">Ready to scan</div></div>
+          <div class="panel counter">
+            <div><b>${s.counters.checked_in}</b><span>checked in</span></div>
+            <div><b>${s.counters.registered}</b><span>registered</span></div>
+            <div><b>${s.counters.capacity}</b><span>capacity</span></div>
+            <div><b>${s.capture.capture_rate ?? "—"}</b><span>capture rate</span></div></div>
+          <div class="panel"><label for="tok">Paste or type a code</label>
+            <div class="row"><input id="tok" placeholder="v1.k1.eyJ…" style="flex:1;min-width:0">
+              <button class="btn primary" id="scan">Scan</button></div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" id="forge">Try a forged code</button>
+              <span class="small muted">Failures are logged too — that is the capture rate</span></div></div>
+        </div>
+        <div class="stack">
+          <div class="panel"><h3>Look up by PRN or name</h3>
+            <input id="q" placeholder="e.g. 23CS1007 or Meera" style="margin-top:10px">
+            <ul class="list" id="hits" style="margin-top:8px"></ul></div>
+          <div class="panel"><h3>Recent scans</h3>
+            <ul class="list" style="margin-top:8px">${s.recent.map(r =>
+              `<li class="small row" style="justify-content:space-between">
+                <span>${esc(r.result_label)}${r.who ? " — " + esc(r.who) : ""}
+                  ${r.was_offline ? `<span class="pill">offline</span>` : ""}</span>
+                <span class="muted">${fmtTime(r.scanned_at)}</span></li>`).join("")
+              || `<li class="small muted">No scans yet</li>`}</ul>
+            <p class="small muted" style="margin-top:8px">${s.capture.accepted} accepted of
+              ${s.capture.attempts} attempts · ${s.capture.unknown} unrecognised ·
+              ${s.capture.wrong_event} wrong event</p></div>
+        </div></div>`;
+    document.getElementById("ev").addEventListener("change", e => { evId = e.target.value; paint(); });
+    const doScan = async token => {
+      const gate = document.getElementById("gate");
+      try {
+        const r = await api(`/participation/events/${evId}/scan`,
+          { method: "POST", body: JSON.stringify({ token, station_id: "GATE-1" }) });
+        gate.className = `gate ${r.tone}`;
+        gate.innerHTML = `<div class="verdict">${esc(r.verdict)}</div>
+          ${r.student ? `<div class="person"><b>${esc(r.student.full_name)}</b> ·
+            ${esc(r.student.prn)} · ${esc(r.student.programme)}, Y${r.student.year}</div>` : ""}
+          ${r.detail ? `<div class="person" style="font-size:1rem;opacity:.9">${esc(r.detail)}</div>` : ""}`;
+        setTimeout(paint, 1400);
+      } catch (err) { showError(gate, err); }
+    };
+    document.getElementById("scan").addEventListener("click", () => {
+      const v = document.getElementById("tok").value.trim(); if (v) doScan(v);
+    });
+    document.getElementById("tok").addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); const v = e.target.value.trim(); if (v) doScan(v); }
+    });
+    document.getElementById("forge").addEventListener("click", () => doScan("v1.k1.bm90cmVhbA.forged"));
+    document.getElementById("q").addEventListener("input", async e => {
+      const q = e.target.value.trim(); const box = document.getElementById("hits");
+      if (q.length < 2) { box.innerHTML = ""; return; }
+      try {
+        const r = await api(`/module/directory/students?q=${encodeURIComponent(q)}`);
+        box.innerHTML = r.results.map(st => `<li class="row"
+          style="justify-content:space-between;padding:10px 2px">
+          <span class="small"><b>${esc(st.full_name)}</b> <span class="muted">${esc(st.prn)}</span></span>
+          <button class="btn" data-in="${st.student_id}">Check in</button></li>`).join("")
+          || `<li class="small muted" style="padding:10px 2px">No match.</li>`;
+      } catch (err) { showError(box, err); }
+    });
+    document.getElementById("hits").addEventListener("click", async e => {
+      const t = e.target.closest("[data-in]"); if (!t) return;
+      await api(`/participation/events/${evId}/check-in`,
+        { method: "POST", body: JSON.stringify({ student_id: t.dataset.in, station_id: "GATE-1" }) });
+      paint();
+    });
+  };
+  await paint();
+});
+</script></body></html>

@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My passes — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, esc, fmtDate, fmtTime } from "./demo.js";
+await page("student-passes.html", async main => {
+  const d = await api("/participation/my-passes");
+  main.innerHTML = `
+    <div class="head"><div><h1>My passes</h1>
+      <p class="muted">Show a pass at the entrance. Each one works once, for that event only.</p></div></div>
+    ${d.passes.length ? `<div class="stack">${d.passes.map(p => `
+      <div class="ticket"><div class="main">
+        <span class="small muted">${esc(p.club)} presents</span>
+        <h3>${esc(p.title)}</h3>
+        <p>${fmtDate(p.starts_at)}, ${fmtTime(p.starts_at)}–${fmtTime(p.ends_at)}</p>
+        <p class="muted">${esc(p.venue)}</p>
+        <p style="margin-top:10px">${p.attended
+          ? `<span class="pill ok">Checked in</span>`
+          : `<span class="pill gold">Valid — not yet used</span>`}</p></div>
+      <div class="stub">${p.image ? `<img src="${p.image}" alt="Pass QR" width="132" height="132">`
+        : `<span class="small muted">pass spent</span>`}</div></div>`).join("")}</div>`
+      : `<div class="empty">No passes yet.
+           <a class="btn primary" href="student-events.html" style="margin-left:8px">Find an event</a></div>`}
+    <p class="small muted" style="margin-top:18px">${esc(d.note)}</p>`;
+});
+</script></body></html>

@@ -1,0 +1,149 @@
+/* Charts — single-series horizontal bars and meters.
+   Mark specs (dataviz): bars ≤ 24px thick (16px here), 4px rounded data end,
+   square at the baseline; one hairline baseline; values at the tip in text
+   tokens, never the data colour; the whole row is the hover target. */
+
+.cc-chart {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cc-hbars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cc-hbar-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, var(--cc-hbar-label, 9rem)) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: 2px 0;
+  border-radius: var(--radius-xs);
+  outline: none;
+  cursor: default;
+}
+.cc-hbar-row:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.cc-hbar-label {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-hbar-label small {
+  color: var(--ink-muted);
+}
+.cc-hbar-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 100%;
+  border-left: 1px solid var(--chart-grid);
+}
+.cc-hbar {
+  height: 16px;
+  min-width: 0;
+  background: var(--chart-bar);
+  border-radius: 0 4px 4px 0;
+  transition: background-color var(--dur-xs) var(--ease-standard);
+}
+.cc-hbar-row:hover .cc-hbar,
+.cc-hbar-row:focus-visible .cc-hbar {
+  background: var(--chart-bar-hover);
+}
+.cc-hbar-value {
+  color: var(--ink);
+  white-space: nowrap;
+}
+.cc-hbar-tip {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% - 2px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  box-shadow: var(--elevation-3);
+  color: var(--ink-muted);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.cc-hbar-tip b {
+  color: var(--ink);
+}
+
+.cc-chart-table summary {
+  color: var(--link);
+  cursor: pointer;
+  width: fit-content;
+}
+.cc-chart-table summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
+}
+.cc-chart-table table {
+  margin-top: var(--space-2);
+}
+
+/* Meter: the fill carries severity; the track is a lighter step of the same ramp. */
+.cc-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cc-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.cc-meter-head span {
+  color: var(--ink);
+}
+.cc-meter-value {
+  color: var(--ink);
+}
+.cc-meter-track {
+  height: 10px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--primary-soft);
+}
+.cc-meter-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--chart-bar);
+}
+.cc-meter--warning .cc-meter-track {
+  background: var(--warning-soft);
+}
+.cc-meter--warning .cc-meter-fill {
+  background: var(--warning);
+}
+.cc-meter--danger .cc-meter-track {
+  background: var(--danger-soft);
+}
+.cc-meter--danger .cc-meter-fill {
+  background: var(--danger);
+}
+.cc-meter-help {
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}

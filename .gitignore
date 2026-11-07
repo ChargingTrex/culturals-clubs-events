@@ -1,4 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.sqlite3
+clubs-and-culturals-platform/app/backend/.env
+clubs-and-culturals-platform/app/backend/media/
+# Node
 node_modules/
+dist/
+.vite/
+# Tooling output
+graphify-out/graph.json
+graphify-out/graph.html
+graphify-out/.graphify_*
+graphify-out/cache/
+.codegraph/
 .DS_Store
-*.log
+# Vercel / Netlify local
+.vercel/
 .netlify/
+
+# web-app has its own git repository and CI; tracked there, not here
+web-app/
+clubs-and-culturals-platform/app/backend/staticfiles/
+clubs-and-culturals-platform/app/backend/staticfiles_build/
+clubs-and-culturals-platform/app/backend/config/settings_ci.py
+clubs-and-culturals-platform/app/backend/db.sqlite3.pre-*

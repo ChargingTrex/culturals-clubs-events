@@ -1,0 +1,113 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Society approvals — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, esc, inr, dateBox, fmtTime, showError } from "./demo.js";
+
+const STAGE = "cultural_society";
+const HEADING = "Cultural Society approvals";
+
+await page("society-approvals.html", async main => {
+  const q = await api("/governance/approvals/queue");
+  if (!q.stages_you_hold.includes(STAGE)) {
+    const held = q.stages_you_hold.join(", ") || "no gate";
+    throw Object.assign(
+      new Error("This queue belongs to the " + STAGE.replace("_", " ") +
+                " gate. You hold: " + held + "."),
+      { status: 403, title: "Not your gate", code: "GOVERNANCE_NOT_APPROVER" });
+  }
+
+  const mine = q.results.filter(r => r.current_stage === STAGE);
+
+  const lineRow = (r, l) => `<tr>
+    <td>${esc(l.head)}</td>
+    <td class="num">${inr(l.amount_requested)}</td>
+    <td class="num"><input type="number" min="0"
+      value="${l.amount_sanctioned ?? l.amount_requested}"
+      data-sanc="${r.id}:${l.id}" style="width:105px;text-align:right"></td></tr>`;
+
+  const budgetBlock = r => {
+    if (r.nil_declaration) {
+      return `<div class="note" style="margin-top:10px;border-left:3px solid var(--gold,#c8a04a)">
+        <strong>${esc(r.nil_declaration.head)}</strong>
+        <p style="margin:6px 0 0">${esc(r.nil_declaration.reason)}</p>
+        <p class="small muted" style="margin:6px 0 0">Declared by
+          ${esc(r.nil_declaration.declared_by)} — nothing to sanction.</p></div>`;
+    }
+    if (!r.lines.length) {
+      return `<p class="note bad" style="margin-top:10px">No budget entries and no nil
+        declaration. This should not have reached you.</p>`;
+    }
+    return `<div class="table-wrap" style="margin-top:10px">
+      <table style="min-width:340px"><thead><tr><th>Head</th>
+        <th class="num">Requested</th><th class="num">Sanction</th></tr></thead>
+      <tbody>${r.lines.map(l => lineRow(r, l)).join("")}</tbody></table></div>`;
+  };
+
+  const card = r => `<li><div class="event" style="grid-template-columns:64px 1fr auto">
+    ${dateBox(r.starts_at)}
+    <div>
+      <div class="row"><h3>${esc(r.event_title)}</h3>
+        <span class="pill">${esc(r.club)}</span>
+        ${r.requires_vc ? `<span class="pill warn">VC after: ${esc(r.vc_reason)}</span>` : ""}
+        ${r.clashes.length ? `<span class="pill bad">Venue clash</span>` : ""}
+        ${r.requires_mfa ? `<span class="pill">MFA required</span>` : ""}</div>
+      <p class="small muted">${esc(r.venue)} ·
+        ${fmtTime(r.starts_at)}–${fmtTime(r.ends_at)} ·
+        expecting ${r.expected_attendance} · requesting ${inr(r.amount_requested)}</p>
+      <p class="small muted">Route: ${r.stages.join(" → ")}</p>
+      ${r.clashes.length ? `<p class="small" style="color:var(--bad);margin-top:4px">
+        Overlaps ${r.clashes.map(c => esc(c.title)).join(", ")} in the same venue.
+        Resolve under Venues before approving.</p>` : ""}
+      ${budgetBlock(r)}
+      <label for="c-${r.id}" style="margin-top:10px">Comment
+        <span class="muted">(required to return or reject)</span></label>
+      <textarea id="c-${r.id}"></textarea>
+      <div id="m-${r.id}"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" data-go="approve:${r.id}">Approve</button>
+        <button class="btn" data-go="return:${r.id}">Return</button>
+        <button class="btn danger" data-go="reject:${r.id}">Reject</button></div>
+      ${r.steps.length ? `<p class="small muted" style="margin-top:10px">History:
+        ${r.steps.map(s => esc(s.stage_label) + " " + esc(s.decision)).join(" · ")}</p>` : ""}
+    </div></div></li>`;
+
+  main.innerHTML = `
+    <div class="head"><div><h1>${esc(HEADING)}</h1>
+      <p class="muted">${mine.length} waiting. A comment is required to return or
+        reject.</p></div></div>
+    ${mine.length
+      ? `<ul class="list">${mine.map(card).join("")}</ul>`
+      : `<div class="empty">All caught up at this gate.</div>`}`;
+
+  main.addEventListener("click", async ev => {
+    const btn = ev.target.closest("[data-go]");
+    if (!btn) return;
+    const parts = btn.dataset.go.split(":");
+    const kind = parts[0];
+    const id = parts[1];
+    const msg = document.getElementById("m-" + id);
+    msg.innerHTML = "";
+    const sanctioned = {};
+    main.querySelectorAll('[data-sanc^="' + id + ':"]').forEach(input => {
+      sanctioned[input.dataset.sanc.split(":")[1]] = input.value;
+    });
+    try {
+      await api("/governance/approvals/" + id + "/decide", {
+        method: "POST",
+        body: JSON.stringify({
+          decision: kind,
+          comment: document.getElementById("c-" + id).value,
+          sanctioned,
+        }),
+      });
+      location.reload();
+    } catch (err) {
+      showError(msg, err);
+    }
+  });
+});
+</script></body></html>

@@ -1,0 +1,94 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New event — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, me, esc, inr, showError } from "./demo.js";
+await page("club-new-event.html", async main => {
+  const caps = (await me()).capabilities;
+  if (!caps.clubs_can_propose.length)
+    throw Object.assign(new Error("Only the President, Vice-President, Secretary or Treasurer may raise a proposal."),
+      { status: 403, title: "Cannot propose", code: "EVENTS_PROPOSE_DENIED" });
+  const clubId = caps.clubs_can_propose[0];
+  const [venues, templates] = await Promise.all([api("/venues"), api("/budget/budget-templates?expected_attendance=90")]);
+  const d = new Date(Date.now() + 18 * 864e5).toISOString().slice(0, 10);
+  main.innerHTML = `
+    <div class="head"><div><h1>New event</h1>
+      <p class="muted">Choose a type and the budget fills itself in. It goes to the
+      Cultural Society, then the Dean.</p></div></div>
+    <div class="panel stack" style="max-width:760px">
+      <div class="grid2">
+        <div><label for="t">Event name</label><input id="t" placeholder="e.g. Monsoon Ragas"></div>
+        <div><label for="k">Budget</label><select id="k">
+          <option value="">Price it later (Treasurer adds the entries)</option>
+          ${templates.templates.map(x =>
+          `<option value="${esc(x.name)}">From template: ${esc(x.name)}</option>`).join("")}</select></div></div>
+      <div class="grid3">
+        <div><label for="d">Date</label><input id="d" type="date" value="${d}"></div>
+        <div><label for="s">Starts</label><input id="s" type="time" value="16:30"></div>
+        <div><label for="e">Ends</label><input id="e" type="time" value="18:30"></div></div>
+      <div class="grid2">
+        <div><label for="v">Venue</label><select id="v">${venues.results.map(x =>
+          `<option value="${x.id}" data-cap="${x.capacity}">${esc(x.name)} (${x.capacity})</option>`).join("")}</select></div>
+        <div><label for="x">Expected attendance</label><input id="x" type="number" value="90" min="1"></div></div>
+      <div id="preview"></div><div id="msg"></div>
+      <div class="row"><button class="btn primary" id="go">Send for approval</button></div>
+    </div>`;
+  const draw = async () => {
+    const exp = Math.max(1, Number(document.getElementById("x").value) || 90);
+    const t = await api(`/budget/budget-templates?expected_attendance=${exp}`);
+    const pick = document.getElementById("k").value;
+    if (!pick) {
+      document.getElementById("preview").innerHTML = `<p class="note">No template chosen.
+        The event is created unpriced, and the Treasurer or President adds the entries on
+        the Budget page — or declares that it needs no budget. It cannot be submitted for
+        approval until one of those happens.</p>`;
+      return;
+    }
+    const chosen = t.templates.find(x => x.name === pick) || t.templates[0];
+    document.getElementById("preview").innerHTML = `<label>Budget from template</label>
+      <div class="table-wrap"><table><thead><tr><th>Head</th><th>Basis</th>
+        <th class="num">Amount</th></tr></thead><tbody>
+        ${chosen.lines.map(l => `<tr><td>${esc(l.head)}</td>
+          <td class="muted small">${esc(l.explanation)}</td>
+          <td class="num">${inr(l.amount)}</td></tr>`).join("")}
+        <tr><td>Contingency</td><td class="muted small">${chosen.contingency.percent}% added</td>
+          <td class="num">${inr(chosen.contingency.amount)}</td></tr>
+        <tr><th>Total requested</th><th></th><th class="num">${inr(chosen.total_requested)}</th></tr>
+      </tbody></table></div>
+      ${chosen.requires_vc ? `<p class="note" style="margin-top:10px">Above
+        ${inr(chosen.vc_threshold)}, so after the Dean it also goes to the
+        Vice-Chancellor.</p>` : ""}`;
+  };
+  await draw();
+  document.getElementById("k").addEventListener("change", draw);
+  document.getElementById("x").addEventListener("change", draw);
+  document.getElementById("go").addEventListener("click", async () => {
+    const msg = document.getElementById("msg"); msg.innerHTML = "";
+    const date = document.getElementById("d").value;
+    const venue = document.getElementById("v").selectedOptions[0];
+    try {
+      const body = {
+        title: document.getElementById("t").value.trim(), club: clubId, kind: "performance",
+        venue: venue.value,
+        starts_at: new Date(`${date}T${document.getElementById("s").value}`).toISOString(),
+        ends_at: new Date(`${date}T${document.getElementById("e").value}`).toISOString(),
+        capacity: Number(venue.dataset.cap),
+        expected_attendance: Number(document.getElementById("x").value) || 90,
+        budget_template: document.getElementById("k").value || undefined,
+        submit: Boolean(document.getElementById("k").value),
+      };
+      const r = await api("/events", { method: "POST", body: JSON.stringify(body) });
+      msg.innerHTML = r.approval
+        ? `<div class="note">Sent. Route: <strong>${r.approval.stages.join(" → ")}</strong>,
+            now with <strong>${esc(r.approval.current_stage)}</strong>.
+            ${r.soft_clashes.length ? ` Another request wants this slot too — the Dean will resolve it.` : ""}</div>`
+        : `<div class="note">Created as a draft, unpriced.
+            <a href="club-budget.html">Add the budget entries</a> — or declare it needs none —
+            then submit it for approval.</div>`;
+    } catch (err) { showError(msg, err); }
+  });
+});
+</script></body></html>

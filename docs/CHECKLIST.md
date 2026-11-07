@@ -1,0 +1,128 @@
+# Orchestrator checklist — features required, status, verification
+
+Maintained by ORCH (the orchestrating session). One row per feature or task. Status
+vocabulary: `todo` · `in-progress` · `done-unverified` (worker says done) · `verified`
+(ORCH ran the tests and read the diff) · `qa-pass` / `qa-rework` (QA review) · `accepted-risk`.
+Existing-state column is the audit result on 2026-10-21 (BUILT / PARTIAL / MISSING / DEVIATES).
+
+Backend = `clubs-and-culturals-platform/app/backend`. Web-app = `web-app/`. React = `clubs-and-culturals-platform/app/frontend`.
+
+## A. Foundation (Wave 0)
+
+| Id | Task | Owner | Status | Verification |
+|---|---|---|---|---|
+| A-01 | `git init` at project root, `.gitignore`, baseline commit | ORCH | verified | `git log` shows baseline | — commit b1433bf, web-app kept in its own repo
+| A-02 | Backend runs on Python 3.12 venv; 143 tests green | ORCH | verified | run 2026-10-21 14:15 |
+| A-03 | Web-app smoke + 109 e2e green | ORCH | verified | run 2026-10-21 14:12 |
+| A-04 | Backend CI workflow (tests, `makemigrations --check`, `spectacular`) | W7 | done-unverified | green on clean checkout | — `.github/workflows/backend-ci.yml`; Postgres test step advisory until B-15
+| A-05 | Snapshot of tree before parallel edits | ORCH | verified | scratchpad `baseline-20261021-1416.tgz` |
+
+## B. Wave 1 — backend gaps (parallel, independent apps)
+
+| Id | PRD § | Feature | Existing | Owner | Status | Acceptance test (must exist and pass) |
+|---|---|---|---|---|---|---|
+| B-00a | – | **Hotfix:** `EventViewSet.destroy` — only PROPOSERS of the owning club may delete, and only in `draft`/`returned`/`rejected`; everything else is `409`; cancel is the route for published events | MISSING (X-1) | W2 | qa-pass | student 404/403 on DELETE of a published event; president cannot delete a published event |
+| B-00b | §4 | **Hotfix:** venue booking integrity — `select_for_update` on the venue inside `EventViewSet.create`/`submit` clash check; Postgres `ExclusionConstraint` (btree_gist) migration on (venue, tstzrange with buffer) guarded by `vendor == postgresql` | MISSING (X-2) | W2 | qa-pass (Postgres tests unexecuted locally) | two concurrent creates for one slot: exactly one succeeds (threaded test on Postgres, skip on SQLite) |
+| B-00c | – | Grant `event_organiser:<event_id>` in local mode via `POST /events/{id}/organisers` (President/VP) so the Organiser role is exercisable standalone (X-4) | MISSING | W2 | qa-pass | organiser scans own event; refused at another |
+| B-01 | 5.6 | Waitlist: `Registration.waitlisted`, join waitlist when full, FIFO promotion on cancellation, pass minted on promotion, notification | MISSING | W1 | qa-pass | full event → waitlisted; cancel → promoted + pass; wrong-role cannot promote |
+| B-02 | 5.8 | Feedback: model (rating 1–5 CHECK, one per student per event UNIQUE), submit only if attended, aggregates for organiser/Dean, individual rows hidden from organisers | MISSING | W1 | verified | non-attendee 403; second submission 409; organiser aggregate has no student ids |
+| B-03 | 5.2 | Club join: `Club.join_mode` (open/approval), `JoinRequest`, accept/decline by President/VP, roster shows pending | MISSING | W2 | qa-pass | open club → member immediately; approval club → pending; Treasurer cannot accept |
+| B-04 | 5.3, 5.18 | `OfficeBearerTerm` start/end; handover endpoint; token/role lookup ignores expired terms; history endpoint | MISSING | W2 | qa-pass | expired President refused on role assignment; history lists who held what when |
+| B-05 | 5.1 | Dormancy: `Club.last_activity_at`, job flags dormant after `DORMANCY_DAYS` | PARTIAL (status only) | W2 | qa-pass | job flips an inactive club; active club untouched |
+| B-06 | 5.13, §11.3 | Delegation: `Delegation(from_role, to_user, starts_at, ends_at, reason)`; `assert_can_decide` honours it; step records delegate + principal | MISSING | W3 | qa-pass | delegate approves inside window; refused outside; self-approval still refused |
+| B-07 | 5.11, 6.3 | SLA: `age_hours` on queue items, `APPROVAL_SLA_HOURS`, `escalated` flag on Dean overview | MISSING | W3 | qa-pass | item older than SLA shows escalated |
+| B-08 | 5.7.3, 5.19.5 | Annual envelope: `Club.annual_envelope`, utilisation = Σ sanctioned this year, on budget list and club profile | MISSING | W3 | qa-pass | utilisation sums only sanctioned/settled; member cannot see it |
+| B-09 | – | OpenAPI hygiene: `@extend_schema(responses=…)` on MeView, LoginView, RefreshView, ModeView, MyPassesView, reissue_pass, feedback and jobs views; `@extend_schema_field` on every SerializerMethodField (EventSerializer registered/attended/budget/my_registration/social_links, ClubSerializer member_count/my_role); `ENUM_NAME_OVERRIDES`; `spectacular --fail-on-warn` clean so the frontend can delete `src/shared/api/types.ts` overrides | 92 errors | W4 | verified | `manage.py spectacular --fail-on-warn` exits 0 |
+| B-10 | 6.1, 10.2 | `jobs/` app: token-guarded `POST /api/v1/jobs/{dormancy,purge-external,rollup-scans,escalate-sla}`; CSV export of the semester report | MISSING | W4 | qa-pass | no token → 401; CSV has the same totals as JSON |
+| B-11 | §7.6 | Two capture metrics under distinct names on the overview | DEVIATES | W4 | qa-pass | both present, documented |
+| B-12 | 5.5, 5.16.3 | Registration confirmation: in-app + email with the pass on register and on waitlist promotion; registered students notified on publication and venue move | MISSING | W1 | verified | notification rows exist for the student after register; email backend receives one message |
+| B-13 | 5.19.4 | Serve receipt files: `GET /budget/budgets/{id}/lines/{line_id}/receipts/{receipt_id}/file` via `FileStore.url_for`, BUDGET_VIEWERS + approvers only | MISSING | W3 | qa-pass | member 404; treasurer gets the bytes; superseded receipt still retrievable |
+| B-14 | 8 auditability | Audit entry on every roster read (`EventRosterView`, `GET /clubs/{id}/members`) as the docstring promises | MISSING | W1 | verified | reading a roster writes an AuditEntry naming the reader |
+| B-15 | §8 Postgres | `select_for_update` + `select_related` over a nullable FK fails on Postgres (10 tests): lock the row only (`of=("self",)`) and fetch related rows after | BUG | W1 | verified-sqlite-only | suite green on Postgres in CI; remove `continue-on-error` |
+| B-16 | 5.5 | `GET /events?category=` server-side filter (W5 narrows client-side today) | MISSING | W2 | verified | filter returns only that category across pages |
+| B-17 | 5.3 | Daily `apply_due_terms` job (wrap the management command in the jobs app) so Membership rows follow future-dated handovers | MISSING | W4 | verified | job flips rows on the effective date |
+| B-18 | 5.18 | Dean/admin recovery handover when a club has no President or VP | MISSING | W2 | todo | Dean can run a handover for a leaderless club |
+
+## C. Wave 2 — React frontend and hosting
+
+| Id | Feature | Owner | Status | Acceptance |
+|---|---|---|---|---|
+| F-01 | Vite+TS+Tailwind+TanStack scaffold, OpenAPI-generated client, auth + MFA + refresh, role-scoped nav | W5 | verified | every persona sees only its pages (port of `tests/smoke.mjs`) |
+| F-02 | Student screens: events, event page, register/cancel/waitlist, passes, profile QR | W5 | verified | Playwright: register → pass visible |
+| F-03 | Organiser scan station: camera read, seven verdicts, offline queue, PRN lookup, roster | W5 | verified | Playwright: scan pass → checked in; same again → duplicate | — merged 2026-11-03; vitest: scan→checked-in, repeat→duplicate, offline queue→sync, PRN lookup; live: station + roster load for Lens president. QA review pending
+| F-04 | Club screens: new event, budget, events, roster/roles, join requests, handover | W6 | verified | Playwright: treasurer prices and submits | — merged 2026-11-03; vitest: treasurer adds line + submits, roster/join/role change, new-event POST; live: every club page loads for member/secretary/treasurer/president. QA review pending
+| F-05 | Staff screens: three queues, line sanction, venues + reassign, overview, report | W6 | verified | Playwright: Society → Dean → VC on a >50k event | — merged 2026-11-03; live Playwright: Society → Dean (line sanction, approve, publish) on Drishti Street Play; VC leg (>50k) covered only by vitest. QA review pending
+| F-06 | Clubs directory `/clubs` (F-06.1): every active club as a card grouped by category, search + category chips, Member/role/Requested badges, "You're in n of 5" strip (cap raised from 3 to 5 on 2026-11-06, C-01), Join / Request to join / Leave; backend `MAX_CLUB_MEMBERSHIPS` cap (`CLUBS_MEMBERSHIP_LIMIT`), `POST /clubs/{id}/leave`, `ClubOut.my_join_request_state`, `capabilities.my_clubs_count/max_club_memberships` | W-A | verified | student joins two clubs, is refused at the cap with the API's message, leaves one; office bearer's Leave is refused | — club page `/clubs/:slug` (F-06.2) not built
+| F-07 | Feed `/feed` (F-07.1 card, F-07.2 page): poster on the club's accent, status line Upcoming/Live/Ended, capacity bar, my-state pills, server-side `search=`, back-to-top; `GET /events?mine=true`, `search=`, `ordering=feed` | W-A | verified | with `personalised_feed` on, a Music Club member sees Music Club's events above the rest; off, plain date order | — pull-to-refresh skipped; announcements out of scope (D-4)
+| F-08 | Profile tabs QR · My clubs · Attendance · Settings (F-08.2): memberships with role + Leave, pending requests, attended passes, "Personalised feed" switch on `GET/PATCH /module/auth/preferences` (optimistic, reverts on error), Sign out | W-A | verified | toggle persists across reload; a Leave refused for an office bearer shows the API message | — ID card (F-08.1) not built; attendance is the own `my-passes` list filtered to attended
+| H-01 | Backend on Vercel + Neon (seeded), React on Vercel, web-app on Netlify, `docs/HOSTING.md` | W7 | done-unverified | URLs reachable; `/api/v1/module/auth/mode` answers | — config + docs/HOSTING.md written; deploy needs the user's Neon/Vercel/Netlify accounts
+| H-02 | Hosted run-through (DEMO_CREDENTIALS ten-minute script) | QA | todo | all steps pass |
+| H-03 | `vercel.json` `crons` block for `/api/v1/jobs/{rollup-scans,purge-external,flag-dormant,escalate-sla}` with `JOBS_TOKEN` = Vercel `CRON_SECRET` (GET form exists) | W7 | verified | cron hits return 200 with a job result |
+| M-01 | Motion system from `docs/MOTION.html` §7: tokens, state layers, component motion, SPA page transitions (View Transitions), reduce-motion | W-B | verified | Vitest: toast exit, first-load stagger, nav classifier; screenshots | — merged 2026-11-05 (9ea3f2a); 63→76 unit tests green; large-title, day strip, QR dissolve, container transform not applicable (no such components) |
+| T-01 | Robot Framework e2e in `app/e2e/`: API suites 01–07 and Browser UI suites 10–14 covering the ten-minute run-through for every role | W-C | verified | `robot` green against seeded local servers | — 2026-11-05 on the merged app: API 51/51, UI 19/19 (`./run.sh api`, reseed not needed before `ui`); findings in docs/qa/e2e-findings-2026-11-05.md |
+
+## D. Later waves (not yet assigned)
+
+D-01, D-02, D-05 and D-11 are planned in detail in `POST_EVENT_REPORTING_PLAN.md` (2026-11-05).
+
+### Wave 4 — post-event reporting (started 2026-11-05, branch `wave4/reporting`)
+
+| Id | Plan step | Feature | Owner | Status | Acceptance |
+|---|---|---|---|---|---|
+| R-01 | 1 (§3.1) | `EventPhoto`, `EventSocialPost`, `EventReport` tables; `Club.linkedin_handle`; `photo_count`/`social_links` become computed; `seed_demo` seeds photos + posts | W-backend | in-progress | migrate + seed_demo clean; existing suite green |
+| R-02 | 2 (§3.2) | Photo upload/list/edit/remove/file, removal request, social posts add/remove, report auto-draft, close with outcomes; social threshold | W-backend | todo | upload type refusal; close without photo 409; social threshold 409; removal request notifies officers; prefill numbers |
+| R-03 | 2 (§3.4) | `complete-ended` job + cron; feedback request to attendees at close | W-backend | todo | job flips only ended events; one notification per attendee |
+| R-04 | 3 (§3.3) | Overview: missing report, social activity, clubs without recent post; semester report highlights, gallery, outreach; CSV outreach row | W-backend | todo | tests for each list; VC sees no PRNs |
+| R-05 | 4 (§3.5) | React: club report panel, student consent + gallery + removal, staff overview/report additions, print to PDF | W-frontend | todo | vitest for panel, gallery, overview |
+| R-06 | 5 | Robot API + UI coverage for upload → post → close | QA | todo | `./run.sh api` / `ui` green |
+| R-07 | 6 | S3-compatible `FileStore` for Vercel | W-hosting | todo (needs bucket credentials) | receipts and photos survive redeploy |
+
+### Wave 4b — calendar and booking rules (started 2026-11-06, branch `wave4/calendar`)
+
+| Id | Feature | Owner | Status | Acceptance |
+|---|---|---|---|---|
+| C-01 | Membership cap 3 → 5 (`MAX_CLUB_MEMBERSHIPS`), UI fallback, mocks, docs | ORCH | in-progress | sixth join refused `CLUBS_MEMBERSHIP_LIMIT`; strip reads "n of 5" |
+| C-02 | Events booked in whole India-time hours (create + edit validation); clash = sharing an hour in one venue (`VENUE_BUFFER_MINUTES` default 0); seed on India hours; hour selects on New event | ORCH | todo | 18:30 → 422 `starts_at`; 18:00 → 201; back-to-back hours do not clash; overlapping hours do |
+| C-03 | `/staff/calendar` for Cultural Society, Dean, admin: week strip, venue × 1-hour grid, clash cells and list; `from`/`to` on `/venue-calendar` | ORCH + W-frontend | todo | Society 200 / student 403; vitest grid fills hours and marks clash; nav shows Calendar for Society |
+
+| Id | PRD § | Feature | Existing |
+|---|---|---|---|
+| D-01 | 5.10 | EventPhoto rows, object-store upload, highlights, captions, consent notice + removal | PARTIAL (count only) | → wave 4 R-01..R-05
+| D-02 | 5.14 | EventSocialPost rows (platform, url, date, who, screenshot), per-club activity, mandatory-link config | PARTIAL (JSON links) | → wave 4 R-01..R-05
+| D-03 | 5.11 | Event templates with task checklist, clone past event, reminders | PARTIAL (budget template only) |
+| D-04 | 5.12.1 | Custom registration forms (JSONB), team registration, volunteer roster/shifts, speakers, sponsors | MISSING |
+| D-05 | 5.12.3 | Auto-drafted event report, certificates, learnings, vendor record | MISSING | → wave 4 R-01..R-04 (certificates, vendor rating not planned)
+| D-06 | 5.15 | Fest sub-events, roll-ups, fest page, FestRole, fest budget envelope | PARTIAL (Fest model) |
+| D-07 | 5.15.5 | External participant public registration, QR by email, purge job | PARTIAL (model) |
+| D-08 | 5.12.2 | Session-level check-in | MISSING |
+| D-09 | 5.9 | Exam blackout periods, per-venue timeline, pressure view, utilisation, schedule export | MISSING |
+| D-10 | 5.5 | Personalised feed, per-user notification preferences | MISSING |
+| D-11 | 6.1, 6.4 | PDF + PPTX report with photos, trend vs previous semester, Management dashboard | MISSING | → wave 4 R-04/R-05 (browser print; PPTX not planned)
+| D-12 | 5.1 | New-club registration workflow with Dean approval | MISSING |
+| D-13 | 4 | Student Life Office role (venues, calendar, templates, club records) | MISSING |
+| D-14 | 8 | WCAG 2.1 AA audit; load test (registration burst, scan throughput) | not tested |
+| D-15 | 5.13 | Approval chains per request type (venue, new club), parallel steps | PARTIAL (env config, events only) |
+| D-16 | 5.7.2 | Prior-year cost reference on templates; custom-head surfacing to SLO | MISSING |
+| D-17 | 5.17 | Attendee list export | MISSING |
+
+## E. Decisions and open questions blocking work
+
+| # | Question | Default in code | Blocks |
+|---|---|---|---|
+| E-01 | Third gate for fests between Dean and VC? | no | D-06 |
+| E-02 | Venue precedence rule | none, Dean decides | D-09 |
+| E-03 | Receipt-mandatory threshold | ₹5,000 | – |
+| E-04 | VC threshold | ₹50,000 | – |
+| E-05 | External participant retention | `purge_after` nullable | D-07 |
+| E-06 | Cancelled event with committed spend — who signs off? | unhandled | D-05 |
+| E-07 | Cultural Society gate stays? deputy? | on | B-06 |
+| E-08 | Capture-rate definition | both shipped (B-11) | – |
+| E-09 | External participant purge: **decided** — keep the row, blank PII, set `purged_at` (Registration.external is PROTECT) | blank, never delete | D-07 |
+| E-10 | ScanRecord roll-up after one year: retention rule not recorded, so the job counts and deletes nothing | count only | B-10 |
+| E-11 | Budget envelope year: calendar year (current) or academic year via `Semester`? | calendar, in DISPLAY_TIME_ZONE | B-08 |
+
+## QA log
+
+| Wave | Report | Result |
+|---|---|---|
+| 1 | `docs/qa/wave-1-w1.md`, `wave-1-w2.md`, `wave-1-w3.md`, `wave-1-w4.md` | all four reworked and re-verified; main green at 402 tests (6f3d300) |

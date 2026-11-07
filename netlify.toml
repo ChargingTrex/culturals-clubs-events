@@ -1,24 +1,21 @@
-# Netlify: a plain static publish. No build step — the app is ES modules served
-# as-is, which is also why it works from a file server, GitHub Pages or any CDN.
+# Netlify serves the React frontend; the Django API runs on Vercel
+# (clubs-and-culturals-platform/app/backend/vercel.json), since Netlify
+# Functions cannot run Python.
+#
+# Set in Netlify > Site configuration > Environment variables:
+#   VITE_API_BASE = https://<backend>.vercel.app/api/v1
+# and on the Vercel backend add this site's URL to CORS_ALLOWED_ORIGINS
+# and CSRF_TRUSTED_ORIGINS.
 [build]
-  publish = "."
-  command = ""
+  base = "clubs-and-culturals-platform/app/frontend"
+  command = "npm run build"
+  publish = "dist"
 
-# ES modules need the right content type or the browser refuses to execute them.
-[[headers]]
-  for = "/src/*.js"
-  [headers.values]
-    Content-Type = "text/javascript; charset=utf-8"
+[build.environment]
+  NODE_VERSION = "22"
 
-[[headers]]
-  for = "/*.html"
-  [headers.values]
-    # The walkthrough keeps everything in localStorage; nothing is cached stale.
-    Cache-Control = "public, max-age=0, must-revalidate"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=3600"
+# Client-side routes fall back to the app shell, as in frontend/vercel.json.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

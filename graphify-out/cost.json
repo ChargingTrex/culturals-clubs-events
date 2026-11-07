@@ -1,0 +1,19 @@
+{
+  "runs": [
+    {
+      "date": "2026-10-21T08:37:12.709265+00:00",
+      "input_tokens": 453534,
+      "output_tokens": 0,
+      "files": 206
+    },
+    {
+      "date": "2026-10-21T08:55:40.206430+00:00",
+      "input_tokens": 363824,
+      "output_tokens": 0,
+      "files": 198,
+      "note": "three semantic subagents (chunks 2,4,5) + AST; chunk 1/3 reclaimed from prior run"
+    }
+  ],
+  "total_input_tokens": 817358,
+  "total_output_tokens": 0
+}

@@ -1,0 +1,195 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budget — Culturals</title><link rel="stylesheet" href="shared.css"></head>
+<body><div class="layout">
+<nav class="nav" id="nav" aria-label="Your pages"></nav>
+<main id="main" tabindex="-1"></main></div>
+<script type="module">
+import { page, api, me, esc, inr, fmtDate, showError } from "./demo.js";
+
+await page("club-budget.html", async main => {
+  const caps = (await me()).capabilities;
+  if (!caps.clubs_with_budget_access.length)
+    throw Object.assign(new Error("Budget visibility begins at Treasurer. A member sees what the club is doing, not what it costs."),
+      { status: 403, title: "No budget access", code: "BUDGET_NOT_VISIBLE" });
+
+  const canPrepare = b => (b.event || b.fest) && b.is_editable
+    && caps.clubs_with_budget_access.length > 0;
+  const canSpend = caps.clubs_can_enter_spend.length > 0;
+
+  const paint = async () => {
+    const d = await api("/budget/budgets");
+    main.innerHTML = `
+      <div class="head"><div><h1>Budget</h1>
+        <p class="muted">President, Vice-President and Treasurer build and see this.
+          No club role approves its own budget.</p></div></div>
+      ${d.results.map(b => card(b)).join("") || `<div class="empty">No budgets visible.</div>`}`;
+  };
+
+  /* The order is the explanation: sanction, then the event, then settle. Showing
+     where a budget sits answers "why can't I settle yet" before it is asked. */
+  const stageTrack = b => {
+    const steps = [
+      { key: "submitted", label: "Submitted" },
+      { key: "sanctioned", label: "Sanctioned" },
+      { key: "event", label: "Event runs" },
+      { key: "settled", label: "Settled" },
+    ];
+    const reached = b.stage === "settled" ? 4
+      : b.can_settle ? 3
+      : b.stage === "sanctioned" ? 2
+      : ["society_review", "dean_review", "vc_review"].includes(b.stage) ? 1
+      : 0;
+    return `<div class="stages">${steps.map((st, i) =>
+      `<span class="stage ${i < reached ? "done" : i === reached ? "now" : ""}">${st.label}</span>`
+    ).join("")}</div>`;
+  };
+
+  const card = b => {
+    const nil = b.nil_declaration;
+    const editable = canPrepare(b);
+    return `
+      <div class="panel stack" style="margin-bottom:20px" data-budget="${b.id}">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="font-size:1.05rem">${esc(b.event ? "Event budget" : "Fest budget")}</h2>
+          <span class="pill ${b.stage === "settled" ? "ok" : ""}">${esc(b.stage_label)}</span></div>
+
+        ${nil ? `
+          <div class="note" style="border-left:3px solid var(--gold,#c8a04a)">
+            <strong>${esc(nil.head)}</strong>
+            <p style="margin:6px 0 0">${esc(nil.reason)}</p>
+            <p class="small muted" style="margin:8px 0 0">Declared by ${esc(nil.declared_by)}
+              on ${fmtDate(nil.declared_at)} — an approver sees this statement in place of
+              a set of figures.</p>
+            ${editable ? `<div class="row" style="margin-top:10px">
+              <button class="btn quiet" data-unnil="${b.id}">Withdraw and price it instead</button>
+            </div>` : ""}
+          </div>` : ""}
+
+        ${b.lines.length ? `
+          <div class="table-wrap"><table><thead><tr><th>Head</th>
+            <th class="num">Requested</th><th class="num">Sanctioned</th>
+            <th class="num">Spent</th><th>Receipts</th>${editable ? "<th></th>" : ""}</tr></thead>
+            <tbody>
+            ${b.lines.map(l => `<tr>
+              <td>${editable
+                ? `<input value="${esc(l.head)}" data-head="${b.id}:${l.id}" style="min-width:150px">`
+                : esc(l.head)}
+                ${l.is_overspent ? `<br><span class="small" style="color:var(--bad)">Over sanctioned</span>` : ""}</td>
+              <td class="num">${editable
+                ? `<input type="number" min="0" value="${l.amount_requested}"
+                     data-req="${b.id}:${l.id}" style="width:105px;text-align:right">`
+                : inr(l.amount_requested)}</td>
+              <td class="num">${l.amount_sanctioned == null
+                ? `<span class="muted">—</span>` : inr(l.amount_sanctioned)}</td>
+              <td class="num">${canSpend && b.can_settle
+                ? `<input type="number" min="0" value="${l.amount_spent ?? ""}"
+                     data-spend="${b.id}:${l.id}" style="width:105px;text-align:right">`
+                : (l.amount_spent == null ? `<span class="muted">—</span>` : inr(l.amount_spent))}</td>
+              <td>${l.receipts.map(r => `<span class="pill">📎 ${esc(r.file_name)}</span>`).join(" ")
+                || `<span class="muted small">—</span>`}</td>
+              ${editable ? `<td><button class="btn quiet small"
+                data-rm="${b.id}:${l.id}" title="Remove line">✕</button></td>` : ""}
+            </tr>`).join("")}
+            <tr><th>Total</th><th class="num">${inr(b.total_requested)}</th>
+              <th class="num">${inr(b.total_sanctioned)}</th>
+              <th class="num">${inr(b.total_spent)}</th><th></th>${editable ? "<th></th>" : ""}</tr>
+          </tbody></table></div>`
+          : (nil ? "" : `<div class="empty" style="padding:22px">
+              Nothing priced yet. Add the entries below, or declare that this event
+              needs no budget.</div>`)}
+
+        ${editable ? `
+          <div class="panel" style="background:var(--wash,#f7f5f1)">
+            <h3 style="font-size:.95rem">Add an entry</h3>
+            <div class="row" style="margin-top:10px;align-items:flex-end">
+              <div style="flex:2;min-width:0"><label for="h-${b.id}">Head</label>
+                <input id="h-${b.id}" placeholder="e.g. Sound &amp; lighting"></div>
+              <div style="flex:1;min-width:0"><label for="a-${b.id}">Amount</label>
+                <input id="a-${b.id}" type="number" min="0" placeholder="0"></div>
+              <button class="btn primary" data-add="${b.id}">Add</button>
+            </div>
+            ${!nil ? `<div class="row" style="margin-top:14px;align-items:flex-end">
+              <div style="flex:1;min-width:0"><label for="n-${b.id}">Or: this event needs no budget —
+                  why?</label>
+                <input id="n-${b.id}" placeholder="e.g. Venue is free and the club owns the equipment"></div>
+              <button class="btn" data-nil="${b.id}">Declare nil</button>
+            </div>` : ""}
+            <div id="msg-${b.id}"></div>
+          </div>` : ""}
+
+        ${!editable && !nil && !b.lines.length ? `<p class="note">This budget is
+          ${esc(b.stage_label.toLowerCase())}, so entries are frozen.</p>` : ""}
+
+        ${stageTrack(b)}
+
+        ${b.can_settle && b.settlement_problems.length ? `<div class="note bad">Cannot settle yet:
+          <ul style="margin:6px 0 0 18px">${b.settlement_problems.map(p =>
+            `<li>${esc(p.message)}</li>`).join("")}</ul></div>` : ""}
+
+        ${b.settlement_hint && b.settlement_waiting_on !== "settled"
+          ? `<p class="note">${esc(b.settlement_hint)}</p>` : ""}
+
+        ${canSpend && b.can_settle ? `<div class="row">
+          <button class="btn primary" data-settle="${b.id}">Settle budget</button>
+          <span class="small muted">${nil ? "Nothing was spent, but it still has to be closed off."
+            : `Lines over ${inr(b.thresholds.receipt_threshold)} need a receipt.`}</span>
+        </div>` : ""}
+        ${b.is_editable ? `<p class="small muted">${b.is_ready_to_submit
+          ? "Ready to submit for approval."
+          : "Not ready to submit — add entries, or declare it needs no budget."}</p>` : ""}
+      </div>`;
+  };
+
+  const run = async (id, fn) => {
+    const msg = document.getElementById(`msg-${id}`);
+    if (msg) msg.innerHTML = "";
+    try { await fn(); await paint(); }
+    catch (err) { showError(msg || main, err); }
+  };
+
+  main.addEventListener("click", async ev => {
+    const add = ev.target.closest("[data-add]");
+    if (add) { const b = add.dataset.add; return run(b, () => api(`/budget/budgets/${b}/lines`, {
+        method: "POST", body: JSON.stringify({
+          head: document.getElementById(`h-${b}`).value,
+          amount_requested: document.getElementById(`a-${b}`).value || "0" }) })); }
+
+    const nil = ev.target.closest("[data-nil]");
+    if (nil) { const b = nil.dataset.nil; return run(b, () =>
+        api(`/budget/budgets/${b}/declare-nil`, { method: "POST", body: JSON.stringify({
+          reason: document.getElementById(`n-${b}`).value }) })); }
+
+    const unnil = ev.target.closest("[data-unnil]");
+    if (unnil) { const b = unnil.dataset.unnil; return run(b, () =>
+        api(`/budget/budgets/${b}/withdraw-nil`, { method: "POST" })); }
+
+    const rm = ev.target.closest("[data-rm]");
+    if (rm) { const [b, l] = rm.dataset.rm.split(":"); return run(b, () =>
+        api(`/budget/budgets/${b}/lines/${l}/remove`, { method: "DELETE" })); }
+
+    const settle = ev.target.closest("[data-settle]");
+    if (settle) { const b = settle.dataset.settle; return run(b, () =>
+        api(`/budget/budgets/${b}/settle`, { method: "POST" })); }
+  });
+
+  main.addEventListener("change", async ev => {
+    const head = ev.target.closest("[data-head]");
+    if (head) { const [b, l] = head.dataset.head.split(":"); return run(b, () =>
+        api(`/budget/budgets/${b}/lines/${l}/edit`, { method: "PUT",
+          body: JSON.stringify({ head: head.value }) })); }
+
+    const req = ev.target.closest("[data-req]");
+    if (req) { const [b, l] = req.dataset.req.split(":"); return run(b, () =>
+        api(`/budget/budgets/${b}/lines/${l}/edit`, { method: "PUT",
+          body: JSON.stringify({ amount_requested: req.value || "0" }) })); }
+
+    const spend = ev.target.closest("[data-spend]");
+    if (spend) { const [b, l] = spend.dataset.spend.split(":"); return run(b, () =>
+        api(`/budget/budgets/${b}/lines/${l}`, { method: "PATCH",
+          body: JSON.stringify({ amount_spent: spend.value || null }) })); }
+  });
+
+  await paint();
+});
+</script></body></html>

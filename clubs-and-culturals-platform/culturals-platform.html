@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Culturals — Club & Events Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --ink:#1E1B3A; --ink-2:#3A3660; --muted:#6B6A86; --line:#DDDCE8;
+  --paper:#F6F7FB; --surface:#FFFFFF; --sunk:#EEEEF5;
+  --marigold:#E8A317; --marigold-ink:#3A2600; --marigold-soft:#FBEFD2;
+  --ok:#2F7D5B; --ok-soft:#DDF0E6; --warn:#B26B00; --warn-soft:#FCEBCB;
+  --bad:#C23B3B; --bad-soft:#F8DEDE;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Instrument Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --r-sm:6px; --r-md:12px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#ECEBF7; --ink-2:#C9C7E3; --muted:#9D9BBB; --line:#35325A;
+    --paper:#141228; --surface:#1D1A36; --sunk:#262345;
+    --marigold:#F2B535; --marigold-ink:#241700; --marigold-soft:#3A2E12;
+    --ok:#5FC495; --ok-soft:#173A2B; --warn:#F2B535; --warn-soft:#3A2E12;
+    --bad:#F07A7A; --bad-soft:#3E1C22;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#ECEBF7; --ink-2:#C9C7E3; --muted:#9D9BBB; --line:#35325A;
+  --paper:#141228; --surface:#1D1A36; --sunk:#262345;
+  --marigold:#F2B535; --marigold-ink:#241700; --marigold-soft:#3A2E12;
+  --ok:#5FC495; --ok-soft:#173A2B; --warn:#F2B535; --warn-soft:#3A2E12;
+  --bad:#F07A7A; --bad-soft:#3E1C22;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased}
+img,svg,canvas{max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--marigold);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0}
+h1{font-size:clamp(1.9rem,4vw,2.6rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.35rem;font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+
+/* ---------- shell ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
+.top-inner{max-width:1180px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:1.25rem;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.brand-mark{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 50% 50%,var(--marigold) 0 38%,transparent 39%),repeating-conic-gradient(var(--marigold) 0 12deg,transparent 12deg 24deg)}
+.roles{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:999px;overflow-x:auto;margin-left:auto;max-width:100%}
+.roles button{border:0;background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;font-weight:500;font-size:.9rem;color:var(--ink-2)}
+.roles button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.bell{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:999px;width:38px;height:38px;cursor:pointer;display:grid;place-items:center}
+.bell b{position:absolute;top:-4px;right:-4px;background:var(--marigold);color:var(--marigold-ink);font-size:.7rem;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;padding:0 4px}
+
+.layout{max-width:1180px;margin:0 auto;padding:24px 20px 96px;display:grid;grid-template-columns:210px 1fr;gap:32px}
+.nav{display:flex;flex-direction:column;gap:2px;position:sticky;top:90px;align-self:start}
+.nav button{text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:var(--r-sm);cursor:pointer;color:var(--ink-2);font-weight:500}
+.nav button[aria-current="page"]{background:var(--marigold-soft);color:var(--ink);box-shadow:inset 3px 0 0 var(--marigold)}
+.who{font-size:.85rem;color:var(--muted);padding:0 12px 12px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.who strong{display:block;color:var(--ink);font-size:.95rem}
+main{min-width:0}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.head p{margin-top:6px;max-width:62ch}
+
+@media (max-width:820px){
+  .layout{grid-template-columns:1fr;padding-top:16px}
+  .nav{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:30;flex-direction:row;overflow-x:auto;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));gap:4px}
+  .nav .who{display:none}
+  .nav button{white-space:nowrap;font-size:.85rem;padding:9px 12px}
+  .nav button[aria-current="page"]{box-shadow:inset 0 -3px 0 var(--marigold)}
+  .roles{margin-left:0;order:3;width:100%}
+}
+
+/* ---------- common ---------- */
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 16px;border-radius:var(--r-sm);cursor:pointer;font-weight:600;font-size:.92rem;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--marigold);border-color:var(--marigold);color:var(--marigold-ink)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.danger{color:var(--bad);border-color:currentColor;background:transparent}
+.btn.quiet{border-color:transparent;background:transparent;padding-left:8px;padding-right:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-block;font-size:.78rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sunk);color:var(--ink-2)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.gold{background:var(--marigold-soft);color:var(--ink)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:20px}
+.stack>*+*{margin-top:14px}
+.list{border-top:1px solid var(--line)}
+.list>li{list-style:none;border-bottom:1px solid var(--line);padding:16px 2px}
+.list{margin:0;padding:0}
+label{font-size:.85rem;font-weight:600;display:block;margin-bottom:4px;color:var(--ink-2)}
+input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px}
+textarea{min-height:72px;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.92rem}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-weight:600;color:var(--muted);font-size:.8rem;background:var(--sunk)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.note{border-left:3px solid var(--marigold);background:var(--marigold-soft);padding:12px 14px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:.92rem}
+.note.bad{border-color:var(--bad);background:var(--bad-soft)}
+.empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r-md)}
+
+/* ---------- events ---------- */
+.event{display:grid;grid-template-columns:64px 1fr auto;gap:16px;align-items:center}
+.date{font-family:var(--display);text-align:center;line-height:1;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 0;background:var(--surface)}
+.date b{display:block;font-size:1.6rem;font-weight:800}
+.date span{font-size:.75rem;color:var(--muted)}
+@media (max-width:560px){.event{grid-template-columns:52px 1fr}.event .row.end{grid-column:1/-1}}
+
+/* ticket stub — the pass */
+.ticket{display:grid;grid-template-columns:1fr 170px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;position:relative}
+.ticket::before,.ticket::after{content:"";position:absolute;right:158px;width:24px;height:24px;border-radius:50%;background:var(--paper);border:1px solid var(--line)}
+.ticket::before{top:-13px}.ticket::after{bottom:-13px}
+.ticket .main{padding:20px 22px;border-right:2px dashed var(--line)}
+.ticket .stub{padding:14px;display:grid;place-items:center;background:var(--sunk)}
+.ticket .qr{background:#fff;padding:8px;border-radius:6px;line-height:0}
+.ticket h3{font-size:1.3rem;margin:6px 0 10px}
+@media (max-width:560px){.ticket{grid-template-columns:1fr}.ticket .main{border-right:0;border-bottom:2px dashed var(--line)}.ticket::before,.ticket::after{display:none}}
+
+/* ---------- scan station: the bold element ---------- */
+.gate{border-radius:var(--r-md);min-height:250px;display:flex;flex-direction:column;justify-content:center;padding:28px 30px;transition:background-color .25s ease;border:1px solid var(--line);background:var(--surface)}
+.gate .verdict{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,7vw,4.6rem);letter-spacing:-.03em;line-height:.95}
+.gate .person{margin-top:14px;font-size:1.15rem}
+.gate .person b{font-family:var(--display)}
+.gate.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.gate.warn{background:var(--marigold);color:var(--marigold-ink);border-color:var(--marigold)}
+.gate.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.gate.idle .verdict{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.gate{transition:none}}
+.counter{display:flex;gap:28px;flex-wrap:wrap}
+.counter div{font-family:var(--display)}
+.counter b{display:block;font-size:2rem;font-weight:800;line-height:1}
+.counter span{font-family:var(--body);font-size:.82rem;color:var(--muted)}
+.meter{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--marigold)}
+.queue button{text-align:left}
+#reader{border-radius:var(--r-md);overflow:hidden;background:#000}
+
+/* ---------- venue calendar ---------- */
+.cal{min-width:760px}
+.cal-row{display:grid;grid-template-columns:170px 1fr;border-bottom:1px solid var(--line);min-height:54px}
+.cal-row:last-child{border-bottom:0}
+.cal-venue{padding:10px 12px;font-size:.88rem;border-right:1px solid var(--line)}
+.cal-venue small{display:block;color:var(--muted)}
+.cal-track{position:relative;background-image:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px calc(100%/14))}
+.blk{position:absolute;top:7px;bottom:7px;border-radius:5px;padding:4px 7px;font-size:.76rem;line-height:1.2;overflow:hidden;background:var(--sunk);border:1px solid var(--line);color:var(--ink)}
+.blk.confirmed{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.blk.provisional{background:var(--marigold-soft);border:1px dashed var(--marigold)}
+.blk.clash{background:var(--bad-soft);border:2px solid var(--bad)}
+.cal-hours{display:grid;grid-template-columns:170px 1fr;font-size:.72rem;color:var(--muted);border-bottom:1px solid var(--line)}
+.cal-hours div:last-child{display:grid;grid-template-columns:repeat(14,1fr)}
+.cal-hours span{padding:4px 3px}
+
+/* ---------- report ---------- */
+.big{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
+.big>div{padding:18px 20px;border-right:1px solid var(--line)}
+.big>div:last-child{border-right:0}
+.big b{font-family:var(--display);font-size:2.3rem;font-weight:800;display:block;line-height:1.05;letter-spacing:-.02em}
+.big span{font-size:.85rem;color:var(--muted)}
+.big .lead{background:var(--ink);color:var(--paper);border-radius:var(--r-md) 0 0 var(--r-md)}
+.big .lead span{color:var(--paper);opacity:.8}
+@media (max-width:720px){.big{grid-template-columns:1fr 1fr}.big>div:nth-child(2){border-right:0}.big>div:nth-child(-n+2){border-bottom:1px solid var(--line)}.big .lead{border-radius:var(--r-md) 0 0 0}}
+.bar{display:grid;grid-template-columns:130px 1fr 70px;gap:12px;align-items:center;font-size:.9rem;padding:5px 0}
+.bar .meter{height:12px}
+.bar em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- stages ---------- */
+.stages{display:flex;gap:0;flex-wrap:wrap;margin:6px 0 4px}
+.stage{font-size:.8rem;padding:6px 14px 6px 12px;background:var(--sunk);color:var(--muted);clip-path:polygon(0 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,0 100%,8px 50%);margin-right:-4px}
+.stage:first-child{clip-path:polygon(0 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,0 100%)}
+.stage.done{background:var(--ok-soft);color:var(--ok);font-weight:600}
+.stage.now{background:var(--marigold);color:var(--marigold-ink);font-weight:700}
+
+/* ---------- dialog / toast ---------- */
+dialog{border:1px solid var(--line);border-radius:var(--r-md);padding:0;background:var(--surface);color:var(--ink);width:min(560px,92vw);max-height:86vh}
+dialog::backdrop{background:rgba(20,18,40,.5)}
+.dlg{padding:22px;overflow:auto;max-height:86vh}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;flex-direction:column;gap:8px;width:min(460px,92vw)}
+.toast{background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:var(--r-sm);font-size:.9rem;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.qr-big{background:#fff;padding:18px;border-radius:var(--r-md);display:inline-block;line-height:0}
+.bright{filter:brightness(1.08)}
+.tok{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;word-break:break-all;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Culturals</div>
+    <nav class="roles" aria-label="Switch view" id="roles"></nav>
+    <button class="bell" id="bell" aria-label="Notifications">🔔<b id="bellCount" hidden>0</b></button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="nav" id="nav" aria-label="Sections"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   Culturals — Club & Events prototype
+   Everything below runs in the browser. State is seeded demo data,
+   remembered per viewer in localStorage so the demo survives a reload.
+   Token signing uses a non-cryptographic hash: PROTOTYPE ONLY. The real
+   system signs with HMAC-SHA256 server-side (see qr-attendance-kit).
+   ===================================================================== */
+const STORE_KEY = "culturals-proto-v2";
+const TODAY = "2026-09-22";
+const SEMESTER = { name: "Monsoon 2026", start: "2026-07-15", end: "2026-12-15" };
+const VC_THRESHOLD = 50000;     // budgets above this go to the Vice-Chancellor
+const RECEIPT_THRESHOLD = 5000; // lines above this need a receipt to settle
+const BUFFER_MIN = 30;          // setup/clear buffer used in clash checks
+const SECRET = "proto-secret-not-for-production";
+
+/* ---------------- utilities ---------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inr = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+const uid = p => p + "_" + Math.random().toString(36).slice(2, 9);
+const mins = t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+const dayNum = d => new Date(d + "T00:00:00").getDate();
+const monShort = d => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { month: "short" });
+function rng(seed){ let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function cyrb53(str){ let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++){ const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36); }
+const b64e = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const b64d = s => decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/") + "===".slice((s.length + 3) % 4))));
+
+/* ---------------- tokens: mirrors core/tokens.py ---------------- */
+function issueToken(purpose, subject, eventId){
+  const body = { p: purpose, s: subject, iat: Date.now() };
+  if (eventId) body.e = eventId;
+  const payload = b64e(JSON.stringify(body));
+  return "v1." + payload + "." + cyrb53(SECRET + payload);
+}
+function verifyToken(token){
+  const parts = String(token || "").trim().split(".");
+  if (parts.length !== 3) return { error: "invalid" };
+  const [, payload, sig] = parts;
+  if (cyrb53(SECRET + payload) !== sig) return { error: "invalid" };
+  try { return { body: JSON.parse(b64d(payload)) }; } catch { return { error: "invalid" }; }
+}
+
+/* ---------------- seed data ---------------- */
+function seed(){
+  const first = ["Meera","Arjun","Kavya","Rohan","Divya","Karthik","Ananya","Vikram","Sneha","Aditya","Lakshmi","Rahul","Priya","Surya","Nithya","Harish","Deepa","Vishnu","Aishwarya","Gokul","Janani","Pranav","Shruti","Ashwin","Keerthana","Sanjay","Revathi","Naveen","Pooja","Bharath","Swathi","Mani","Harini","Dinesh","Varsha","Ramesh","Anjali","Sathish","Madhu","Tarun"];
+  const last = ["Krishnan","Iyer","R","Subramanian","Nair","S","Raghavan","Menon","K","Venkatesh","Pillai","M","Balaji","Chandran","A","Sundar"];
+  const depts = [["CSE","BTech-CSE"],["ECE","BTech-ECE"],["BBA","BBA"],["ARTS","BA-English"],["MECH","BTech-MECH"],["LAW","BA-LLB"]];
+  const r = rng(42); const students = [];
+  for (let i = 0; i < 64; i++){
+    const [dept, prog] = depts[Math.floor(r() * depts.length)];
+    const year = 1 + Math.floor(r() * 4);
+    const name = first[i % first.length] + " " + last[Math.floor(r() * last.length)];
+    students.push({ id: "st_" + (1001 + i), prn: (26 - year) + dept.slice(0,2) + (1001 + i), name, dept, programme: prog, year });
+  }
+  const clubs = [
+    { id: "cl_swara", name: "Swara", tag: "Music", category: "cultural", ig: "@swara.saiu" },
+    { id: "cl_natya", name: "Natya", tag: "Dance", category: "cultural", ig: "@natya.saiu" },
+    { id: "cl_kalam", name: "Kalam", tag: "Literary", category: "literary", ig: "@kalam.saiu" },
+    { id: "cl_lens",  name: "Lens",  tag: "Photography", category: "cultural", ig: "@lens.saiu" },
+    { id: "cl_drishti", name: "Drishti", tag: "Theatre", category: "cultural", ig: "@drishti.saiu" }
+  ];
+  const venues = [
+    { id: "vn_aud", name: "Main Auditorium", capacity: 600 },
+    { id: "vn_oat", name: "Open Air Theatre", capacity: 1000 },
+    { id: "vn_semA", name: "Seminar Hall A", capacity: 150 },
+    { id: "vn_semB", name: "Seminar Hall B", capacity: 120 },
+    { id: "vn_amph", name: "Amphitheatre", capacity: 300 },
+    { id: "vn_music", name: "Music Room", capacity: 40 }
+  ];
+  const lines = (arr) => arr.map(([head, req, sanc, spent]) => ({ id: uid("bl"), head, requested: req, sanctioned: sanc ?? null, spent: spent ?? null, receipts: [], note: "" }));
+  const ev = (o) => Object.assign({ registrations: [], photos: 0, social: [], capacity: 200, expected: 100, reassignments: [], steps: [] }, o);
+  const events = [
+    ev({ id: "ev_unplug", title: "Swara Unplugged", club: "cl_swara", date: "2026-09-05", start: "18:00", end: "20:30", venue: "vn_amph", status: "reported", capacity: 300, expected: 120, photos: 14, social: ["instagram"],
+      budget: lines([["Sound & lighting",12000,12000,11800],["Refreshments",6000,5000,5400],["Publicity",2000,2000,1500],["Contingency",1500,1500,0]]), budgetStage: "settled" }),
+    ev({ id: "ev_natya", title: "Natya Showcase", club: "cl_natya", date: "2026-09-12", start: "17:00", end: "20:00", venue: "vn_aud", status: "reported", capacity: 600, expected: 250, photos: 22, social: ["instagram","linkedin"],
+      budget: lines([["Stage & decoration",18000,15000,14700],["Costumes",10000,8000,8000],["Sound & lighting",14000,14000,14000],["Contingency",2500,2500,900]]), budgetStage: "settled" }),
+    ev({ id: "ev_slam", title: "Kalam Poetry Slam", club: "cl_kalam", date: "2026-09-15", start: "16:00", end: "18:00", venue: "vn_semB", status: "reported", capacity: 120, expected: 60, photos: 6, social: [],
+      budget: lines([["Prizes",4000,4000,4000],["Refreshments",3000,3000,2600],["Printing",800,800,700]]), budgetStage: "settled" }),
+    ev({ id: "ev_expo", title: "Lens Frames Exhibition", club: "cl_lens", date: "2026-08-29", start: "10:00", end: "16:00", venue: "vn_semA", status: "reported", capacity: 150, expected: 80, photos: 30, social: ["instagram"],
+      budget: lines([["Printing & framing",9000,9000,9600],["Display stands",4000,4000,4000]]), budgetStage: "settled" }),
+    ev({ id: "ev_walk", title: "Lens Heritage Photowalk", club: "cl_lens", date: TODAY, start: "16:00", end: "18:30", venue: "vn_oat", status: "live", capacity: 60, expected: 45,
+      budget: lines([["Transport",6000,6000],["Refreshments",2500,2500]]), budgetStage: "sanctioned" }),
+    ev({ id: "ev_street", title: "Drishti Street Play", club: "cl_drishti", date: "2026-10-03", start: "17:00", end: "19:00", venue: "vn_amph", status: "submitted", capacity: 300, expected: 150,
+      budget: lines([["Props & costumes",14000],["Sound",9000],["Publicity",4000],["Contingency",2500]]), budgetStage: "dean_review" }),
+    ev({ id: "ev_night", title: "Culturals Night 2026", club: "cl_swara", date: "2026-10-18", start: "17:30", end: "22:00", venue: "vn_oat", status: "submitted", capacity: 1000, expected: 700,
+      budget: lines([["Stage & decoration",30000],["Sound & lighting",28000],["Artist fees",15000],["Security",8000],["Hospitality",10000],["Contingency",6000]]), budgetStage: "dean_review" }),
+    ev({ id: "ev_openmic", title: "Swara Open Mic", club: "cl_swara", date: "2026-10-09", start: "16:00", end: "18:00", venue: "vn_semA", status: "submitted", capacity: 150, expected: 90,
+      budget: lines([["Sound hire",5000],["Refreshments",3500]]), budgetStage: "dean_review" }),
+    ev({ id: "ev_workshop", title: "Natya Contemporary Workshop", club: "cl_natya", date: "2026-10-09", start: "17:00", end: "19:30", venue: "vn_semA", status: "submitted", capacity: 150, expected: 60,
+      budget: lines([["Trainer honorarium",8000],["Refreshments",2000]]), budgetStage: "dean_review" }),
+    ev({ id: "ev_quiz", title: "Kalam Lit Quiz", club: "cl_kalam", date: "2026-10-01", start: "15:00", end: "17:00", venue: "vn_semB", status: "published", capacity: 120, expected: 70,
+      budget: lines([["Prizes",5000,5000],["Printing",600,600]]), budgetStage: "sanctioned" })
+  ];
+  // Attendance for completed events. Deliberate overlap so unique < total,
+  // which is the whole point of the unique-students metric.
+  const rr = rng(7);
+  const plan = { ev_unplug: [46, 38], ev_natya: [58, 49], ev_slam: [30, 25], ev_expo: [34, 29], ev_walk: [38, 6], ev_quiz: [26, 0] };
+  for (const e of events){
+    const p = plan[e.id]; if (!p) continue;
+    const pool = students.slice(0, 56).sort(() => rr() - .5);
+    const want = Math.min(p[0], pool.length);          // never index past the pool
+    for (let i = 0; i < want; i++){
+      const s = pool[i]; const reg = mkReg(e, s, "pre_registered");
+      if (i < Math.min(p[1], want)) { reg.attended = true; reg.checkedInAt = e.date + "T" + e.start; reg.passUsed = true; }
+      e.registrations.push(reg);
+    }
+  }
+  const me = students[6];                        // the demo student
+  if (!events[4].registrations.find(r => r.studentId === me.id)) events[4].registrations.push(mkReg(events[4], me, "pre_registered"));
+  const memberships = [];
+  const swaraPeople = students.slice(10, 24);
+  swaraPeople.forEach((s, i) => memberships.push({ id: uid("mb"), club: "cl_swara", studentId: s.id, role: i === 0 ? "president" : i === 1 ? "vice_president" : i === 2 ? "treasurer" : i === 3 ? "secretary" : i < 7 ? "core" : "member" }));
+  const lensPeople = students.slice(24, 32);
+  lensPeople.forEach((s, i) => memberships.push({ id: uid("mb"), club: "cl_lens", studentId: s.id, role: i === 0 ? "president" : "member" }));
+  return { students, clubs, venues, events, memberships, notes: [], scans: [], offlineQueue: [], roleLog: [],
+           meStudent: me.id, mePresident: swaraPeople[0].id, meTreasurer: swaraPeople[2].id, meLensPresident: lensPeople[0].id };
+}
+function mkReg(e, s, source){
+  const id = uid("rg");
+  return { id, studentId: s.id, source, attended: false, checkedInAt: null, passUsed: false, pass: issueToken("pass", id, e.id),
+           deptAt: s.dept, progAt: s.programme, yearAt: s.year };  // grouping fields snapshotted at event time
+}
+
+/* ---------------- state ---------------- */
+let S; let UI = { role: "student", view: "events", eventId: null, scanEvent: "ev_walk", venueDate: "2026-10-09", gate: null, budgetEvent: "ev_night", offline: false };
+function load(){ try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch {} return null; }
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch {} }
+S = load() || seed();
+const byId = (arr, id) => arr.find(x => x.id === id);
+const student = id => byId(S.students, id);
+const club = id => byId(S.clubs, id);
+const venue = id => byId(S.venues, id);
+const event = id => byId(S.events, id);
+
+/* ---------------- roles & nav ---------------- */
+const ROLES = {
+  student:   { label: "Student",   who: () => student(S.meStudent), sub: "Student",
+               nav: [["events","Events"],["passes","My passes"],["profile","Profile QR"]] },
+  organiser: { label: "Organiser", who: () => student(S.meLensPresident), sub: "President, Lens",
+               nav: [["scan","Scan station"],["myevents","Club events"],["create","New event"]] },
+  president: { label: "President", who: () => student(S.mePresident), sub: "President, Swara",
+               nav: [["roster","Members & roles"],["budget","Budget"],["create","New event"]] },
+  treasurer: { label: "Treasurer", who: () => student(S.meTreasurer), sub: "Treasurer, Swara",
+               nav: [["budget","Budget"],["roster","Members & roles"]] },
+  dean:      { label: "Dean", who: () => ({ name: "Dr. Revathi Srinivasan" }), sub: "Dean of Student Affairs",
+               nav: [["approvals","Approvals"],["venues","Venues"],["overview","Overview"]] },
+  vc:        { label: "Management", who: () => ({ name: "Prof. K. Ramanathan" }), sub: "Vice-Chancellor",
+               nav: [["report","Semester report"],["vcqueue","Above-threshold approvals"]] }
+};
+function setRole(role){ UI.role = role; UI.view = ROLES[role].nav[0][0]; UI.gate = null; render(); }
+function setView(v){ UI.view = v; render(); $("#main").focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }
+
+/* ---------------- notifications (in-app only, email implied) ---------------- */
+function notify(to, text){ S.notes.unshift({ id: uid("nt"), to, text, at: Date.now(), read: false }); }
+function myNotes(){ return S.notes.filter(n => n.to === UI.role); }
+function toast(text){ const t = document.createElement("div"); t.className = "toast"; t.textContent = text; $("#toasts").appendChild(t); setTimeout(() => t.remove(), 3200); }
+
+/* ---------------- domain rules ---------------- */
+const total = (lines, k) => lines.reduce((a, l) => a + (Number(l[k]) || 0), 0);
+function requiresVC(e){ return total(e.budget, "requested") > VC_THRESHOLD; }
+function overlaps(a, b){
+  if (a.venue !== b.venue || a.date !== b.date || a.id === b.id) return false;
+  return mins(a.start) - BUFFER_MIN < mins(b.end) && mins(b.start) - BUFFER_MIN < mins(a.end);
+}
+const LIVEISH = ["submitted","approved","published","live"];
+function clashesFor(e){ return S.events.filter(o => LIVEISH.includes(o.status) && LIVEISH.includes(e.status) && overlaps(e, o)); }
+function allClashes(){ const seen = new Set(), out = [];
+  for (const e of S.events) for (const o of clashesFor(e)){ const k = [e.id, o.id].sort().join("|"); if (!seen.has(k)){ seen.add(k); out.push([e, o]); } }
+  return out; }
+function clubRole(clubId, studentId){ return S.memberships.find(m => m.club === clubId && m.studentId === studentId)?.role; }
+function canAssignRoles(clubId, studentId){ const r = clubRole(clubId, studentId); return r === "president" || r === "vice_president"; }
+
+/* ---------------- scan resolution: the seven branches ---------------- */
+function scan(token, eventId, stationId, at){
+  const e = event(eventId); const ts = at || new Date().toISOString();
+  const out = resolve(token, e, ts);
+  S.scans.unshift({ id: uid("sc"), eventId, result: out.result, token: String(token).slice(0, 24), station: stationId, at: ts });
+  return out;
+}
+function resolve(token, e, ts){
+  const v = verifyToken(token);
+  if (v.error) return { result: "unknown_code", tone: "bad", verdict: "Code not recognised" };
+  const b = v.body;
+  if (b.p === "pass"){
+    if (b.e !== e.id){ const other = event(b.e); return { result: "wrong_event", tone: "bad", verdict: "Wrong event", detail: other ? "Pass is for " + other.title : "" }; }
+    const reg = e.registrations.find(r => r.id === b.s);
+    if (!reg) return { result: "unknown_code", tone: "bad", verdict: "Code not recognised" };
+    if (reg.passUsed || reg.attended) return dup(reg);
+    reg.passUsed = true; reg.attended = true; reg.checkedInAt = ts;
+    return ok(reg, "accepted", "Checked in");
+  }
+  if (b.p === "profile"){
+    const s = student(b.s); if (!s) return { result: "unknown_code", tone: "bad", verdict: "Code not recognised" };
+    const reg = e.registrations.find(r => r.studentId === s.id);
+    if (reg){ if (reg.attended) return dup(reg); reg.attended = true; reg.checkedInAt = ts; return ok(reg, "accepted", "Checked in"); }
+    if (e.registrations.length >= e.capacity) return { result: "not_registered", tone: "bad", verdict: "Event at capacity", s };
+    const nr = mkReg(e, s, "spot"); nr.attended = true; nr.checkedInAt = ts; nr.passUsed = true; e.registrations.push(nr);
+    return ok(nr, "spot_registered", "Registered and checked in");
+  }
+  return { result: "unknown_code", tone: "bad", verdict: "Code not recognised" };
+}
+function ok(reg, result, verdict){ return { result, tone: "ok", verdict, s: student(reg.studentId), reg }; }
+function dup(reg){ return { result: "duplicate", tone: "warn", verdict: "Already checked in", s: student(reg.studentId),
+  detail: "First scanned at " + new Date(reg.checkedInAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) }; }
+
+/* ---------------- rendering ---------------- */
+function render(){
+  const R = ROLES[UI.role];
+  $("#roles").innerHTML = Object.entries(ROLES).map(([k, r]) => `<button aria-pressed="${k === UI.role}" data-role="${k}">${r.label}</button>`).join("");
+  const w = R.who();
+  $("#nav").innerHTML = `<div class="who"><strong>${esc(w.name)}</strong>${esc(R.sub)}</div>` +
+    R.nav.map(([k, l]) => `<button data-view="${k}" ${k === UI.view ? 'aria-current="page"' : ""}>${l}</button>`).join("");
+  const unread = myNotes().filter(n => !n.read).length;
+  $("#bellCount").hidden = !unread; $("#bellCount").textContent = unread;
+  const views = { events: vEvents, passes: vPasses, profile: vProfile, scan: vScan, myevents: vMyEvents, create: vCreate,
+                  roster: vRoster, budget: vBudget, approvals: vApprovals, venues: vVenues, overview: vOverview, report: vReport, vcqueue: vVcQueue };
+  $("#main").innerHTML = (views[UI.view] || vEvents)();
+  afterRender();
+  save();
+}
+function afterRender(){
+  document.querySelectorAll("[data-qr]").forEach(el => {
+    if (el.dataset.drawn) return; el.dataset.drawn = "1";
+    try { new QRCode(el, { text: el.dataset.qr, width: +el.dataset.size || 128, height: +el.dataset.size || 128, correctLevel: QRCode.CorrectLevel.M }); }
+    catch { el.textContent = "QR library unavailable"; }
+  });
+}
+const statusPill = s => ({ reported: '<span class="pill ok">Reported</span>', completed: '<span class="pill">Completed</span>', live: '<span class="pill gold">Live now</span>',
+  published: '<span class="pill ok">Published</span>', approved: '<span class="pill ok">Approved</span>', submitted: '<span class="pill warn">Awaiting approval</span>',
+  vc_review: '<span class="pill warn">With Vice-Chancellor</span>', returned: '<span class="pill bad">Returned</span>', rejected: '<span class="pill bad">Rejected</span>', draft: '<span class="pill">Draft</span>' }[s] || s);
+const dateBox = d => `<div class="date"><b>${dayNum(d)}</b><span>${monShort(d)}</span></div>`;
+
+/* ---- STUDENT ---- */
+function vEvents(){
+  const me = S.meStudent;
+  const upcoming = S.events.filter(e => ["published","live"].includes(e.status)).sort((a, b) => a.date.localeCompare(b.date));
+  return `<div class="head"><div><h1>What's on</h1><p class="muted">Register once and your pass appears under My passes.</p></div></div>
+  ${upcoming.length ? `<ul class="list">${upcoming.map(e => {
+    const reg = e.registrations.find(r => r.studentId === me); const full = e.registrations.length >= e.capacity;
+    return `<li class="event">${dateBox(e.date)}
+      <div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
+      <p class="muted small">${esc(club(e.club).name)} · ${esc(venue(e.venue).name)} · ${e.start}–${e.end}</p>
+      <div class="meter" style="margin-top:8px;max-width:260px" title="${e.registrations.length} of ${e.capacity}"><i style="width:${Math.min(100, e.registrations.length / e.capacity * 100)}%"></i></div>
+      <p class="small muted" style="margin-top:4px">${e.registrations.length} of ${e.capacity} places taken</p></div>
+      <div class="row end">${reg ? `<button class="btn" data-go-pass>View pass</button><button class="btn quiet" data-cancel="${e.id}">Cancel</button>`
+        : `<button class="btn primary" data-register="${e.id}" ${full ? "disabled" : ""}>${full ? "Full" : "Register"}</button>`}</div></li>`;
+  }).join("")}</ul>` : `<div class="empty">Nothing published yet. Check back after the next approval round.</div>`}`;
+}
+function vPasses(){
+  const me = S.meStudent;
+  const mine = S.events.filter(e => e.registrations.some(r => r.studentId === me) && ["published","live"].includes(e.status));
+  return `<div class="head"><div><h1>My passes</h1><p class="muted">Show a pass at the entrance. Each one works once, for that event only.</p></div></div>
+  ${mine.length ? `<div class="stack">${mine.map(e => { const r = e.registrations.find(x => x.studentId === me);
+    return `<div class="ticket"><div class="main"><span class="small muted">${esc(club(e.club).name)} presents</span>
+      <h3>${esc(e.title)}</h3><p>${fmtDate(e.date)}, ${e.start}–${e.end}</p><p class="muted">${esc(venue(e.venue).name)}</p>
+      <p style="margin-top:10px">${r.attended ? '<span class="pill ok">Checked in</span>' : '<span class="pill gold">Valid — not yet used</span>'}</p></div>
+      <div class="stub"><div class="qr" data-qr="${esc(r.pass)}" data-size="132"></div></div></div>`; }).join("")}</div>`
+    : `<div class="empty">No passes yet. <button class="btn primary" data-view="events" style="margin-left:8px">Find an event</button></div>`}
+  <p class="small muted" style="margin-top:18px">Lost your phone? Your profile QR works at every event, or the organiser can look you up by PRN.</p>`;
+}
+function vProfile(){
+  const s = student(S.meStudent); const tok = issueTokenStable("profile", s.id);
+  return `<div class="head"><div><h1>${esc(s.name)}</h1><p class="muted">${esc(s.prn)} · ${esc(s.programme)} · Year ${s.year}</p></div></div>
+  <div class="grid2"><div class="panel" style="text-align:center"><div class="qr-big bright" data-qr="${esc(tok)}" data-size="220"></div>
+    <p style="margin-top:14px;font-weight:600">Your profile QR</p><p class="small muted">Works at any event — including walk-ins. Brightness is raised so it scans in a dark hall.</p></div>
+  <div class="stack"><div class="note">The code holds a signed reference, not your PRN. A photo of it reveals nothing about you.</div>
+    <div class="panel"><h3>Events this semester</h3><p class="muted small" style="margin-top:4px">${attendedBy(s.id).length} attended</p>
+    <ul class="list" style="margin-top:10px">${attendedBy(s.id).map(e => `<li class="small">${esc(e.title)} <span class="muted">— ${fmtDate(e.date)}</span></li>`).join("") || `<li class="small muted">None yet</li>`}</ul></div>
+    <p class="tok">${esc(tok)}</p></div></div>`;
+}
+function issueTokenStable(p, sid){ S.profileTok = S.profileTok || {}; if (!S.profileTok[sid]) S.profileTok[sid] = issueToken(p, sid); return S.profileTok[sid]; }
+const attendedBy = id => S.events.filter(e => e.registrations.some(r => r.studentId === id && r.attended));
+
+/* ---- ORGANISER: scan station ---- */
+function vScan(){
+  const e = event(UI.scanEvent); const att = e.registrations.filter(r => r.attended).length;
+  const g = UI.gate;
+  const sample = e.registrations.filter(r => !r.attended).slice(0, 1)[0];
+  const usedOne = e.registrations.find(r => r.attended);
+  const walkIn = S.students.find(s => !e.registrations.some(r => r.studentId === s.id));
+  const otherEv = S.events.find(x => x.id === "ev_quiz"); const otherReg = otherEv.registrations[0];
+  const recent = S.scans.filter(x => x.eventId === e.id).slice(0, 6);
+  return `<div class="head"><div><h1>Scan station</h1><p class="muted">${esc(e.title)} · ${esc(venue(e.venue).name)} · station GATE-1</p></div>
+    <div class="row"><button class="btn ${UI.offline ? "danger" : ""}" data-offline>${UI.offline ? "Offline — tap to reconnect" : "Simulate going offline"}</button></div></div>
+  <div class="grid2" style="align-items:start">
+    <div class="stack">
+      <div class="gate ${g ? g.tone : "idle"}" role="status" aria-live="assertive">
+        <div class="verdict">${g ? esc(g.verdict) : "Ready to scan"}</div>
+        ${g && g.s ? `<div class="person"><b>${esc(g.s.name)}</b> · ${esc(g.s.prn)} · ${esc(g.s.programme)}, Y${g.s.year}</div>` : ""}
+        ${g && g.detail ? `<div class="person" style="font-size:1rem;opacity:.9">${esc(g.detail)}</div>` : ""}
+        ${g && g.queued ? `<div class="person" style="font-size:1rem">Saved on this device — will sync when back online</div>` : ""}
+      </div>
+      <div class="panel counter"><div><b>${att}</b><span>checked in</span></div><div><b>${e.registrations.length}</b><span>registered</span></div>
+        <div><b>${e.capacity}</b><span>capacity</span></div><div><b>${S.offlineQueue.length}</b><span>queued offline</span></div></div>
+      <div class="panel"><label for="tok">Paste or type a code</label><div class="row"><input id="tok" placeholder="v1.eyJ…" style="flex:1;min-width:0"><button class="btn primary" data-scan-input>Scan</button></div>
+        <div class="row" style="margin-top:10px"><button class="btn" data-camera>Use camera</button><span class="small muted">Point at a pass or profile QR</span></div><div id="reader" style="margin-top:10px"></div></div>
+    </div>
+    <div class="stack">
+      <div class="panel queue"><h3>Try each outcome</h3><p class="small muted" style="margin:4px 0 12px">People in the queue, presenting different codes.</p>
+        <div class="stack">
+        ${sample ? `<button class="btn" data-sim="${esc(sample.pass)}">✅ ${esc(student(sample.studentId).name)} shows their pass</button>` : ""}
+        ${usedOne ? `<button class="btn" data-sim="${esc(usedOne.pass)}">🔁 Someone shows a pass already used</button>` : ""}
+        ${walkIn ? `<button class="btn" data-sim="${esc(issueTokenStable("profile", walkIn.id))}">🚶 ${esc(walkIn.name)} walks in with profile QR</button>` : ""}
+        ${otherReg ? `<button class="btn" data-sim="${esc(otherReg.pass)}">🎫 Pass for Kalam Lit Quiz</button>` : ""}
+        <button class="btn" data-sim="v1.bm90YXJlYWx0b2tlbg.forged">⚠️ A forged code</button>
+        </div></div>
+      <div class="panel"><div class="row" style="justify-content:space-between"><h3>Look up by PRN or name</h3></div>
+        <input id="lookup" placeholder="e.g. 23CS1007 or Meera" style="margin-top:10px" data-lookup>
+        <ul class="list" id="lookupList" style="margin-top:8px"></ul></div>
+      <div class="panel"><h3>Recent scans</h3><ul class="list" style="margin-top:8px">${recent.map(x => `<li class="small row" style="justify-content:space-between"><span>${resultLabel(x.result)}</span><span class="muted">${new Date(x.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</span></li>`).join("") || `<li class="small muted">No scans yet</li>`}</ul>
+      <p class="small muted" style="margin-top:8px">Failed scans are logged too — the gap between attempts and check-ins shows how well a station is working.</p></div>
+    </div></div>`;
+}
+const resultLabel = r => ({ accepted: '<span class="pill ok">Checked in</span>', spot_registered: '<span class="pill ok">Walk-in registered</span>', duplicate: '<span class="pill warn">Duplicate</span>',
+  wrong_event: '<span class="pill bad">Wrong event</span>', unknown_code: '<span class="pill bad">Unrecognised</span>', not_registered: '<span class="pill bad">Not registered</span>', queued: '<span class="pill">Queued offline</span>' }[r] || r);
+function doScan(token){
+  if (UI.offline){
+    S.offlineQueue.push({ token, at: new Date().toISOString(), ref: uid("q") });
+    UI.gate = { tone: "idle", verdict: "Saved offline", queued: true };
+    render(); return;
+  }
+  UI.gate = scan(token, UI.scanEvent, "GATE-1");
+  if (navigator.vibrate) navigator.vibrate(UI.gate.tone === "ok" ? 40 : [60, 40, 60]);
+  render();
+}
+function goOnline(){
+  UI.offline = false;
+  // Replay sorted by the device's own timestamp, as the server does, so the
+  // genuinely earlier scan wins and the later one is the duplicate.
+  const q = S.offlineQueue.sort((a, b) => a.at.localeCompare(b.at)); let okN = 0, dupN = 0;
+  for (const item of q){ const r = scan(item.token, UI.scanEvent, "GATE-1", item.at); if (r.tone === "ok") okN++; if (r.result === "duplicate") dupN++; }
+  const n = q.length; S.offlineQueue = [];
+  UI.gate = n ? { tone: "ok", verdict: `Synced ${n}`, detail: `${okN} checked in, ${dupN} duplicate` } : null;
+  if (n) toast(`Synced ${n} offline scans`);
+  render();
+}
+function vMyEvents(){
+  const mine = S.events.filter(e => e.club === "cl_lens").sort((a, b) => b.date.localeCompare(a.date));
+  return `<div class="head"><div><h1>Lens events</h1><p class="muted">Every event closes with photos, the social post link, and actual spend.</p></div></div>
+  <ul class="list">${mine.map(e => `<li class="event">${dateBox(e.date)}<div><div class="row"><h3>${esc(e.title)}</h3>${statusPill(e.status)}</div>
+    <p class="small muted">${e.registrations.filter(r => r.attended).length} attended · ${e.registrations.length} registered · ${e.photos} photos · ${e.social.length ? e.social.join(", ") + " post" : "no post link yet"}</p></div>
+    <div class="row end">${e.status === "live" ? `<button class="btn primary" data-open-scan="${e.id}">Open scan station</button><button class="btn" data-close="${e.id}">Close event</button>` : ""}</div></li>`).join("")}</ul>`;
+}
+function vCreate(){
+  const clubId = UI.role === "organiser" ? "cl_lens" : "cl_swara";
+  return `<div class="head"><div><h1>New event</h1><p class="muted">Choose a type and the budget fills itself in. The Dean approves it before it goes live.</p></div></div>
+  <div class="panel stack" style="max-width:720px">
+    <div class="grid2"><div><label for="cTitle">Event name</label><input id="cTitle" placeholder="e.g. Monsoon Ragas"></div>
+      <div><label for="cType">Type</label><select id="cType">${Object.keys(TEMPLATES).map(k => `<option>${k}</option>`).join("")}</select></div></div>
+    <div class="grid3"><div><label for="cDate">Date</label><input id="cDate" type="date" value="2026-10-09"></div>
+      <div><label for="cStart">Starts</label><input id="cStart" type="time" value="16:30"></div><div><label for="cEnd">Ends</label><input id="cEnd" type="time" value="18:30"></div></div>
+    <div class="grid2"><div><label for="cVenue">Venue</label><select id="cVenue">${S.venues.map(v => `<option value="${v.id}">${esc(v.name)} (${v.capacity})</option>`).join("")}</select></div>
+      <div><label for="cExp">Expected attendance</label><input id="cExp" type="number" value="80" min="1"></div></div>
+    <div id="cBudget"></div>
+    <div id="cMsg"></div>
+    <div class="row"><button class="btn primary" data-submit-event="${clubId}">Send to the Dean</button></div>
+  </div>`;
+}
+const TEMPLATES = {
+  "Performance": [["Sound & lighting", 12000, "lump"], ["Stage & decoration", 8000, "lump"], ["Refreshments", 60, "head"], ["Publicity", 2000, "lump"]],
+  "Workshop": [["Trainer honorarium", 8000, "lump"], ["Materials", 150, "head"], ["Refreshments", 50, "head"], ["Certificates", 20, "head"]],
+  "Competition": [["Prizes", 6000, "lump"], ["Judges' honorarium", 3000, "lump"], ["Refreshments", 50, "head"], ["Printing", 800, "lump"]],
+  "Exhibition": [["Printing & framing", 9000, "lump"], ["Display stands", 4000, "lump"], ["Publicity", 1500, "lump"]]
+};
+function drawBudgetPreview(){
+  const box = $("#cBudget"); if (!box) return;
+  const t = TEMPLATES[$("#cType").value] || TEMPLATES["Performance"]; const exp = Math.max(1, +$("#cExp").value || 80);
+  const rows = t.map(([h, r, b]) => [h, b === "head" ? r * exp : r, b === "head" ? `₹${r} × ${exp}` : "lump sum"]);
+  const sub = rows.reduce((a, r) => a + r[1], 0); const cont = Math.round(sub * .08);
+  box.innerHTML = `<label>Budget from template</label><div class="table-wrap"><table style="min-width:420px"><thead><tr><th>Head</th><th>Basis</th><th class="num">Amount</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td>${esc(r[0])}</td><td class="muted small">${r[2]}</td><td class="num">${inr(r[1])}</td></tr>`).join("")}
+    <tr><td>Contingency</td><td class="muted small">8% added by default</td><td class="num">${inr(cont)}</td></tr>
+    <tr><th>Total requested</th><th></th><th class="num">${inr(sub + cont)}</th></tr></tbody></table></div>
+    ${sub + cont > VC_THRESHOLD ? `<p class="note" style="margin-top:10px">Above ${inr(VC_THRESHOLD)}, so after the Dean it also goes to the Vice-Chancellor.</p>` : ""}`;
+  box.dataset.lines = JSON.stringify([...rows.map(r => [r[0], r[1]]), ["Contingency", cont]]);
+}
+function submitEvent(clubId){
+  const title = $("#cTitle").value.trim(); const msg = $("#cMsg");
+  if (!title){ msg.innerHTML = `<p class="note bad">Give the event a name.</p>`; $("#cTitle").focus(); return; }
+  const e = { id: uid("ev"), title, club: clubId, date: $("#cDate").value, start: $("#cStart").value, end: $("#cEnd").value, venue: $("#cVenue").value,
+    status: "submitted", capacity: venue($("#cVenue").value).capacity, expected: +$("#cExp").value || 50, registrations: [], photos: 0, social: [], reassignments: [], steps: [],
+    budget: JSON.parse($("#cBudget").dataset.lines).map(([h, a]) => ({ id: uid("bl"), head: h, requested: a, sanctioned: null, spent: null, receipts: [], note: "" })), budgetStage: "dean_review" };
+  if (mins(e.end) <= mins(e.start)){ msg.innerHTML = `<p class="note bad">The end time must be after the start time.</p>`; return; }
+  // Overlap with a CONFIRMED booking is rejected outright; overlap with another
+  // pending request is allowed but flagged to the Dean to resolve.
+  const hard = S.events.filter(o => ["approved","published","live"].includes(o.status) && overlaps(e, o));
+  if (hard.length){ msg.innerHTML = `<p class="note bad">${esc(venue(e.venue).name)} is already booked then for ${esc(hard[0].title)}. Pick another time or venue.</p>`; return; }
+  const soft = S.events.filter(o => o.status === "submitted" && overlaps(e, o));
+  S.events.push(e); notify("dean", `${club(clubId).name} sent “${title}” for approval`);
+  toast(soft.length ? "Sent — another request wants this slot too, the Dean will resolve it" : "Sent to the Dean");
+  setView(UI.role === "organiser" ? "myevents" : "budget");
+}
+
+/* ---- PRESIDENT / TREASURER: roster ---- */
+function vRoster(){
+  const meId = UI.role === "treasurer" ? S.meTreasurer : S.mePresident;
+  const can = canAssignRoles("cl_swara", meId);
+  const members = S.memberships.filter(m => m.club === "cl_swara");
+  const order = ["president","vice_president","treasurer","secretary","core","member"];
+  members.sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+  return `<div class="head"><div><h1>Swara members</h1><p class="muted">${members.length} members. ${can ? "You can assign roles." : "Only the President or Vice-President can assign roles."}</p></div></div>
+  ${can ? "" : `<p class="note" style="margin-bottom:14px">You're viewing as Treasurer, so role controls are off. The same rule is checked when a change is saved — hiding the control isn't the permission.</p>`}
+  <div class="table-wrap"><table><thead><tr><th>Name</th><th>PRN</th><th>Programme</th><th>Role</th></tr></thead><tbody>
+  ${members.map(m => { const s = student(m.studentId); return `<tr><td>${esc(s.name)}</td><td class="muted">${esc(s.prn)}</td><td class="muted">${esc(s.programme)}, Y${s.year}</td>
+    <td>${can ? `<select data-role-change="${m.id}" aria-label="Role for ${esc(s.name)}">${order.map(r => `<option value="${r}" ${r === m.role ? "selected" : ""}>${r.replace("_", " ")}</option>`).join("")}</select>` : `<span class="pill">${m.role.replace("_", " ")}</span>`}</td></tr>`; }).join("")}
+  </tbody></table></div>
+  ${S.roleLog.length ? `<div class="panel" style="margin-top:18px"><h3>Role changes</h3><ul class="list" style="margin-top:8px">${S.roleLog.slice(0, 5).map(l => `<li class="small">${esc(l)}</li>`).join("")}</ul></div>` : ""}`;
+}
+function changeRole(mbId, newRole){
+  const actor = UI.role === "treasurer" ? S.meTreasurer : S.mePresident;
+  if (!canAssignRoles("cl_swara", actor)){ toast("Refused: only the President or Vice-President can assign roles"); render(); return; } // server-side rule
+  const m = byId(S.memberships, mbId); const s = student(m.studentId); const old = m.role; m.role = newRole;
+  S.roleLog.unshift(`${student(actor).name} changed ${s.name} from ${old.replace("_"," ")} to ${newRole.replace("_"," ")} — ${new Date().toLocaleString("en-IN")}`);
+  toast(`${s.name} is now ${newRole.replace("_", " ")}`); render();
+}
+
+/* ---- PRESIDENT / TREASURER: budget ---- */
+function vBudget(){
+  const mine = S.events.filter(e => e.club === "cl_swara");
+  if (!mine.find(e => e.id === UI.budgetEvent)) UI.budgetEvent = mine[0].id;
+  const e = event(UI.budgetEvent);
+  const stages = [["dean_review","Dean review"],["vc_review","Vice-Chancellor"],["sanctioned","Sanctioned"],["settled","Settled"]].filter(s => s[0] !== "vc_review" || requiresVC(e));
+  const stIdx = e.budgetStage === "returned" || e.budgetStage === "rejected" ? 0 : stages.findIndex(s => s[0] === e.budgetStage);
+  const canSettle = ["sanctioned"].includes(e.budgetStage) && ["reported","completed","live","published"].includes(e.status);
+  return `<div class="head"><div><h1>Budget</h1><p class="muted">President, Vice-President and Treasurer see this. No club role approves its own budget.</p></div>
+    <div style="min-width:240px"><label for="bSel">Event</label><select id="bSel" data-budget-sel>${mine.map(x => `<option value="${x.id}" ${x.id === e.id ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select></div></div>
+  <div class="panel stack"><div class="row" style="justify-content:space-between"><h2>${esc(e.title)}</h2>${statusPill(e.status)}</div>
+    <div class="stages"><span class="stage done">Submitted</span>${stages.map((s, i) => `<span class="stage ${i < stIdx ? "done" : i === stIdx ? "now" : ""}">${s[1]}</span>`).join("")}</div>
+    ${e.budgetStage === "returned" ? `<p class="note bad">Returned by the Dean: ${esc(e.steps.at(-1)?.comment || "")}</p>` : ""}
+    ${e.budgetStage === "rejected" ? `<p class="note bad">Rejected: ${esc(e.steps.at(-1)?.comment || "")}</p>` : ""}
+    <div class="table-wrap"><table><thead><tr><th>Head</th><th class="num">Requested</th><th class="num">Sanctioned</th><th class="num">Spent</th><th>Receipts</th></tr></thead><tbody>
+    ${e.budget.map(l => { const over = l.spent != null && l.sanctioned != null && +l.spent > +l.sanctioned;
+      return `<tr><td>${esc(l.head)}${over ? `<br><span class="small" style="color:var(--bad)">Over sanctioned</span>` : ""}</td>
+      <td class="num">${inr(l.requested)}</td><td class="num">${l.sanctioned == null ? '<span class="muted">—</span>' : inr(l.sanctioned) + (+l.sanctioned < +l.requested ? `<br><span class="small muted">reduced</span>` : "")}</td>
+      <td class="num">${canSettle ? `<input type="number" min="0" value="${l.spent ?? ""}" data-spent="${l.id}" style="width:110px;text-align:right" aria-label="Spent on ${esc(l.head)}">` : (l.spent == null ? '<span class="muted">—</span>' : inr(l.spent))}</td>
+      <td>${l.receipts.map(r => `<span class="pill" title="${esc(r.type)}">📎 ${esc(r.name)}</span>`).join(" ")}
+        ${canSettle ? `<label class="btn quiet small" style="display:inline-flex;margin:0;cursor:pointer">+ Attach<input type="file" accept="image/*,application/pdf" data-receipt="${l.id}" hidden></label>` : ""}</td></tr>`; }).join("")}
+    <tr><th>Total</th><th class="num">${inr(total(e.budget, "requested"))}</th><th class="num">${e.budget.some(l => l.sanctioned != null) ? inr(total(e.budget, "sanctioned")) : "—"}</th><th class="num">${e.budget.some(l => l.spent != null) ? inr(total(e.budget, "spent")) : "—"}</th><th></th></tr>
+    </tbody></table></div>
+    ${canSettle ? `<div id="settleMsg"></div><div class="row"><button class="btn primary" data-settle="${e.id}">Settle budget</button><span class="small muted">Lines over ${inr(RECEIPT_THRESHOLD)} need a receipt. Overspends need a reason.</span></div>` : ""}
+    ${e.budgetStage === "settled" ? `<p class="note">Settled. Receipts stay attached to this event, so a query months later doesn't depend on anyone keeping the paper.</p>` : ""}
+  </div>`;
+}
+function settle(evId){
+  const e = event(evId); const problems = [];
+  for (const l of e.budget){
+    if (l.spent == null || l.spent === "") continue;
+    if (+l.spent > RECEIPT_THRESHOLD && !l.receipts.length) problems.push(`${l.head}: attach a receipt (over ${inr(RECEIPT_THRESHOLD)})`);
+    if (l.sanctioned != null && +l.spent > +l.sanctioned && !l.note) problems.push({ line: l, over: +l.spent - +l.sanctioned });
+  }
+  if (!e.budget.some(l => l.spent != null && l.spent !== "")) problems.push("Enter what was actually spent on at least one line");
+  if (problems.length){ $("#settleMsg").innerHTML = `<div class="note bad">Can't settle yet:<ul style="margin:6px 0 0 18px;padding:0">${problems.map(p => typeof p === "string" ? `<li>${esc(p)}</li>`
+      : `<li>${esc(p.line.head)} is ${inr(p.over)} over sanctioned. What caused it?<input data-note="${p.line.id}" placeholder="e.g. Extra 40 walk-ins needed more refreshments" style="margin-top:6px"></li>`).join("")}</ul></div>`; return; }
+  e.budgetStage = "settled"; notify("dean", `${club(e.club).name} settled the budget for “${e.title}”`); toast("Budget settled"); render();
+}
+
+/* ---- DEAN: approvals ---- */
+function vApprovals(){
+  const pending = S.events.filter(e => e.status === "submitted").sort((a, b) => a.date.localeCompare(b.date));
+  return `<div class="head"><div><h1>Approvals</h1><p class="muted">${pending.length} waiting. You're the only approver for standard events; larger budgets continue to the Vice-Chancellor.</p></div></div>
+  ${pending.length ? `<ul class="list">${pending.map(e => { const cl = clashesFor(e); const vc = requiresVC(e);
+    return `<li><div class="event" style="grid-template-columns:64px 1fr auto">${dateBox(e.date)}
+      <div><div class="row"><h3>${esc(e.title)}</h3><span class="pill">${esc(club(e.club).name)}</span>${vc ? '<span class="pill warn">Needs VC after you</span>' : ""}${cl.length ? '<span class="pill bad">Venue clash</span>' : ""}</div>
+      <p class="small muted">${esc(venue(e.venue).name)} · ${e.start}–${e.end} · expecting ${e.expected} · requesting ${inr(total(e.budget, "requested"))}</p>
+      ${cl.length ? `<p class="small" style="color:var(--bad);margin-top:4px">Overlaps ${esc(cl.map(c => c.title).join(", "))} in the same venue. Resolve under Venues before approving.</p>` : ""}</div>
+      <div class="row end"><button class="btn primary" data-review="${e.id}">Review</button></div></div></li>`; }).join("")}</ul>`
+    : `<div class="empty">All caught up. New proposals will appear here.</div>`}`;
+}
+function openReview(evId){
+  const e = event(evId); const cl = clashesFor(e);
+  $("#dlgBody").innerHTML = `<h2>${esc(e.title)}</h2><p class="muted small" style="margin:4px 0 14px">${esc(club(e.club).name)} · ${fmtDate(e.date)} ${e.start}–${e.end} · ${esc(venue(e.venue).name)}</p>
+    ${cl.length ? `<p class="note bad" style="margin-bottom:12px">Clashes with ${esc(cl[0].title)}. Approve is disabled until one of them is moved.</p>` : ""}
+    <label>Sanction line by line</label><div class="table-wrap"><table style="min-width:360px"><thead><tr><th>Head</th><th class="num">Requested</th><th class="num">Sanction</th></tr></thead><tbody>
+    ${e.budget.map(l => `<tr><td>${esc(l.head)}</td><td class="num">${inr(l.requested)}</td><td class="num"><input type="number" min="0" value="${l.requested}" data-sanc="${l.id}" style="width:110px;text-align:right" aria-label="Sanction for ${esc(l.head)}"></td></tr>`).join("")}
+    </tbody></table></div>
+    <label for="rComment" style="margin-top:14px">Comment <span class="muted">(required to return or reject)</span></label><textarea id="rComment"></textarea>
+    <div id="rMsg"></div>
+    <div class="row" style="margin-top:14px;justify-content:space-between"><button class="btn quiet" data-dlg-close>Cancel</button>
+      <div class="row"><button class="btn danger" data-decide="reject:${e.id}">Reject</button><button class="btn" data-decide="return:${e.id}">Return for changes</button>
+      <button class="btn primary" data-decide="approve:${e.id}" ${cl.length ? "disabled" : ""}>${requiresVC(e) ? "Approve and send to VC" : "Approve"}</button></div></div>`;
+  $("#dlg").showModal();
+}
+function decide(kind, evId){
+  const e = event(evId); const comment = $("#rComment").value.trim();
+  if (kind !== "approve" && !comment){ $("#rMsg").innerHTML = `<p class="note bad" style="margin-top:10px">Add a comment so the club knows what to change.</p>`; $("#rComment").focus(); return; }
+  if (kind === "approve" && clashesFor(e).length) return;
+  e.steps.push({ by: "dean", decision: kind, comment, at: new Date().toISOString() });
+  if (kind === "approve"){
+    document.querySelectorAll("[data-sanc]").forEach(inp => { const l = e.budget.find(x => x.id === inp.dataset.sanc); l.sanctioned = Math.max(0, +inp.value || 0); });
+    if (requiresVC(e)){ e.status = "vc_review"; e.budgetStage = "vc_review"; notify("vc", `Dean approved “${e.title}” — ${inr(total(e.budget, "sanctioned"))} needs your approval`); }
+    else { e.status = "published"; e.budgetStage = "sanctioned"; }
+    notify(e.club === "cl_swara" ? "president" : "organiser", `“${e.title}” approved${requiresVC(e) ? " by the Dean, now with the VC" : ""}`);
+  } else if (kind === "return"){ e.status = "returned"; e.budgetStage = "returned"; notify("president", `“${e.title}” returned: ${comment}`); }
+  else { e.status = "rejected"; e.budgetStage = "rejected"; notify("president", `“${e.title}” rejected: ${comment}`); }
+  $("#dlg").close(); toast({ approve: "Approved", return: "Returned for changes", reject: "Rejected" }[kind]); render();
+}
+
+/* ---- DEAN: venues ---- */
+function vVenues(){
+  const d = UI.venueDate; const dayEvents = S.events.filter(e => e.date === d && !["rejected","returned","draft"].includes(e.status));
+  const clashes = allClashes().filter(([a]) => a.date === d); const allC = allClashes();
+  const clashIds = new Set(clashes.flat().map(e => e.id));
+  const dates = [...new Set(S.events.filter(e => e.date >= TODAY).map(e => e.date))].sort();
+  const pos = t => ((mins(t) - 8 * 60) / (14 * 60)) * 100;
+  return `<div class="head"><div><h1>Venues</h1><p class="muted">Every venue, every booking. Clashes are flagged before two clubs arrive at the same hall.</p></div>
+    <div><label for="vDate">Day</label><select id="vDate" data-venue-date>${dates.map(x => `<option value="${x}" ${x === d ? "selected" : ""}>${fmtDate(x)}${allC.some(([a]) => a.date === x) ? " — clash" : ""}</option>`).join("")}</select></div></div>
+  ${clashes.map(([a, b]) => `<div class="note bad" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><span><b>${esc(a.title)}</b> (${a.start}–${a.end}, ${a.expected} expected) and <b>${esc(b.title)}</b> (${b.start}–${b.end}, ${b.expected} expected) both want ${esc(venue(a.venue).name)}.</span>
+    <span class="row"><button class="btn" data-reassign="${a.id}">Move ${esc(a.title)}</button><button class="btn" data-reassign="${b.id}">Move ${esc(b.title)}</button></span></div></div>`).join("")}
+  <div class="table-wrap"><div class="cal">
+    <div class="cal-hours"><div></div><div>${Array.from({ length: 14 }, (_, i) => `<span>${8 + i}:00</span>`).join("")}</div></div>
+    ${S.venues.map(v => `<div class="cal-row"><div class="cal-venue">${esc(v.name)}<small>${v.capacity} seats</small></div><div class="cal-track">
+      ${dayEvents.filter(e => e.venue === v.id).map(e => { const cls = clashIds.has(e.id) ? "clash" : ["approved","published","live"].includes(e.status) ? "confirmed" : "provisional";
+        return `<div class="blk ${cls}" style="left:${pos(e.start)}%;width:${pos(e.end) - pos(e.start)}%" title="${esc(e.title)} ${e.start}–${e.end}">${esc(e.title)}<br>${e.start}–${e.end}</div>`; }).join("")}
+    </div></div>`).join("")}
+  </div></div>
+  <div class="row small muted" style="margin-top:10px;gap:18px"><span><span class="pill" style="background:var(--ink);color:var(--paper)">Confirmed</span></span><span><span class="pill gold">Provisional — awaiting approval</span></span><span><span class="pill bad">Clash</span></span><span>Clash checks include a ${BUFFER_MIN}-minute setup buffer</span></div>`;
+}
+function openReassign(evId){
+  const e = event(evId);
+  const free = S.venues.filter(v => v.id !== e.venue && v.capacity >= e.expected && !S.events.some(o => LIVEISH.includes(o.status) && overlaps({ ...e, venue: v.id }, o)));
+  $("#dlgBody").innerHTML = `<h2>Move ${esc(e.title)}</h2><p class="muted small" style="margin:4px 0 14px">${fmtDate(e.date)} ${e.start}–${e.end}. Only venues free then and large enough for ${e.expected} are shown.</p>
+    ${free.length ? `<label>New venue</label><div class="stack">${free.map((v, i) => `<label class="row" style="font-weight:500;cursor:pointer;margin:0"><input type="radio" name="nv" value="${v.id}" ${i === 0 ? "checked" : ""} style="width:auto"> ${esc(v.name)} <span class="muted small">— ${v.capacity} seats</span></label>`).join("")}</div>
+      <label for="raReason" style="margin-top:14px">Reason <span class="muted">(sent to the club)</span></label><textarea id="raReason" placeholder="e.g. Seminar Hall A double-booked; Seminar Hall B has the same setup"></textarea><div id="raMsg"></div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn quiet" data-dlg-close>Cancel</button><button class="btn primary" data-do-reassign="${e.id}">Move event</button></div>`
+    : `<p class="note bad">No venue is free and large enough at that time. Propose a different time to the club instead.</p><div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" data-dlg-close>Close</button></div>`}`;
+  $("#dlg").showModal();
+}
+function doReassign(evId){
+  const reason = $("#raReason").value.trim(); if (!reason){ $("#raMsg").innerHTML = `<p class="note bad" style="margin-top:10px">A reason is required — the club sees it.</p>`; return; }
+  const e = event(evId); const to = document.querySelector('input[name="nv"]:checked').value; const from = e.venue;
+  // One state change: old slot released and new one taken together, so there
+  // is never a moment where both events or neither hold the slot.
+  e.reassignments.push({ from, to, reason, at: new Date().toISOString() }); e.venue = to;
+  notify(e.club === "cl_swara" ? "president" : "organiser", `“${e.title}” moved from ${venue(from).name} to ${venue(to).name}: ${reason}`);
+  $("#dlg").close(); toast(`Moved to ${venue(to).name}. Club notified.`); render();
+}
+function vOverview(){
+  const inSem = S.events.filter(e => e.date >= SEMESTER.start && e.date <= SEMESTER.end);
+  const done = inSem.filter(e => ["reported","completed"].includes(e.status));
+  const missing = done.filter(e => !e.photos || !e.social.length);
+  const pending = S.events.filter(e => e.status === "submitted");
+  const clubsActive = new Set(done.map(e => e.club)).size;
+  const util = S.venues.map(v => [v.name, S.events.filter(e => e.venue === v.id && LIVEISH.concat(["reported"]).includes(e.status)).length]);
+  const maxU = Math.max(1, ...util.map(u => u[1]));
+  return `<div class="head"><div><h1>This semester</h1><p class="muted">${SEMESTER.name}. Running totals, and what needs chasing.</p></div></div>
+  <div class="grid3"><div class="panel"><h3>${pending.length} approvals waiting</h3><p class="small muted">Oldest first under Approvals</p></div>
+    <div class="panel"><h3>${allClashes().length} venue clash${allClashes().length === 1 ? "" : "es"}</h3><p class="small muted">Resolve under Venues</p></div>
+    <div class="panel"><h3>${clubsActive} of ${S.clubs.length} clubs active</h3><p class="small muted">${S.clubs.filter(c => !done.some(e => e.club === c.id)).map(c => c.name).join(", ") || "All"} not yet run an event</p></div></div>
+  <div class="grid2" style="margin-top:18px;align-items:start"><div class="panel"><h3>Completed events missing evidence</h3><ul class="list" style="margin-top:8px">
+    ${missing.map(e => `<li class="small">${esc(e.title)} — ${!e.photos ? "no photos" : ""}${!e.photos && !e.social.length ? ", " : ""}${!e.social.length ? "no social post link" : ""}</li>`).join("") || `<li class="small muted">Nothing outstanding</li>`}</ul></div>
+    <div class="panel"><h3>Venue use</h3><div style="margin-top:10px">${util.map(([n, c]) => `<div class="bar"><span class="small">${esc(n)}</span><div class="meter"><i style="width:${c / maxU * 100}%"></i></div><em>${c}</em></div>`).join("")}</div></div></div>`;
+}
+
+/* ---- MANAGEMENT ---- */
+function computeReport(){
+  const evs = S.events.filter(e => e.date >= SEMESTER.start && e.date <= SEMESTER.end && ["reported","completed"].includes(e.status));
+  const regs = evs.flatMap(e => e.registrations.filter(r => r.attended).map(r => ({ ...r, e })));
+  const unique = new Set(regs.map(r => r.studentId)).size;          // COUNT(DISTINCT student_id)
+  const byCat = {}; const byDept = {};
+  regs.forEach(r => { const c = club(r.e.club).tag; byCat[c] = (byCat[c] || 0) + 1; });
+  const deptSeen = {}; regs.forEach(r => { (deptSeen[r.deptAt] = deptSeen[r.deptAt] || new Set()).add(r.studentId); });
+  Object.entries(deptSeen).forEach(([d, set]) => byDept[d] = set.size);
+  const spend = { req: evs.reduce((a, e) => a + total(e.budget, "requested"), 0), sanc: evs.reduce((a, e) => a + total(e.budget, "sanctioned"), 0), spent: evs.reduce((a, e) => a + total(e.budget, "spent"), 0) };
+  return { evs, total: regs.length, unique, avg: evs.length ? Math.round(regs.length / evs.length) : 0, byCat, byDept, spend, enrolled: S.students.length };
+}
+function vReport(){
+  const R = computeReport(); const maxC = Math.max(1, ...Object.values(R.byCat)); const maxD = Math.max(1, ...Object.values(R.byDept));
+  return `<div class="head"><div><h1>${SEMESTER.name} report</h1><p class="muted">Counted at the door, not estimated. Generated from live data.</p></div><button class="btn" onclick="window.print()">Print or save as PDF</button></div>
+  <div class="big"><div class="lead"><b>${R.unique}</b><span>unique students reached</span></div><div><b>${R.total}</b><span>total attendance</span></div>
+    <div><b>${R.evs.length}</b><span>events run</span></div><div><b>${R.avg}</b><span>average per event</span></div></div>
+  <p class="note" style="margin-top:14px">${R.total} attendances came from ${R.unique} different students — the same people coming back, which total attendance alone would hide. That's ${Math.round(R.unique / R.enrolled * 100)}% of the ${R.enrolled} students in this demo.</p>
+  <div class="grid2" style="margin-top:18px;align-items:start">
+    <div class="panel"><h3>Attendance by club</h3><div style="margin-top:10px">${Object.entries(R.byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="bar"><span class="small">${esc(k)}</span><div class="meter"><i style="width:${v / maxC * 100}%"></i></div><em>${v}</em></div>`).join("")}</div></div>
+    <div class="panel"><h3>Students reached by department</h3><p class="small muted">Department at the time of each event</p><div style="margin-top:10px">${Object.entries(R.byDept).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="bar"><span class="small">${esc(k)}</span><div class="meter"><i style="width:${v / maxD * 100}%"></i></div><em>${v}</em></div>`).join("")}</div></div></div>
+  <div class="panel" style="margin-top:18px"><h3>Events</h3><div class="table-wrap" style="margin-top:10px;border:0"><table><thead><tr><th>Event</th><th>Club</th><th class="num">Attended</th><th class="num">Photos</th><th class="num">Sanctioned</th><th class="num">Spent</th></tr></thead><tbody>
+    ${R.evs.map(e => `<tr><td>${esc(e.title)}</td><td class="muted">${esc(club(e.club).name)}</td><td class="num">${e.registrations.filter(r => r.attended).length}</td><td class="num">${e.photos}</td><td class="num">${inr(total(e.budget, "sanctioned"))}</td><td class="num">${inr(total(e.budget, "spent"))}</td></tr>`).join("")}
+    <tr><th>Total</th><th></th><th class="num">${R.total}</th><th class="num">${R.evs.reduce((a, e) => a + e.photos, 0)}</th><th class="num">${inr(R.spend.sanc)}</th><th class="num">${inr(R.spend.spent)}</th></tr></tbody></table></div></div>
+  <p class="small muted" style="margin-top:14px">First semester on the platform, so there's no earlier period to compare against. Some activity still ran outside the system, so these figures understate the real total. External fest participants are counted separately and are not included above.</p>`;
+}
+function vVcQueue(){
+  const q = S.events.filter(e => e.status === "vc_review");
+  return `<div class="head"><div><h1>Above-threshold approvals</h1><p class="muted">Budgets over ${inr(VC_THRESHOLD)} and fests reach you after the Dean has approved them.</p></div></div>
+  ${q.length ? `<ul class="list">${q.map(e => `<li class="event">${dateBox(e.date)}<div><h3>${esc(e.title)}</h3><p class="small muted">${esc(club(e.club).name)} · Dean sanctioned ${inr(total(e.budget, "sanctioned"))} of ${inr(total(e.budget, "requested"))} requested</p></div>
+    <div class="row end"><button class="btn" data-vc="return:${e.id}">Return</button><button class="btn primary" data-vc="approve:${e.id}">Approve</button></div></li>`).join("")}</ul>`
+    : `<div class="empty">Nothing waiting. Culturals Night 2026 lands here once the Dean approves it.</div>`}`;
+}
+function openClose(evId){
+  const e = event(evId); const att = e.registrations.filter(r => r.attended).length;
+  $("#dlgBody").innerHTML = `<h2>Close ${esc(e.title)}</h2><p class="muted small" style="margin:4px 0 14px">${att} attended. Closing reports the event and adds it to the semester report.</p>
+    <label for="clPhotos">Photos uploaded</label><input id="clPhotos" type="number" min="0" value="${e.photos || 0}">
+    <label for="clLink" style="margin-top:12px">Instagram or LinkedIn post link <span class="muted">(optional)</span></label><input id="clLink" placeholder="https://www.instagram.com/p/…">
+    <div id="clMsg"></div><div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn quiet" data-dlg-close>Cancel</button><button class="btn primary" data-do-close="${e.id}">Close event</button></div>`;
+  $("#dlg").showModal();
+}
+function vcDecide(kind, evId){
+  const e = event(evId);
+  if (kind === "return"){ $("#dlgBody").innerHTML = `<h2>Return ${esc(e.title)}</h2><label for="vcComment" style="margin-top:12px">What should the club change?</label><textarea id="vcComment"></textarea><div id="vcMsg"></div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn quiet" data-dlg-close>Cancel</button><button class="btn primary" data-do-vc-return="${e.id}">Return to club</button></div>`; $("#dlg").showModal(); return; }
+  else { e.status = "published"; e.budgetStage = "sanctioned"; e.steps.push({ by: "vc", decision: "approve" }); notify("president", `“${e.title}” fully approved — it's live on the calendar`); notify("dean", `VC approved “${e.title}”`); }
+  toast("Approved — published"); render();
+}
+
+/* ---------------- camera (optional) ---------------- */
+let cam = null;
+async function toggleCamera(){
+  const box = $("#reader");
+  if (cam){ try { await cam.stop(); } catch {} cam = null; box.innerHTML = ""; return; }
+  if (!window.Html5Qrcode){
+    await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }).catch(() => {});
+  }
+  if (!window.Html5Qrcode){ box.innerHTML = `<p class="note bad">Camera scanning couldn't load here. Use the queue buttons or paste a code instead.</p>`; return; }
+  try {
+    cam = new Html5Qrcode("reader"); let last = "";
+    await cam.start({ facingMode: "environment" }, { fps: 10, qrbox: 220 }, text => { if (text === last) return; last = text; setTimeout(() => last = "", 2500); doScan(text); });
+  } catch { cam = null; box.innerHTML = `<p class="note bad">Camera permission wasn't granted, or no camera is available. Try the queue buttons or paste a code.</p>`; }
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button, [data-view]"); if (!t) return;
+  const d = t.dataset;
+  if (d.role) return setRole(d.role);
+  if (d.view) return setView(d.view);
+  if ("goPass" in d) return setView("passes");
+  if (d.register){ const ev = event(d.register); if (ev.registrations.length >= ev.capacity) return; ev.registrations.push(mkReg(ev, student(S.meStudent), "pre_registered")); toast("Registered — your pass is ready"); return render(); }
+  if (d.cancel){ const ev = event(d.cancel); ev.registrations = ev.registrations.filter(r => r.studentId !== S.meStudent || r.attended); toast("Registration cancelled"); return render(); }
+  if (d.sim) return doScan(d.sim);
+  if ("scanInput" in d){ const v = $("#tok").value; if (v.trim()) doScan(v); return; }
+  if ("camera" in d) return toggleCamera();
+  if ("offline" in d){ if (UI.offline) return goOnline(); UI.offline = true; UI.gate = null; toast("Offline — scans are saved on this device"); return render(); }
+  if (d.openScan){ UI.scanEvent = d.openScan; return setView("scan"); }
+  if (d.close) return openClose(d.close);
+  if (d.doClose){ const ev = event(d.doClose); const n = +$("#clPhotos").value || 0; const link = $("#clLink").value.trim();
+    if (n < 1){ $("#clMsg").innerHTML = `<p class="note bad" style="margin-top:10px">Upload at least one photo — an event can't close without one.</p>`; return; }
+    ev.photos = n; if (link && /instagram|linkedin/i.test(link)) ev.social.push(/linkedin/i.test(link) ? "linkedin" : "instagram");
+    ev.status = "reported"; notify("dean", `Lens closed “${ev.title}” with ${ev.registrations.filter(r => r.attended).length} attended`); $("#dlg").close(); toast("Event closed and reported"); return render(); }
+  if (d.doVcReturn){ const c = $("#vcComment").value.trim(); if (!c){ $("#vcMsg").innerHTML = `<p class="note bad" style="margin-top:10px">Say what the club should change.</p>`; return; }
+    const ev = event(d.doVcReturn); ev.status = "returned"; ev.budgetStage = "returned"; ev.steps.push({ by: "vc", decision: "return", comment: c }); notify("president", `VC returned “${ev.title}”: ${c}`); $("#dlg").close(); toast("Returned"); return render(); }
+  if (d.submitEvent) return submitEvent(d.submitEvent);
+  if (d.settle) return settle(d.settle);
+  if (d.review) return openReview(d.review);
+  if (d.decide){ const [k, id] = d.decide.split(":"); return decide(k, id); }
+  if (d.reassign) return openReassign(d.reassign);
+  if (d.doReassign) return doReassign(d.doReassign);
+  if (d.vc){ const [k, id] = d.vc.split(":"); return vcDecide(k, id); }
+  if ("dlgClose" in d) return $("#dlg").close();
+  if (d.lookupHit){ const ev = event(UI.scanEvent); const s = student(d.lookupHit); const reg = ev.registrations.find(r => r.studentId === s.id);
+    if (reg && reg.attended){ UI.gate = dup(reg); } else if (reg){ reg.attended = true; reg.checkedInAt = new Date().toISOString(); reg.source = reg.source === "pre_registered" ? "manual" : reg.source; UI.gate = { ...ok(reg, "accepted", "Checked in"), detail: "Manual entry by PRN lookup" }; }
+    else { const nr = mkReg(ev, s, "manual"); nr.attended = true; nr.checkedInAt = new Date().toISOString(); ev.registrations.push(nr); UI.gate = { ...ok(nr, "spot_registered", "Registered and checked in"), detail: "Manual entry by PRN lookup" }; }
+    S.scans.unshift({ id: uid("sc"), eventId: ev.id, result: UI.gate.result, token: "manual:" + s.prn, station: "GATE-1", at: new Date().toISOString() }); return render(); }
+});
+document.addEventListener("change", e => {
+  const d = e.target.dataset;
+  if (d.roleChange) return changeRole(d.roleChange, e.target.value);
+  if ("budgetSel" in d){ UI.budgetEvent = e.target.value; return render(); }
+  if ("venueDate" in d){ UI.venueDate = e.target.value; return render(); }
+  if (d.note){ const ev = event(UI.budgetEvent); const l = ev.budget.find(x => x.id === d.note); l.note = e.target.value.trim(); save(); return; }
+  if (d.spent){ const ev = event(UI.budgetEvent); const l = ev.budget.find(x => x.id === d.spent); l.spent = e.target.value === "" ? null : Math.max(0, +e.target.value); save(); return; }
+  if (d.receipt){ const f = e.target.files[0]; if (!f) return; if (!/^image\/|pdf$/.test(f.type)) return toast("Attach a photo or a PDF");
+    const ev = event(UI.budgetEvent); const l = ev.budget.find(x => x.id === d.receipt); l.receipts.push({ name: f.name.length > 22 ? f.name.slice(0, 19) + "…" : f.name, type: f.type, size: f.size, at: new Date().toISOString() });
+    toast("Receipt attached to " + l.head); return render(); }
+  if (e.target.id === "cType" || e.target.id === "cExp") drawBudgetPreview();
+});
+document.addEventListener("input", e => {
+  if (e.target.id === "cExp") drawBudgetPreview();
+  if ("lookup" in e.target.dataset){ const q = e.target.value.trim().toLowerCase(); const box = $("#lookupList"); if (q.length < 2){ box.innerHTML = ""; return; }
+    const ev = event(UI.scanEvent);
+    box.innerHTML = S.students.filter(s => s.prn.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)).slice(0, 5).map(s => { const r = ev.registrations.find(x => x.studentId === s.id);
+      return `<li class="row" style="justify-content:space-between;padding:10px 2px"><span class="small"><b>${esc(s.name)}</b> <span class="muted">${esc(s.prn)}</span> ${r ? (r.attended ? '<span class="pill ok">in</span>' : '<span class="pill">registered</span>') : '<span class="pill">walk-in</span>'}</span>
+      <button class="btn" data-lookup-hit="${s.id}">Check in</button></li>`; }).join("") || `<li class="small muted" style="padding:10px 2px">No match. Check the PRN on their ID card.</li>`; }
+});
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "tok"){ e.preventDefault(); const v = e.target.value; if (v.trim()) doScan(v); } });
+$("#bell").addEventListener("click", () => {
+  const ns = myNotes(); ns.forEach(n => n.read = true);
+  $("#dlgBody").innerHTML = `<h2>Notifications</h2><p class="small muted" style="margin:4px 0 12px">In-app for ${esc(ROLES[UI.role].label)}. The same messages also go by email — no other channel.</p>
+    <ul class="list">${ns.map(n => `<li class="small">${esc(n.text)}<br><span class="muted">${new Date(n.at).toLocaleString("en-IN")}</span></li>`).join("") || `<li class="small muted">Nothing yet. Try approving an event as the Dean, then switch roles.</li>`}</ul>
+    <div class="row" style="margin-top:14px;justify-content:space-between"><button class="btn danger" data-reset>Reset demo data</button><button class="btn" data-dlg-close>Close</button></div>`;
+  $("#dlg").showModal(); render();
+});
+document.addEventListener("click", e => { if (e.target.closest("[data-reset]")){ try { localStorage.removeItem(STORE_KEY); } catch {} S = seed(); UI.gate = null; $("#dlg").close(); render(); toast("Demo reset"); } });
+$("#dlg").addEventListener("click", e => { if (e.target === $("#dlg")) $("#dlg").close(); });
+
+const origRender = render;
+render = function(){ origRender(); if (UI.view === "create") drawBudgetPreview(); };
+render();
+</script>
+</body>
+</html>

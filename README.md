@@ -1,130 +1,57 @@
-# Culturals
+# Culturals / Club Management Platform — repository layout
 
-Clubs and events for a college student portal: event proposals, budget requests
-through three approval gates, and QR attendance at the door.
+Two systems are specified here. They are built separately, by different teams, on
+different timelines, and each has its own PRD, decision log and development plan.
+A small set of documents is binding on both.
 
-**This is a walkthrough build.** Everything runs in your browser — no server, no
-account, no data leaving the page. Pick a role, use the app, and tell us where the
-workflow is wrong.
+## Start here
 
-- **Try it:** sign in with any of the nine pilot accounts — see
-  **[DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md)**. Staff roles need the
-  authenticator code `123456`, because a second factor is mandatory for them.
-- **[DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md)** — the nine accounts, and a
-  ten-minute run-through that covers the whole workflow.
-- **[APPFLOW.md](APPFLOW.md)** — how work moves through the app, who touches it, and
-  what it refuses on purpose. Read this before filing feedback.
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to give feedback, run it locally, and
-  send a change.
+**[MASTER_SPEC.md](MASTER_SPEC.md)** — the consolidated reference: every role and what
+it can do, the access matrix, the approval chain, user flows, data flow diagrams, and a
+register of the places where the source documents contradict each other or the running
+code. Read it before the individual documents below.
 
----
+## `clubs-and-culturals-platform/`
 
-## What you can do
+The Clubs & Events application — Module 1, sponsored by the Dean of Student Life.
+Events, participation, budgets, evidence and semester reporting.
 
-| As | You can |
+| File | What it is |
 |---|---|
-| **Student** | Browse events, register, hold a pass and a profile QR |
-| **Club member** | See club internals — but never the budget |
-| **Secretary** | Raise proposals, run events, work the door |
-| **Treasurer** | Build the budget, record spend, settle it |
-| **President** | All of the club's work, plus assigning roles |
-| **Organiser** | Run the live event and its scan station |
-| **Cultural Society** | Approval gate 1, for cultural and literary clubs |
-| **Dean** | Gate 2 — the mandatory one. Venues, and the semester overview |
-| **Management** | Gate 3 for large budgets. Aggregate reporting only |
+| `AGENT_PROMPT.md` | Build prompt for agents working on the module |
+| `Student_Life_Clubs_Events_PRD_1/_V2/_V3/_V4.docx` | PRD, V4 is current |
+| `Event_Flows_Clubs_Events.docx`, `_V2.docx` | Process swimlanes and per-view chapters |
+| `Database_And_Data_Flow.docx` | Schema, relationships, aggregation, retention |
+| `Decision_Log.docx` | Module-level decisions and rejected alternatives |
+| `Development_Plan_Agent_Roles.docx` | Phases, checkpoints, nine-agent split |
+| `culturals-platform.html` | Self-contained clickable prototype |
+| `qr-attendance-kit/` | Django QR attendance & certificate implementation |
 
-The sidebar shows only the pages your role can open. **Hiding a page is not the
-permission**, though — the rules refuse the action regardless, so if a page turns you
-away that is the rule talking and not a missing button.
+## `student-management-platform/`
 
----
+The wider portal — twelve modules on one shared core (identity, records, academics,
+attendance, examinations, fees, hostel and mess, communications, campus life,
+requests and approvals, reporting, administration). Clubs & Events is its first module.
 
-## The workflow in one picture
+| File | What it is |
+|---|---|
+| `PLATFORM_AGENT_PROMPT.md` | Build prompt for agents working platform-wide |
+| `Platform_API_Reference.md` | Proposed API surface for all twelve modules; applies the shared contracts |
+| `Platform_Decision_Log.docx` | Institution-wide decisions across all modules |
+| `Platform_Development_Plan.docx` | Five phases, squad split, checkpoints |
 
-```
- propose ─► price it (or declare it needs nothing) ─► Cultural Society ─► Dean
-                                                                           │
-                                            over ₹50,000 or a fest ────────┤
-                                                      │                    │
-                                                 Management                │
-                                                      └────────┬───────────┘
-                                                               ▼
-                                                           PUBLISHED
-                                                               │
-                             register ─► pass ─► scan at the door ─► attended
-                                                               │
-                                              close with photos ─► settle spend
-                                                               │
-                                                        semester report
-```
+## `shared/`
 
-Three things this is opinionated about:
+Binding on both teams — these define the seam between the two systems, so they
+belong to neither folder alone.
 
-- **A zero-budget event says so explicitly**, with a reason and an author. An empty
-  budget and a genuinely free event look identical to an approver, and they call for
-  opposite responses.
-- **Every scan is recorded, including every failure.** The failures *are* the capture
-  rate — without them a station rejecting half its queue looks like a quiet event, and
-  every figure in the report derives from attendance.
-- **The report leads with unique students, not total attendance.** Twenty events
-  attended by the same eighty students and twenty reaching six hundred both report
-  1,600 attendances. Only the unique count tells them apart.
+| File | What it is |
+|---|---|
+| `API_Standards_Integration_Contract.docx` | How the two systems stay compatible |
+| `API_Standards_Integration_Contract_1.docx` | Byte-identical duplicate of the above |
+| `Identity_Login_Shared_Data.docx` | PRN, names, email, roles, auth — defined once |
 
----
+## Root
 
-## Running it
-
-No build step. Node 18+ only for the tests.
-
-```bash
-python3 -m http.server 4173      # or any static server
-```
-
-Open <http://127.0.0.1:4173/>. It must be served over HTTP — ES modules do not run
-from a `file://` path.
-
-```bash
-npm run check    # smoke test + 89 end-to-end tests, about 2 seconds
-```
-
----
-
-## Deploying
-
-A static publish with no build. Works on Netlify, GitHub Pages, Cloudflare Pages or
-any CDN.
-
-- **Netlify** — `netlify.toml` is included; publish directory `.`, no build command.
-- **GitHub Pages** — serve the repository root; `.nojekyll` is included so the
-  `src/` directory is not swallowed.
-
----
-
-## Honest limits
-
-This build is for feeling out the workflow, not for running a college.
-
-- **The rules run in the browser**, so they shape the workflow faithfully but defend
-  nothing. A production backend (Django + DRF) runs the identical rules server-side,
-  where a tampered client is refused anyway. `src/api.js` is shaped like its REST
-  endpoints so that switching is a change to one module.
-- **The QR signing key ships to the browser.** The signature keeps the data
-  *structure* honest — purposes, event binding, single use — and protects nothing.
-- **Passwords are shared and published.** Nine demo accounts with a salted digest
-  each — enough that no plaintext sits in the state document, and nothing more. A
-  real deployment stores no password at all: people sign in through the portal's
-  single sign-on and this module only reads the claims.
-- **Any non-empty authenticator code is accepted**, because a walkthrough cannot read
-  an authenticator app. The gate still works — staff cannot sign in without one.
-- **Not yet built:** waitlists, feedback surveys, the annual handover of office
-  bearers, fest sub-events, external participants.
-
----
-
-## Feedback
-
-Issues welcome, and **"this rule is wrong for how we actually work"** is the most
-useful kind. Say which role you were signed in as, what you were trying to do, and
-what happened. [CONTRIBUTING.md](CONTRIBUTING.md) has the detail.
-
-MIT licensed.
+`Minor_Approval_Request_Form (3).pdf` is project paperwork rather than a
+specification for either system, so it stays here.

@@ -1,0 +1,557 @@
+/* ==========================================================================
+   Culturals design system — THE GLOBAL CONFIG.
+
+   Every colour, font, type style, space, radius, shadow, size, opacity and
+   blur in the app comes from this file. Change a value here and every
+   component, page and Tailwind utility follows — in light and dark.
+
+   Source: the "Culturals" design system (tokens.json v1).
+
+   Where things are:
+   - :root               colours, space steps, elevation, sizes, state layers, blur
+   - @theme static       fonts, radii, the spacing base unit, the type scale
+                         (also Tailwind's own keys: font-sans, rounded-lg, p-4,
+                         text-body-md … are built from them)
+   - dark overrides      shadows (the only values light-dark() can't express)
+   - @layer components   the type classes (.large-title … .mono-sm)
+   - @theme inline       names only: maps colours and shadows to Tailwind
+                         utilities (bg-surface, text-ink-muted, shadow-elevation-1)
+
+   How it is wired:
+   - Colours are written once with light-dark(light, dark). The theme is
+     picked by `color-scheme`: the OS preference by default, or forced with
+     data-theme="light" | "dark" on <html> (or on any subtree — the profile
+     ID card is always dark).
+   - Spacing is one unit (--spacing); every space step and every p-*, m-*,
+     gap-* utility is a multiple of it.
+   - Tailwind's built-in type sizes, radii and shadows are removed, so a page
+     can only use the scales defined here.
+   - The QR generator reads --qr-ink / --qr-paper at draw time.
+   - Components (src/shared/ds/*.tsx, components.css) and pages read only
+     these variables. Don't hard-code a colour, font size, radius or shadow
+     anywhere else.
+   ========================================================================== */
+
+/* Also on every [data-theme] element: tokens are re-declared there so their
+   light-dark() values resolve against that subtree's colour scheme (an
+   always-dark panel inside a light page). Same declarations, written once. */
+:root,
+[data-theme] {
+  color-scheme: light dark;
+
+  /* ---------- Surfaces ---------- */
+  --bg: light-dark(#f3f5fa, #0d1219); /* app background */
+  --surface: light-dark(#ffffff, #151b25); /* cards, sheets, fields */
+  --surface-raised: light-dark(#ffffff, #1c2431); /* menus, dialogs, popovers */
+  --surface-grouped: light-dark(#eaeef6, #0a0e14); /* behind inset list groups */
+  --surface-sidebar: light-dark(#e8edf7, #111720); /* left navigation */
+  --surface-sunken: light-dark(#f6f8fc, #11161f); /* zebra rows, ID wells */
+  --sheet-header: light-dark(#edf1f8, #1a212d); /* sheet header & totals */
+  --bar-material: light-dark(#f3f5fadb, #0d1219d9); /* translucent bars (with blur) */
+  --viewfinder-glass: #1b2433b3;
+
+  /* ---------- Lines ---------- */
+  --line: light-dark(#dde2ec, #283141); /* hairlines, decorative only */
+  --line-strong: light-dark(#7d889c, #6f7c92); /* borders of controls (3:1) */
+
+  /* ---------- Text ---------- */
+  --ink: light-dark(#0e1a2f, #e7ecf4); /* content */
+  --ink-muted: light-dark(#4d5970, #a0abbd); /* labels, metadata */
+  --ink-subtle: light-dark(#5f6b82, #8792a6); /* placeholders only */
+  --navy: light-dark(#0b1f4d, #c9d8f6); /* wordmark, eyebrows */
+
+  /* ---------- Action ---------- */
+  --primary: light-dark(#1b5fe4, #79aaff);
+  --on-primary: light-dark(#ffffff, #06173d);
+  --primary-soft: light-dark(#e3ecff, #16294d);
+  --on-primary-soft: light-dark(#0b3a9e, #d2e1ff);
+  --link: var(--primary);
+  --focus: var(--primary);
+
+  /* ---------- Status (always with an icon and a word) ---------- */
+  --success: light-dark(#13773a, #5fd98a);
+  --success-soft: light-dark(#ddf4e5, #123321);
+  --on-success: light-dark(#ffffff, #062611);
+  --warning: light-dark(#985400, #f7bd4a);
+  --warning-soft: light-dark(#fff0d4, #3a2a0b);
+  --on-warning: light-dark(#ffffff, #2b1b00);
+  --danger: light-dark(#c21d2c, #ff8a8f);
+  --danger-soft: light-dark(#fde4e6, #41161b);
+  --on-danger: light-dark(#ffffff, #3a060c);
+  --neutral-soft: light-dark(#e9edf4, #242d3b);
+  --status-info: var(--primary);
+  --status-info-soft: var(--primary-soft);
+
+  /* ---------- Charts ----------
+     Data marks get their own steps, validated (dataviz validator: lightness
+     band, chroma, ≥3:1 on the card surface) for each mode — dark is its own
+     step, not primary's text-tuned #79aaff, which is too light for a fill. */
+  --chart-bar: light-dark(#1b5fe4, #4f86ec);
+  --chart-bar-hover: light-dark(#3a76ea, #5a8ff0);
+  --chart-grid: var(--line);
+
+  /* ---------- Edit tracking (reserved: nothing else is violet or teal) ---------- */
+  --edit-admin: light-dark(#6a2bd9, #bea5ff);
+  --edit-admin-soft: light-dark(#efe7ff, #2a1d4d);
+  --on-edit-admin: light-dark(#ffffff, #1a0b3d);
+  --edit-mgmt: light-dark(#0b6e66, #4fd8c6);
+  --edit-mgmt-soft: light-dark(#daf4ef, #0e3330);
+  --on-edit-mgmt: light-dark(#ffffff, #03211d);
+
+  /* ---------- Club accents (identity only — never status) ---------- */
+  --accent-coral: light-dark(#e8572f, #ff8a66);
+  --accent-coral-soft: light-dark(#ffe8df, #3d1d14);
+  --accent-sun: light-dark(#e9a800, #ffcd4d);
+  --accent-sun-soft: light-dark(#fff4d1, #3a2e08);
+  --accent-sky: light-dark(#148fd0, #62c6f5);
+  --accent-sky-soft: light-dark(#ddf2fc, #0e2c3d);
+  --accent-pink: light-dark(#de4b93, #ff8cc4);
+  --accent-pink-soft: light-dark(#fde4f0, #3d1528);
+  --accent-lime: light-dark(#5aa618, #9ee05a);
+  --accent-lime-soft: light-dark(#ebf7d9, #1e3109);
+  --on-accent: #0e1a2f;
+
+  /* ---------- People and roles ---------- */
+  --avatar-bg: light-dark(#dde3ee, #2a3342);
+  --avatar-ink: light-dark(#4f5b73, #a6b1c3);
+  --role-club: light-dark(#8a5f00, #f0c24f);
+  --on-role-club: light-dark(#ffffff, #2b1d00);
+  --role-admin: var(--edit-admin);
+  --on-role-admin: var(--on-edit-admin);
+  --role-management: var(--edit-mgmt);
+  --on-role-management: var(--on-edit-mgmt);
+  --knob: #ffffff;
+
+  /* ---------- QR, camera, certificates (identical in both themes) ---------- */
+  --qr-paper: #ffffff;
+  --qr-ink: #0e1a2f;
+  --viewfinder: light-dark(#0a0f18, #05080d);
+  --on-viewfinder: #ffffff;
+  --cert-paper: #fbf7ec;
+  --cert-paper-shade: #f2ead6;
+  --cert-ink: #18213d;
+  --cert-ink-muted: #545a6e;
+  --cert-gold: #7c5c16;
+  --cert-gold-light: #d9be78;
+  --cert-ribbon: #8e1b30;
+
+  /* ---------- Space: multiples of the base unit (--spacing, below) ---------- */
+  --space-1: calc(var(--spacing) * 1);
+  --space-2: calc(var(--spacing) * 2);
+  --space-3: calc(var(--spacing) * 3);
+  --space-4: calc(var(--spacing) * 4);
+  --space-5: calc(var(--spacing) * 5);
+  --space-6: calc(var(--spacing) * 6);
+  --space-8: calc(var(--spacing) * 8);
+  --space-10: calc(var(--spacing) * 10);
+  --space-12: calc(var(--spacing) * 12);
+
+  /* ---------- Elevation (light; dark overrides below) ---------- */
+  --elevation-1: 0 1px 2px #0e1a2f14, 0 1px 3px 1px #0e1a2f0d;
+  --elevation-2: 0 2px 6px 2px #0e1a2f12, 0 1px 2px #0e1a2f1f;
+  --elevation-3: 0 8px 24px -4px #0e1a2f29, 0 2px 6px #0e1a2f14;
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus);
+
+  /* ---------- Sizes ---------- */
+  --control-sm: 32px;
+  --control-md: 40px;
+  --control-lg: 48px;
+  --row-sheet: 40px;
+  --row-list: 44px;
+  --avatar-xs: 24px;
+  --avatar-sm: 32px;
+  --avatar-md: 40px;
+  --avatar-lg: 56px;
+  --avatar-xl: 80px;
+  --icon-button: 40px;
+  --appbar-height: 56px;
+  --navbar-height: 64px;
+  --sidebar-width: 240px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* ---------- State layers ---------- */
+  --state-hover: 0.08;
+  --state-pressed: 0.12;
+  --state-dragged: 0.16;
+  --disabled: 0.38;
+
+  /* ---------- Blur ---------- */
+  --blur-material: 20px;
+}
+
+/* Culturals — motion tokens (Section 7). Paste next to the colour tokens. */
+/* prettier-ignore */
+:root {
+  --dur-xs: 100ms;   /* state layers, hover, press-in, icon swaps */
+  --dur-sm: 150ms;   /* colour changes, chips, toggles, fade-outs, in-page crossfades */
+  --dur-md: 250ms;   /* small things arriving: toasts, menus, dialogs, list rows, scrims */
+  --dur-lg: 350ms;   /* things crossing the screen: page push, sheets, container transform */
+  --dur-xl: 500ms;   /* rare reveals: certificate seal */
+  --dur-spring: 400ms;
+  --dur-spring-bouncy: 650ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-spring: linear(0, 0.019, 0.068, 0.137, 0.217, 0.303, 0.389, 0.473, 0.551, 0.623, 0.688, 0.746, 0.796, 0.839, 0.876, 0.906, 0.932, 0.952, 0.968, 0.981, 0.991, 0.998, 1.003, 1.007, 1.009, 1.01, 1.011, 1.011, 1.011, 1.01, 1.009, 1.008, 1.007, 1.006, 1.005, 1.005, 1.004, 1.003, 1.003, 1);
+  --ease-spring-bouncy: linear(0, 0.029, 0.103, 0.207, 0.327, 0.452, 0.575, 0.689, 0.79, 0.876, 0.946, 1.001, 1.042, 1.069, 1.086, 1.094, 1.094, 1.089, 1.081, 1.07, 1.059, 1.047, 1.036, 1.025, 1.016, 1.009, 1.003, 0.998, 0.995, 0.993, 0.991, 0.991, 0.991, 0.992, 0.993, 0.994, 0.995, 0.996, 0.997, 1);
+  --loop-pulse: 1600ms;
+  --loop-scan: 2200ms;
+  --loop-shimmer: 1400ms;
+  --loop-sheen: 3200ms;
+  --stagger: 30ms;
+  --press-scale: 0.97;
+  --wash-hover: 8%;
+  --wash-selected: 12%;
+  --wash-drag: 16%;
+  --wash-flash: 24%;
+
+  /* Timings the §7.7 reference table names but §7.8 has no token for.
+     Kept here so no component carries a literal duration. */
+  --toast-hold: 3400ms;
+  --skeleton-delay: 300ms;
+  --fade-through-out: 90ms;
+  --fade-through-in: 210ms;
+  --flash-ok: 400ms;
+  --flash-warn: 300ms;
+  --flash-bad: 600ms;
+  --edit-flash: 900ms;
+  --flash-peak: 0.32; /* scan flash opacity inside the viewfinder */
+}
+
+/* Status chips blend their hue through Oklab (§7.8 "Colour blends in Oklab"). */
+@property --mix {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+/* Fonts, radii, spacing unit and type scale: these names are also Tailwind's own
+   theme keys, so they are defined here, once, and Tailwind writes them to :root
+   (static = always) and builds utilities from them (font-sans, rounded-lg, p-4,
+   text-body-md …). */
+@theme static {
+  /* Only the design system's scales exist: Tailwind's built-in sizes, radii and
+     shadows are removed, so every text-*, rounded-* and shadow-* comes from here. */
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+
+  /* Tailwind's transition-* utilities time themselves from the motion tokens. */
+  --default-transition-duration: var(--dur-sm);
+  --default-transition-timing-function: var(--ease-standard);
+
+  /* ---------- Fonts ---------- */
+  --font-sans:
+    'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+    'SF Pro Text', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-display: Cinzel, 'Trajan Pro', Georgia, serif; /* certificates only */
+  --font-serif: 'EB Garamond', Garamond, Georgia, 'Times New Roman', serif; /* certificates only */
+
+  /* ---------- Radius ---------- */
+  --radius-xs: 4px; /* edit highlights, sheet cells */
+  --radius-sm: 8px; /* fields, small buttons */
+  --radius-md: 12px; /* buttons, list groups */
+  --radius-lg: 16px; /* cards */
+  --radius-xl: 24px; /* dialogs, passes, sheets */
+  --radius-full: 9999px;
+
+  /* ---------- Spacing base unit: every gap, padding and margin is a multiple ---------- */
+  --spacing: 4px;
+
+  /* ---------- Type scale: size, line height, weight, tracking per role.
+     Tailwind's text-<role> utilities set size, line height and tracking only, so <strong>,
+     <b> and font-* utilities keep control of weight. The .<role> classes below apply the
+     whole style, weight (--type-<role>-weight) included. ---------- */
+  --text-large-title: 34px;
+  --text-large-title--line-height: 41px;
+  --type-large-title-weight: 750;
+  --text-large-title--letter-spacing: -0.02em;
+  --text-headline: 26px;
+  --text-headline--line-height: 32px;
+  --type-headline-weight: 700;
+  --text-headline--letter-spacing: -0.015em;
+  --text-title-lg: 20px;
+  --text-title-lg--line-height: 28px;
+  --type-title-lg-weight: 700;
+  --text-title-lg--letter-spacing: -0.01em;
+  --text-title-md: 17px;
+  --text-title-md--line-height: 24px;
+  --type-title-md-weight: 650;
+  --text-title-md--letter-spacing: 0;
+  --text-title-sm: 15px;
+  --text-title-sm--line-height: 20px;
+  --type-title-sm-weight: 650;
+  --text-title-sm--letter-spacing: 0;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --type-body-lg-weight: 400;
+  --text-body-lg--letter-spacing: 0;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 21px;
+  --type-body-md-weight: 400;
+  --text-body-md--letter-spacing: 0;
+  --text-label-lg: 14px;
+  --text-label-lg--line-height: 20px;
+  --type-label-lg-weight: 600;
+  --text-label-lg--letter-spacing: 0.005em;
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --type-label-md-weight: 650;
+  --text-label-md--letter-spacing: 0.02em;
+  --text-label-sm: 10px;
+  --text-label-sm--line-height: 12px;
+  --type-label-sm-weight: 800;
+  --text-label-sm--letter-spacing: 0.02em;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --type-caption-weight: 450;
+  --text-caption--letter-spacing: 0;
+  --text-poster: 40px;
+  --text-poster--line-height: 38px;
+  --type-poster-weight: 800;
+  --text-poster--letter-spacing: -0.03em;
+  --text-figure-xl: 32px;
+  --text-figure-xl--line-height: 38px;
+  --type-figure-xl-weight: 700;
+  --text-figure-xl--letter-spacing: -0.02em;
+  --text-figure-md: 14px;
+  --text-figure-md--line-height: 20px;
+  --type-figure-md-weight: 550;
+  --text-figure-md--letter-spacing: 0;
+  --text-figure-sm: 12px;
+  --text-figure-sm--line-height: 16px;
+  --type-figure-sm-weight: 550;
+  --text-figure-sm--letter-spacing: 0;
+  --text-mono-md: 13px;
+  --text-mono-md--line-height: 20px;
+  --type-mono-md-weight: 400;
+  --text-mono-md--letter-spacing: 0;
+  --text-mono-sm: 11px;
+  --text-mono-sm--line-height: 16px;
+  --type-mono-sm-weight: 500;
+  --text-mono-sm--letter-spacing: 0.02em;
+}
+
+/* ---------- Theme selection ---------- */
+[data-theme='light'] {
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* Shadows: the only values light-dark() can't express. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --elevation-1: 0 1px 2px #00000080;
+    --elevation-2: 0 2px 6px 2px #00000066, 0 1px 2px #00000099;
+    --elevation-3: 0 12px 32px -4px #000000b3;
+  }
+}
+[data-theme='dark'] {
+  --elevation-1: 0 1px 2px #00000080;
+  --elevation-2: 0 2px 6px 2px #00000066, 0 1px 2px #00000099;
+  --elevation-3: 0 12px 32px -4px #000000b3;
+}
+
+/* ==========================================================================
+   Type scale — one class per role. Each step changes size and weight
+   together. Money uses the figure-* styles (tabular). IDs use mono-*.
+   ========================================================================== */
+@layer components {
+  .large-title {
+    font-family: var(--font-sans);
+    font-size: var(--text-large-title);
+    line-height: var(--text-large-title--line-height);
+    font-weight: var(--type-large-title-weight);
+    letter-spacing: var(--text-large-title--letter-spacing);
+  }
+  .headline {
+    font-family: var(--font-sans);
+    font-size: var(--text-headline);
+    line-height: var(--text-headline--line-height);
+    font-weight: var(--type-headline-weight);
+    letter-spacing: var(--text-headline--letter-spacing);
+  }
+  .title-lg {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    font-weight: var(--type-title-lg-weight);
+    letter-spacing: var(--text-title-lg--letter-spacing);
+  }
+  .title-md {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-md);
+    line-height: var(--text-title-md--line-height);
+    font-weight: var(--type-title-md-weight);
+    letter-spacing: var(--text-title-md--letter-spacing);
+  }
+  .title-sm {
+    font-family: var(--font-sans);
+    font-size: var(--text-title-sm);
+    line-height: var(--text-title-sm--line-height);
+    font-weight: var(--type-title-sm-weight);
+    letter-spacing: var(--text-title-sm--letter-spacing);
+  }
+  .body-lg {
+    font-family: var(--font-sans);
+    font-size: var(--text-body-lg);
+    line-height: var(--text-body-lg--line-height);
+    font-weight: var(--type-body-lg-weight);
+    letter-spacing: var(--text-body-lg--letter-spacing);
+  }
+  .body-md {
+    font-family: var(--font-sans);
+    font-size: var(--text-body-md);
+    line-height: var(--text-body-md--line-height);
+    font-weight: var(--type-body-md-weight);
+    letter-spacing: var(--text-body-md--letter-spacing);
+  }
+  .label-lg {
+    font-family: var(--font-sans);
+    font-size: var(--text-label-lg);
+    line-height: var(--text-label-lg--line-height);
+    font-weight: var(--type-label-lg-weight);
+    letter-spacing: var(--text-label-lg--letter-spacing);
+  }
+  .label-md {
+    font-family: var(--font-sans);
+    font-size: var(--text-label-md);
+    line-height: var(--text-label-md--line-height);
+    font-weight: var(--type-label-md-weight);
+    letter-spacing: var(--text-label-md--letter-spacing);
+  }
+  .label-sm {
+    font-family: var(--font-sans);
+    font-size: var(--text-label-sm);
+    line-height: var(--text-label-sm--line-height);
+    font-weight: var(--type-label-sm-weight);
+    letter-spacing: var(--text-label-sm--letter-spacing);
+  }
+  .caption {
+    font-family: var(--font-sans);
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    font-weight: var(--type-caption-weight);
+    letter-spacing: var(--text-caption--letter-spacing);
+  }
+  .poster {
+    font-family: var(--font-sans);
+    font-size: var(--text-poster);
+    line-height: var(--text-poster--line-height);
+    font-weight: var(--type-poster-weight);
+    letter-spacing: var(--text-poster--letter-spacing);
+  }
+  .figure-xl {
+    font-family: var(--font-sans);
+    font-size: var(--text-figure-xl);
+    line-height: var(--text-figure-xl--line-height);
+    font-weight: var(--type-figure-xl-weight);
+    letter-spacing: var(--text-figure-xl--letter-spacing);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .figure-md {
+    font-family: var(--font-sans);
+    font-size: var(--text-figure-md);
+    line-height: var(--text-figure-md--line-height);
+    font-weight: var(--type-figure-md-weight);
+    letter-spacing: var(--text-figure-md--letter-spacing);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .figure-sm {
+    font-family: var(--font-sans);
+    font-size: var(--text-figure-sm);
+    line-height: var(--text-figure-sm--line-height);
+    font-weight: var(--type-figure-sm-weight);
+    letter-spacing: var(--text-figure-sm--letter-spacing);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .mono-md {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-md);
+    line-height: var(--text-mono-md--line-height);
+    font-weight: var(--type-mono-md-weight);
+    letter-spacing: var(--text-mono-md--letter-spacing);
+  }
+  .mono-sm {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-sm);
+    line-height: var(--text-mono-sm--line-height);
+    font-weight: var(--type-mono-sm-weight);
+    letter-spacing: var(--text-mono-sm--letter-spacing);
+  }
+}
+
+/* ==========================================================================
+   Tailwind bridge — names only. Every value lives above.
+   ========================================================================== */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-grouped: var(--surface-grouped);
+  --color-surface-sidebar: var(--surface-sidebar);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-sheet-header: var(--sheet-header);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-navy: var(--navy);
+  --color-chart-bar: var(--chart-bar);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary-soft: var(--on-primary-soft);
+  --color-link: var(--link);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-on-success: var(--on-success);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-on-warning: var(--on-warning);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-edit-admin: var(--edit-admin);
+  --color-edit-admin-soft: var(--edit-admin-soft);
+  --color-edit-mgmt: var(--edit-mgmt);
+  --color-edit-mgmt-soft: var(--edit-mgmt-soft);
+  --color-accent-coral: var(--accent-coral);
+  --color-accent-coral-soft: var(--accent-coral-soft);
+  --color-accent-sun: var(--accent-sun);
+  --color-accent-sun-soft: var(--accent-sun-soft);
+  --color-accent-sky: var(--accent-sky);
+  --color-accent-sky-soft: var(--accent-sky-soft);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-pink-soft: var(--accent-pink-soft);
+  --color-accent-lime: var(--accent-lime);
+  --color-accent-lime-soft: var(--accent-lime-soft);
+  --color-on-accent: var(--on-accent);
+  --color-avatar-bg: var(--avatar-bg);
+  --color-avatar-ink: var(--avatar-ink);
+  --color-role-club: var(--role-club);
+  --color-qr-paper: var(--qr-paper);
+  --color-qr-ink: var(--qr-ink);
+  --color-viewfinder: var(--viewfinder);
+  --color-on-viewfinder: var(--on-viewfinder);
+
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-3: var(--elevation-3);
+  --shadow-focus: var(--focus-ring);
+}
