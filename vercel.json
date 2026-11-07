@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix clubs-and-culturals-platform/app/frontend",
+  "buildCommand": "npm run build --prefix clubs-and-culturals-platform/app/frontend",
+  "outputDirectory": "clubs-and-culturals-platform/app/frontend/dist",
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+}
