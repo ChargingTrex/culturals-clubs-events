@@ -310,8 +310,11 @@ class DeanOverviewAdditionsTests(TestCase):
         self.assertIsNone(escalation_summary({"id": "x", "stage": "dean"})["age_hours"])
 
     def test_wrong_roles_cannot_read_the_overview(self):
-        for email, mfa in (("vc@college.edu", "1"), ("student@college.edu", "")):
-            f.as_user(self.client, email, mfa_code=mfa)
-            response = self.client.get("/api/v1/reporting/reports/overview")
-            self.assertEqual(response.status_code, 403, email)
-            self.assertEqual(response.data["code"], "REPORTING_DENIED")
+        f.as_user(self.client, "student@college.edu")
+        response = self.client.get("/api/v1/reporting/reports/overview")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["code"], "REPORTING_DENIED")
+
+    def test_the_vice_chancellor_reads_the_overview(self):
+        f.as_user(self.client, "vc@college.edu", mfa_code="1")
+        self.assertEqual(self.client.get("/api/v1/reporting/reports/overview").status_code, 200)

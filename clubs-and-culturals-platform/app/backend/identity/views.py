@@ -236,7 +236,7 @@ def _capabilities(ctx):
         # response carries names and PRNs, and the Treasurer because running a door
         # is not their job. The client cannot derive this from `clubs`.
         "clubs_door_staff": sorted(ctx.scopes_for(*R.DOOR_STAFF)),
-        "can_see_overview": ctx.has_any(R.DEAN, R.ADMIN, R.CULTURAL_SOCIETY),
+        "can_see_overview": ctx.has_any(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY),
         "organiser_events": sorted(ctx.organiser_events()),
         "approval_stages": [s for s, role in R.STAGE_ROLE.items() if ctx.has_any(role)],
         # Counted from the rows, not the token, so "2 of 3" is right the moment

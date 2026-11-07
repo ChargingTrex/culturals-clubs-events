@@ -66,8 +66,8 @@ class SemesterReportView(APIView):
 
 class DeanOverviewView(APIView):
     """
-    Running totals and what needs chasing (PRD §6.3). Dean, admin and the
-    Cultural Society; the VC gets the semester report, not the chase list.
+    Running totals and what needs chasing (PRD §6.3). Dean, admin, the
+    Cultural Society and the VC — events and clubs only, no individual records.
     `capture` is documented by reporting.serializers.CaptureMetricsSerializer.
     """
 
@@ -79,8 +79,8 @@ class DeanOverviewView(APIView):
     )
     def get(self, request):
         ctx = request.auth_context
-        if not ctx.has_any(R.DEAN, R.ADMIN, R.CULTURAL_SOCIETY):
+        if not ctx.has_any(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY):
             raise ProblemDetail(code="REPORTING_DENIED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
-                                detail="This overview is available to the Dean.")
+                                detail="This overview is available to the Dean and management.")
         return Response(dean_overview(_semester(request)))

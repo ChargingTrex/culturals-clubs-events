@@ -9,6 +9,7 @@ looks correct whether or not the DISTINCT count is right.
 import random
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -215,7 +216,8 @@ class Command(BaseCommand):
         def at(days_from_today, hour, minute=0):
             local = datetime.combine(today + timedelta(days=days_from_today),
                                      time(hour, minute))
-            return timezone.make_aware(local)
+            # Hours in the specs are campus (IST) hours; storage stays UTC.
+            return timezone.make_aware(local, ZoneInfo(settings.DISPLAY_TIME_ZONE))
 
         specs = [
             # title, club, offset, start, end, venue, template, expected, status
@@ -232,7 +234,23 @@ class Command(BaseCommand):
             ("Contemporary Dance Workshop", "Dance Club", 16, 17, 19, "Seminar Hall A", "Workshop", 60, "submitted"),
             # Above the VC threshold, so it routes Society -> Dean -> VC.
             ("Culturals Night 2026", "Music Club", 25, 17, 22, "Open Air Theatre", "Performance", 700, "submitted"),
+            # One example of each review outcome, for the user guide.
+            ("Carnatic Music Recital", "Music Club", 12, 17, 19, "Main Auditorium", "Performance", 200, "published"),
+            ("Folk Fusion Evening", "Dance Club", 20, 17, 19, "Amphitheatre", "Performance", 150, "with_dean"),
+            ("Late-Night Improv Marathon", "Theatre Club", 14, 20, 23, "Open Air Theatre", "Performance", 300, "rejected"),
+            ("Short Film Screening", "Photography Club", 22, 17, 19, "Seminar Hall B", "Exhibition", 80, "edited"),
         ]
+
+        # target: (stage where the approver stops, decision taken there, comment)
+        outcomes = {
+            "with_dean": ("dean", None, ""),
+            "rejected": ("dean", Decision.REJECT,
+                         "Runs past the 10 pm campus curfew and has no security plan for 300 people. "
+                         "Not approved this semester."),
+            "edited": ("dean", Decision.RETURN,
+                       "Publicity looks high for an 80-seat screening, and the screening licence "
+                       "is missing. Trim publicity and add the licence, then resubmit."),
+        }
 
         events = {}
         for title, club_name, offset, start_h, end_h, venue_name, template_name, expected, target in specs:
@@ -262,6 +280,11 @@ class Command(BaseCommand):
                 guard += 1
                 stage = approval.current_stage
                 actor = {"cultural_society": society_ctx, "dean": dean_ctx, "vc": vc_ctx}[stage]
+                if target in outcomes and stage == outcomes[target][0]:
+                    _, decision, comment = outcomes[target]
+                    if decision:
+                        governance.decide(approval, ctx=actor, decision=decision, comment=comment)
+                    break
                 sanctioned = None
                 if stage == "dean":
                     # Trim one head, so the report shows sanctioned below requested.
@@ -271,6 +294,15 @@ class Command(BaseCommand):
                                   sanctioned_lines=sanctioned)
                 approval.refresh_from_db()
             event.refresh_from_db()
+            if target == "edited":
+                # The club acts on the Dean's comment: trims publicity, adds the
+                # licence, and resubmits — the trail shows the return, then a fresh request.
+                budget = event.budget
+                budget.lines.filter(head="Publicity").update(amount_requested=Decimal("600"))
+                budget.lines.create(head="Screening licence", amount_requested=Decimal("2500"),
+                                    position=budget.lines.count())
+                officer = club_officers[club_name]["president"]
+                governance.submit(event, actor=ctx_for(officer.user), actor_user=officer.user)
             if target == "live":
                 event.status = EventStatus.LIVE
                 event.save(update_fields=["status"])

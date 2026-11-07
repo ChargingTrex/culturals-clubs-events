@@ -5,3 +5,4 @@ export * from './config';
 export * from './domain';
 export * from './charts';
 export { ICONS, GLYPHS, type IconName, type ClubCategory } from './icons';
+export * from './ClubSelect';

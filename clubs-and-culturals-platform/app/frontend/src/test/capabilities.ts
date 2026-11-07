@@ -52,7 +52,7 @@ export function capabilitiesFromRoles(roles: string[]): Capabilities {
     clubs_can_operate_events: scopes(EVENT_OPERATORS),
     clubs_can_enter_spend: scopes(BUDGET_SETTLERS),
     clubs_door_staff: scopes(DOOR_STAFF),
-    can_see_overview: has('dean', 'admin', 'cultural_society'),
+    can_see_overview: has('dean', 'vice_chancellor', 'admin', 'cultural_society'),
     organiser_events: scopes(['event_organiser']),
     approval_stages: (Object.keys(STAGE_ROLE) as ApprovalStage[]).filter((s) => has(STAGE_ROLE[s])),
     my_clubs_count: scopes(CLUB_ROLES).length,

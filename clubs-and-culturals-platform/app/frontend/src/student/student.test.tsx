@@ -100,10 +100,18 @@ describe('student journey', () => {
     const user = userEvent.setup();
     renderAt('/events', { roles: ['student'] });
     expect(await screen.findAllByTestId('event-row')).toHaveLength(2);
-    await user.selectOptions(await screen.findByLabelText('Club'), 'club-byte');
+    // Keyboard: open, type to narrow, Enter picks the first match.
+    await user.click(await screen.findByLabelText('Club'));
+    await user.type(screen.getByRole('combobox', { name: 'Find a club' }), 'by{Enter}');
+    expect(screen.getByLabelText('Club')).toHaveTextContent('Byte');
     await waitFor(() => expect(screen.getAllByTestId('event-row')).toHaveLength(1));
     expect(screen.getByText('Byte Hack Night')).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Club'), '');
+    // Mouse: clubs are grouped by category, the chosen one is marked.
+    await user.click(screen.getByLabelText('Club'));
+    expect(screen.getByRole('option', { name: 'Byte' })).toHaveAttribute('aria-selected', 'true');
+    const list = screen.getByRole('listbox', { name: 'Clubs' });
+    expect(within(list).getByText('Technical')).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'All clubs' }));
     await user.selectOptions(screen.getByLabelText('Category'), 'cultural');
     await waitFor(() => expect(screen.getAllByTestId('event-row')).toHaveLength(1));
     expect(screen.getByText('Lens Heritage Photowalk')).toBeInTheDocument();

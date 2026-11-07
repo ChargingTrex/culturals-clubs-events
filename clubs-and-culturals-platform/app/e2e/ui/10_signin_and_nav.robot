@@ -55,7 +55,7 @@ Dean
 Vice-Chancellor
     Sign In As    ${VC_EMAIL}    ${MFA_CODE}
     Wait For Heading    Vice-Chancellor approvals
-    Pages Should Be    Above-threshold    Semester report
+    Pages Should Be    Above-threshold    This semester    Semester report
 
 A staff account with no code is refused on screen
     [Tags]    smoke

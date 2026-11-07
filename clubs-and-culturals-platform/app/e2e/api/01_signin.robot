@@ -73,7 +73,7 @@ The Vice-Chancellor gets aggregates, never individual records
     ${caps}=    Capabilities Of    ${token}
     Should Be True    ${caps}[is_vice_chancellor]
     Should Not Be True    ${caps}[can_see_individual_records]
-    Should Not Be True    ${caps}[can_see_overview]
+    Should Be True    ${caps}[can_see_overview]
     Lists Should Be Equal    ${caps}[approval_stages]    ${{ ['vc'] }}
 
 

@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import { api } from '../shared/api/endpoints';
 import type { ClubOut, EventOut, Page } from '../shared/api/types';
-import { accentFor, CATEGORY_GLYPH, PosterArt, type ClubCategory } from '../shared/ds';
+import { accentFor, CATEGORY_GLYPH, ClubSelect, PosterArt, type ClubCategory } from '../shared/ds';
 import { dateParts, fmtTime } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
@@ -173,19 +173,12 @@ export function EventsPage() {
           <label className="label" htmlFor="f-club">
             Club
           </label>
-          <select
+          <ClubSelect
             id="f-club"
-            className="field"
+            clubs={clubs.data?.results ?? []}
             value={club}
-            onChange={(e) => setClub(e.target.value)}
-          >
-            <option value="">All clubs</option>
-            {(clubs.data?.results ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={setClub}
+          />
         </div>
         <div>
           <label className="label" htmlFor="f-category">
