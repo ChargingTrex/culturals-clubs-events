@@ -14,7 +14,10 @@ set -euo pipefail
 
 PY="${PYTHON:-python3}"
 "$PY" --version
-"$PY" -m pip install --quiet --disable-pip-version-check -r requirements.txt
+# Vercel's build now installs requirements.txt with uv before this script, into a
+# uv-managed Python that refuses pip (PEP 668); install only when they are missing.
+"$PY" -c "import django" 2>/dev/null \
+  || "$PY" -m pip install --quiet --disable-pip-version-check -r requirements.txt
 "$PY" manage.py collectstatic --noinput --clear
 
 rm -rf staticfiles_build
