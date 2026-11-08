@@ -28,7 +28,13 @@ if ! "$PY" -c "import django" 2>/dev/null; then
   fi
   PY=/tmp/build-venv/bin/python
 fi
-"$PY" manage.py collectstatic --noinput --clear
+# Diagnostic only: the function needs psycopg at runtime, so say loudly if it
+# cannot be imported here (Django would otherwise hide the real error).
+"$PY" -c "import psycopg; print('psycopg', psycopg.__version__, psycopg.pq.__impl__)" \
+  || echo "WARNING: psycopg does not import in the build environment (see above)"
+# collectstatic never queries the database; without DATABASE_URL Django uses the
+# built-in sqlite backend, so the build does not depend on the Postgres driver.
+env -u DATABASE_URL "$PY" manage.py collectstatic --noinput --clear
 
 rm -rf staticfiles_build
 mkdir -p staticfiles_build
