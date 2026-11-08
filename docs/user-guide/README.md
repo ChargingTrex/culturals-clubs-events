@@ -6,6 +6,11 @@ approve them.
 
 Start with **[Getting started](getting-started.md)**, then open the chapter for your role.
 
+**Try it:** the public demo runs at
+[culturals-clubs-events.vercel.app](https://culturals-clubs-events.vercel.app). Its sign-in
+page lists one pilot account per role (password `culturals-demo`; staff accounts accept any
+authenticator code, such as `123456`).
+
 | I am… | Chapter |
 |---|---|
 | A student | [Student guide](student.md) |

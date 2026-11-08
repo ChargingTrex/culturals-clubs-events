@@ -7,7 +7,9 @@ signing in, finding your way around and signing out.
 
 ## Sign in
 
-1. Open Culturals in your browser. You land on the **Sign in** page.
+1. Open Culturals in your browser. The public demo is at
+   **[culturals-clubs-events.vercel.app](https://culturals-clubs-events.vercel.app)**.
+   You land on the **Sign in** page.
 2. Type your **Institutional email** (for example `you@college.edu`) and your **Password**.
 3. Tap **Sign in**.
 
