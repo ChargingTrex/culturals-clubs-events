@@ -113,7 +113,8 @@ Then add its domain (and each preview domain you use) to the backend's
 | `/api/v1/jobs/rollup-scans` | `0 3 * * *` (daily 03:00) |
 | `/api/v1/jobs/purge-external` | `10 3 * * *` (daily 03:10) |
 | `/api/v1/jobs/flag-dormant` | `20 3 * * *` (daily 03:20) |
-| `/api/v1/jobs/escalate-sla` | `0 * * * *` (hourly) |
+| `/api/v1/jobs/escalate-sla` | `30 3 * * *` (daily 03:30) |
+| `/api/v1/jobs/complete-ended` | `40 3 * * *` (daily 03:40) |
 
 Vercel Cron issues GET with `Authorization: Bearer $CRON_SECRET`, which is why
 `GET /api/v1/jobs/<name>` exists beside the POST form. **`JOBS_TOKEN` must equal
@@ -121,8 +122,11 @@ Vercel's `CRON_SECRET`** in the project env, and must be at least 32 characters:
 a shorter or missing token makes every trigger answer 503 (`JOBS_DISABLED`), so a
 misconfigured host runs nothing rather than running jobs for anyone.
 
-The Hobby plan runs each cron at most once a day; `escalate-sla` hourly needs
-Pro, and on Hobby it degrades to a daily check without any change here.
+The Hobby plan rejects any cron that runs more than once a day: the deployment
+fails before the build starts, with empty build logs. So every cron here is
+daily. On Pro, `escalate-sla` can go back to hourly (`0 * * * *`) and
+`complete-ended` to `15 * * * *`, matching the Celery beat schedule in
+`config/celery.py`. Hobby also fixes function memory, so `vercel.json` sets none.
 
 ## 8. Known limits of this test host
 
