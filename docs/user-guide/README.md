@@ -4,6 +4,9 @@ Culturals is the college's clubs and events app: students find events and get in
 clubs propose and run events with a budget, and the Cultural Society, Dean and Vice-Chancellor
 approve them.
 
+> **New to Culturals?** Read the **[quick guide](quick-guide.md)** first. It covers proposing and
+> approving events in a few minutes, with pictures. The chapters below have the full detail.
+
 Start with **[Getting started](getting-started.md)**, then open the chapter for your role.
 
 **Try it:** the public demo runs at
