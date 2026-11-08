@@ -1,0 +1,28 @@
+# Publishes the user guide (docs/user-guide) to GitHub Pages at /user-guide/.
+# The site root keeps the old static web-app walkthrough, frozen at its last commit
+# (3dd598a), since main no longer carries it.
+name: user-guide
+on:
+  push:
+    branches: [main]
+    paths: ["docs/user-guide/**", ".github/workflows/user-guide.yml"]
+  workflow_dispatch:
+permissions: { contents: read, pages: write, id-token: write }
+concurrency: { group: pages, cancel-in-progress: false }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: "${{ steps.deploy.outputs.page_url }}user-guide/" }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          mkdir _site && git archive 3dd598a | tar -x -C _site
+          pip install markdown==3.7
+          python docs/user-guide/build.py docs/user-guide _site/user-guide
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
