@@ -33,7 +33,7 @@ def out_name(md):
 
 
 def render(md_text):
-    html = markdown.markdown(md_text, extensions=["tables", "fenced_code", "toc", "sane_lists"])
+    html = markdown.markdown(md_text, extensions=["tables", "fenced_code", "toc", "sane_lists", "md_in_html"])
     # chapter links: student.md#x -> student.html#x
     html = re.sub(r'href="([a-z-]+|README)\.md(#[^"]*)?"',
                   lambda m: f'href="{out_name(m[1] + ".md")}{m[2] or ""}"', html)
@@ -72,10 +72,39 @@ mermaid.initialize({{startOnLoad:true,theme:matchMedia("(prefers-color-scheme: d
 </script></body></html>
 """
 
+# The quick guide for club officers and approvers: one short page, its own plain layout, no chapter sidebar.
+SIMPLE = ("quick-guide.md", "quick-guide.html")
+
+SIMPLE_PAGE = """<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quick guide — Culturals</title>
+<style>
+:root{{--bg:#f6f7fb;--panel:#fff;--ink:#111827;--muted:#5b6475;--line:#e3e6ee;--accent:#1d5fe0}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#0f141c;--panel:#161d28;--ink:#e7ebf2;--muted:#9aa4b5;--line:#263042;--accent:#7aa7ff}}}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:18px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}}
+header{{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:900px;margin:0 auto;padding:18px 20px;font-size:15px}}
+header b{{font-size:18px}}header a{{color:var(--muted)}}
+main{{max-width:900px;margin:0 auto;padding:8px 20px 80px}}
+h1{{font-size:34px;line-height:1.2;margin:8px 0 12px}}
+h2{{margin:44px 0 10px;font-size:24px}}
+a{{color:var(--accent)}}li{{margin:4px 0}}
+img{{display:block;max-width:100%;height:auto;margin:20px auto;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.08)}}
+.phones{{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}}.phones p{{margin:0}}.phones img{{margin:0;border-radius:18px}}
+@media (max-width:640px){{.phones{{grid-template-columns:repeat(2,1fr)}}}}
+</style></head><body>
+<header><b>Culturals</b><a href="index.html">Full guide →</a></header>
+<main>{body}</main></body></html>
+"""
+
 shutil.copytree(SRC / "img", OUT / "img", dirs_exist_ok=True)
+(OUT / SIMPLE[1]).write_text(SIMPLE_PAGE.format(body=render((SRC / SIMPLE[0]).read_text(encoding="utf-8"))),
+                             encoding="utf-8")
+print("wrote", SIMPLE[1])
 for md, label in CHAPTERS:
-    nav = "".join(f'<a href="{out_name(m)}"{" class=on aria-current=page" if m == md else ""}>{l}</a>'
-                  for m, l in CHAPTERS)
+    nav = '<a href="quick-guide.html">Quick guide</a>' + "".join(
+        f'<a href="{out_name(m)}"{" class=on aria-current=page" if m == md else ""}>{l}</a>'
+        for m, l in CHAPTERS)
     body = render((SRC / md).read_text(encoding="utf-8"))
     (OUT / out_name(md)).write_text(PAGE.format(title=label, nav=nav, body=body), encoding="utf-8")
     print("wrote", out_name(md))
