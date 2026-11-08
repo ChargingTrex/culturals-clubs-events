@@ -58,3 +58,7 @@ if settings.DEMO_MODE:
         path("demo/", RedirectView.as_view(url="/demo/index.html", permanent=False)),
         re_path(r"^demo/(?P<path>.*)$", serve, {"document_root": _demo_root}),
     ]
+
+# The API has no page at "/"; send a browser to the API docs instead of a bare
+# 404. Listed last, so the demo redirect above wins when DEMO_MODE is on.
+urlpatterns.append(path("", RedirectView.as_view(url="/" + API + "docs", permanent=False)))
