@@ -14,10 +14,20 @@ set -euo pipefail
 
 PY="${PYTHON:-python3}"
 "$PY" --version
-# Vercel's build now installs requirements.txt with uv before this script, into a
-# uv-managed Python that refuses pip (PEP 668); install only when they are missing.
-"$PY" -c "import django" 2>/dev/null \
-  || "$PY" -m pip install --quiet --disable-pip-version-check -r requirements.txt
+# Vercel installs requirements.txt with uv into the function's own environment,
+# and the build shell's python3 is a uv-managed interpreter that refuses pip
+# (PEP 668). So collectstatic runs from a throwaway venv outside the project,
+# which never ends up in the function bundle.
+if ! "$PY" -c "import django" 2>/dev/null; then
+  if command -v uv >/dev/null; then
+    uv venv --quiet --python "$PY" /tmp/build-venv
+    uv pip install --quiet --python /tmp/build-venv/bin/python -r requirements.txt
+  else
+    "$PY" -m venv /tmp/build-venv
+    /tmp/build-venv/bin/python -m pip install --quiet --disable-pip-version-check -r requirements.txt
+  fi
+  PY=/tmp/build-venv/bin/python
+fi
 "$PY" manage.py collectstatic --noinput --clear
 
 rm -rf staticfiles_build
