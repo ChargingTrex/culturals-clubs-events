@@ -816,6 +816,8 @@ p + p {{ margin-top: 2mm; }}
 """
 
 CSS += """
+/* The cover picture bleeds off the page, so it carries no markers: one at the edge would be cut in half. */
+.cover-shot .ring, .cover-shot .badge { display: none; }
 .tag.violet { background: #efe7ff; color: #4a1d9e; }
 .tag.teal { background: #daf4ef; color: #0b5a54; }
 /* On screen: a bar to the other guides and the PDF, and pages that shrink to fit a narrow window. */
