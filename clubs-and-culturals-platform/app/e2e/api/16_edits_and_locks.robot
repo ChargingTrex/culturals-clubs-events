@@ -75,9 +75,11 @@ The Dean and the Vice-Chancellor may not edit the club's proposal
     ${e}=    Row By Id    events_event    ${d1}[event]
     Should Be Equal    ${e}[description]    Now with a second act
 
-Only the Dean may move a booking
+Only the Dean may move a booking (and the Society's officers while it is with them: api/18)
     ${amphi}=    Find Venue    ${dean}    Amphitheatre
-    FOR    ${who}    IN    ${vc}    ${society}    ${president}
+    # ${society} is the Society's Secretary, who may move a proposal still at the Society's stage (AR-09),
+    # so that case is asserted in api/18 and left out here.
+    FOR    ${who}    IN    ${vc}    ${president}
         ${r}=    Reassign    ${who}    ${d1}[event]    expected=403    to_venue=${amphi}[id]    reason=Trying from the wrong chair
         Problem Code Should Be    ${r}    EVENTS_REASSIGN_DENIED
     END

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
@@ -48,7 +48,7 @@ describe('events calendar (C-03)', () => {
   it('a 17:00–19:00 booking fills exactly the two hours it covers', async () => {
     serve([booking({})]);
     renderAt('/staff/calendar', { roles: ['cultural_society'] });
-    await screen.findByRole('heading', { name: 'Calendar' });
+    await screen.findByRole('heading', { name: 'Semester event calendar' });
     await screen.findAllByTestId('slot');
     expect(within(cell('Seminar Hall A', 17)).getByText('Open Mic Night')).toBeInTheDocument();
     expect(within(cell('Seminar Hall A', 18)).getByText('Open Mic Night')).toBeInTheDocument();
@@ -91,7 +91,14 @@ describe('events calendar (C-03)', () => {
   it('a Society officer gets Move only on the booking the API marks movable (AR-08)', async () => {
     serve([
       booking({ can_move: true }),
-      booking({ id: 'b-2', title: 'Recital', venue: 'v-1', venue_name: 'Amphitheatre', status: 'published', confirmed: true }),
+      booking({
+        id: 'b-2',
+        title: 'Recital',
+        venue: 'v-1',
+        venue_name: 'Amphitheatre',
+        status: 'published',
+        confirmed: true,
+      }),
     ]);
     renderAt('/staff/calendar', { roles: ['cultural_society_secretary'] });
     expect(await screen.findByRole('button', { name: 'Move Open Mic Night' })).toBeInTheDocument();
@@ -117,10 +124,15 @@ describe('events calendar (C-03)', () => {
     await user.type(within(form).getByLabelText(/Reason/), 'Hall A closed for repairs');
     await user.click(within(form).getByRole('button', { name: 'Move' }));
     await waitFor(() => expect(body).not.toBeNull());
-    expect(body).toEqual({ to_venue: 'v-1', starts_at: at(15), ends_at: at(16), reason: 'Hall A closed for repairs' });
+    expect(body).toEqual({
+      to_venue: 'v-1',
+      starts_at: at(15),
+      ends_at: at(16),
+      reason: 'Hall A closed for repairs',
+    });
   });
 
-  it('lists a pending booking from a later week and jumps to its day', async () => {
+  it('lists pending and approved bookings from later weeks and jumps to the day', async () => {
     const later = new Date(`${today}T12:00`);
     later.setDate(later.getDate() + 21);
     const laterDay = dayKey(later.toISOString());
@@ -129,6 +141,15 @@ describe('events calendar (C-03)', () => {
       title: 'test',
       starts_at: new Date(`${laterDay}T17:00`).toISOString(),
       ends_at: new Date(`${laterDay}T19:00`).toISOString(),
+    });
+    const approved = booking({
+      id: 'b-10',
+      title: 'Approved Recital',
+      venue: 'v-2',
+      status: 'published',
+      confirmed: true,
+      starts_at: new Date(`${laterDay}T10:00`).toISOString(),
+      ends_at: new Date(`${laterDay}T12:00`).toISOString(),
     });
     // The week view asks for seven days; the look-ahead asks for months.
     server.use(
@@ -139,18 +160,76 @@ describe('events calendar (C-03)', () => {
         return HttpResponse.json({
           buffer_minutes: '0',
           venues: [{ id: 'v-2', name: 'Seminar Hall A', capacity: 150, active: true }],
-          bookings: days > 7 || inRange ? [pending] : [],
+          bookings: days > 7 || inRange ? [approved, pending] : [],
           clashes: [],
         });
       }),
     );
     const user = userEvent.setup();
     renderAt('/staff/calendar', { roles: ['dean'] });
-    const list = await screen.findByRole('region', { name: 'Awaiting approval' });
+    const list = await screen.findByRole('region', { name: 'Upcoming events' });
+    // An approved event weeks away is listed too, marked as approved.
+    const row = within(list).getByRole('button', { name: /Show Approved Recital/ });
+    expect(within(row).getByText('Approved')).toBeInTheDocument();
+    expect(
+      within(within(list).getByRole('button', { name: /Show test/ })).getByText(
+        'Awaiting approval',
+      ),
+    ).toBeInTheDocument();
     await screen.findAllByTestId('slot');
     expect(within(cell('Seminar Hall A', 17)).queryByText('test')).toBeNull();
     await user.click(within(list).getByRole('button', { name: /Show test/ }));
-    await waitFor(() => expect(within(cell('Seminar Hall A', 17)).getByText('test')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(cell('Seminar Hall A', 17)).getByText('test')).toBeInTheDocument(),
+    );
+    expect(within(cell('Seminar Hall A', 10)).getByText('Approved Recital')).toBeInTheDocument();
+  });
+
+  it('moves a month at a time, and to a chosen date', async () => {
+    const asked: string[] = [];
+    server.use(
+      http.get(`${API_BASE}/venue-calendar`, ({ request }) => {
+        asked.push(new URL(request.url).searchParams.get('from') ?? '');
+        // A venue, so the day's grid renders beside its heading (the two once shared a key).
+        return HttpResponse.json({
+          buffer_minutes: '0',
+          venues: [{ id: 'v-2', name: 'Seminar Hall A', capacity: 150, active: true }],
+          bookings: [],
+          clashes: [],
+        });
+      }),
+    );
+    const mondayOf = (d: Date) => {
+      const m = new Date(d);
+      m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+      return dayKey(m.toISOString());
+    };
+    const next = new Date(`${today}T12:00`);
+    const date = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + 1);
+    next.setDate(Math.min(date, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+    const user = userEvent.setup();
+    renderAt('/staff/calendar', { roles: ['club_president:club-lens', 'student'] });
+    await user.click(await screen.findByRole('button', { name: 'Next month' }));
+    await waitFor(() => expect(asked).toContain(mondayOf(next)));
+    expect(screen.getByTestId('calendar-month')).toHaveTextContent(
+      next.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    // Stepping back and forth leaves exactly one day heading and one grid on the page.
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    expect(
+      within(screen.getByRole('region', { name: 'Calendar' })).getAllByRole('heading', {
+        level: 3,
+        name: /day, \d{1,2} \w+ \d{4}$/,
+      }),
+    ).toHaveLength(1);
+    expect(screen.getByLabelText('Go to date')).toHaveValue(today);
+    fireEvent.change(screen.getByLabelText('Go to date'), { target: { value: '2027-03-17' } });
+    await waitFor(() => expect(asked).toContain('2027-03-15'));
+    expect(screen.getByTestId('calendar-month')).toHaveTextContent('March 2027');
   });
 
   it('shades the Wednesday open-block hours, 15:00 and 16:00 (AR-03)', async () => {
