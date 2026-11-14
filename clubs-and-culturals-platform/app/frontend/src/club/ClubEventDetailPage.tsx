@@ -5,7 +5,7 @@ import type { ApiError } from '../shared/api/client';
 import { api } from '../shared/api/endpoints';
 import type { EventOut, Page } from '../shared/api/types';
 import { useCapabilities } from '../shared/auth/useCapabilities';
-import { STAGE_ROLE, editRoleOf, flowSteps } from '../shared/approvals';
+import { STAGE_ROLE, editRoleOf, flowSteps, sanctionChange } from '../shared/approvals';
 import {
   ApprovalFlow,
   BudgetSummary,
@@ -81,7 +81,8 @@ function ApprovalTrail({ eventId }: { eventId: string }) {
           </div>
           {req.steps.length > 0 ? (
             <RevisionTimeline
-              items={req.steps.map((st) => {
+              items={req.steps.map((st, i) => {
+                const change = sanctionChange(req.steps, i, req.amount_requested);
                 const d = DECISION[st.decision] ?? { label: st.decision, tone: 'plain' as const };
                 return {
                   role: STAGE_ROLE[st.stage],
@@ -94,15 +95,10 @@ function ApprovalTrail({ eventId }: { eventId: string }) {
                   action: st.stage_label,
                   // A gate that sanctions less than was asked has changed the budget:
                   // shown as old → new in that approver's edit colour.
-                  ...(Number(st.amount_sanctioned) > 0 &&
-                  Number(st.amount_sanctioned) < Number(req.amount_requested)
-                    ? {
-                        field: 'Budget',
-                        from: inr(req.amount_requested),
-                        to: inr(st.amount_sanctioned),
-                      }
-                    : Number(st.amount_sanctioned) > 0
-                      ? { action: `${st.stage_label} · sanctioned ${inr(st.amount_sanctioned)}` }
+                  ...(change.from != null
+                    ? { field: 'Budget', from: inr(change.from), to: inr(change.to) }
+                    : change.to != null
+                      ? { action: `${st.stage_label} · sanctioned ${inr(change.to)}` }
                       : {}),
                   comment: st.comment || undefined,
                 };

@@ -50,6 +50,25 @@ const KIND: Record<string, { label: string; tone: ChipTone; icon: IconName; grou
     group: 'decision',
   },
   'event.published': { label: 'Published', tone: 'approved', icon: 'calendar', group: 'other' },
+  'registration.confirmed': {
+    label: 'Registered',
+    tone: 'approved',
+    icon: 'check',
+    group: 'other',
+  },
+  'registration.promoted': {
+    label: 'Off the waitlist',
+    tone: 'approved',
+    icon: 'check',
+    group: 'other',
+  },
+  'registration.waitlisted': {
+    label: 'Waitlisted',
+    tone: 'pending',
+    icon: 'clock',
+    group: 'other',
+  },
+  'feedback.requested': { label: 'Rate the event', tone: 'neutral', icon: 'clock', group: 'other' },
 };
 const CHANGE: Record<string, string> = {
   'event.venue_changed': 'Venue or time changed',

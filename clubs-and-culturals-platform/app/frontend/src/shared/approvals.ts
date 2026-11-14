@@ -29,6 +29,26 @@ export const STAGE_ROLE: Record<ApprovalStage, EditRole> = {
 export const editRoleOf = (role: string | undefined | null): EditRole =>
   role === 'vice_chancellor' ? 'management' : 'admin';
 
+/**
+ * What a decision did to the sanctioned total: `{ from, to }` when this step lowered it,
+ * `{ to }` when it only carried the figure on, nothing when no money is set yet. A later
+ * gate repeats the earlier gate's figure, so the change belongs to the step that made it.
+ */
+export function sanctionChange(
+  steps: ReadonlyArray<{ amount_sanctioned?: string | null }>,
+  index: number,
+  requested: string | number | null | undefined,
+): { from?: number; to?: number } {
+  const to = Number(steps[index]?.amount_sanctioned ?? 0);
+  if (!(to > 0)) return {};
+  const earlier = steps
+    .slice(0, index)
+    .map((s) => Number(s.amount_sanctioned ?? 0))
+    .filter((n) => n > 0);
+  const before = earlier.length > 0 ? earlier[earlier.length - 1]! : Number(requested ?? 0);
+  return to < before ? { from: before, to } : { to };
+}
+
 export function flowSteps(a: ApprovalRequest): FlowStep[] {
   const route = (a.stages as ApprovalStage[] | undefined) ?? [];
   const steps: FlowStep[] = [{ label: 'Club', who: a.club, status: 'done', state: 'Submitted' }];

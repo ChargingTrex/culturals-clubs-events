@@ -18,7 +18,7 @@ import {
   type RevisionItem,
   type SheetRow,
 } from '../shared/ds';
-import { GATE_NAME, STAGE_ROLE, flowSteps } from '../shared/approvals';
+import { GATE_NAME, STAGE_ROLE, flowSteps, sanctionChange } from '../shared/approvals';
 import { fmtDate, fmtTime, inr, roleLabel } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill } from '../shared/ui/Pill';
@@ -55,10 +55,9 @@ function Trail({ a }: { a: ApprovalRequest }) {
   if (a.steps.length === 0) {
     return <p className="text-body-md text-ink-muted">No decisions yet.</p>;
   }
-  const items: RevisionItem[] = a.steps.map((s) => {
+  const items: RevisionItem[] = a.steps.map((s, i) => {
     const role = STAGE_ROLE[s.stage];
-    const sanctioned = Number(s.amount_sanctioned);
-    const reduced = sanctioned > 0 && sanctioned < Number(a.amount_requested);
+    const change = sanctionChange(a.steps, i, a.amount_requested);
     return {
       role,
       name: s.actor_label,
@@ -72,10 +71,10 @@ function Trail({ a }: { a: ApprovalRequest }) {
         </>
       ),
       action: s.stage_label,
-      ...(reduced
-        ? { field: 'Sanctioned', from: inr(a.amount_requested), to: inr(s.amount_sanctioned) }
-        : sanctioned > 0
-          ? { action: `${s.stage_label} · sanctioned ${inr(s.amount_sanctioned)}` }
+      ...(change.from != null
+        ? { field: 'Sanctioned', from: inr(change.from), to: inr(change.to) }
+        : change.to != null
+          ? { action: `${s.stage_label} · sanctioned ${inr(change.to)}` }
           : {}),
       comment: s.comment || undefined,
     };
@@ -275,7 +274,9 @@ function ProposalDocumentLink({ doc }: { doc: ApprovalRequest['proposal_document
           <span className="text-ink-muted">None attached by the club.</span>
         )}
       </p>
-      {doc && previewing ? <ProposalPreview doc={doc} onClose={() => setPreviewing(false)} /> : null}
+      {doc && previewing ? (
+        <ProposalPreview doc={doc} onClose={() => setPreviewing(false)} />
+      ) : null}
     </section>
   );
 }
