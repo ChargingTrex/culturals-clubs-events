@@ -40,7 +40,7 @@ class DelegationTests(TestCase):
         self.dean = f.user("dean@college.edu", name="Dean", global_roles=[R.DEAN], mfa=True)
         self.vc = f.user("vc@college.edu", name="VC", global_roles=[R.VICE_CHANCELLOR], mfa=True)
         self.society = f.user("society@college.edu", name="Society",
-                              global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+                              global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         self.admin = f.user("admin@college.edu", name="Admin", global_roles=[R.ADMIN], mfa=True)
         # A faculty member with no approval role of their own: the usual deputy.
         self.deputy = f.user("deputy@college.edu", name="Deputy Faculty")
@@ -339,7 +339,7 @@ class DelegationTests(TestCase):
         # QA F5: Cultural Society bearers are students here (PRD §4); that role
         # does not make an account staff for the Vice-Chancellor's gate.
         secretary = f.student("sec@college.edu", prn="23CS1077", name="Cultural Sec")
-        secretary.user.global_roles = [R.STUDENT, R.CULTURAL_SOCIETY]
+        secretary.user.global_roles = [R.STUDENT, R.SOCIETY_SECRETARY]
         secretary.user.save(update_fields=["global_roles"])
         refused = self.delegate("vc@college.edu", stage="vc", to=secretary.user)
         self.assertEqual(refused.status_code, 422)

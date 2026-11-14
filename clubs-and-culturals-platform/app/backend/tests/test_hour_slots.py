@@ -93,7 +93,7 @@ class CalendarAccessTests(TestCase):
                title="Dance Workshop")
         booked(club, hall, start=f.slot(days=30, hour=17), title="Next month")
         self.day = start.date()
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         f.student("student@college.edu", prn="23CS1009")
 
     def test_the_cultural_society_reads_a_week_with_its_clash(self):
@@ -110,3 +110,113 @@ class CalendarAccessTests(TestCase):
     def test_a_student_is_refused(self):
         f.as_user(self.client, "student@college.edu")
         self.assertEqual(self.client.get("/api/v1/venue-calendar").status_code, 403)
+
+    def test_a_president_sees_the_calendar_but_not_another_clubs_pending_title(self):
+        """AR-02: every taken slot is visible; what another club is pitching is not."""
+        mine = f.club("Natya")
+        hall = f.venue("Seminar Hall B", 100)
+        booked(mine, hall, start=f.slot(days=3, hour=10), status=EventStatus.SUBMITTED,
+               title="Our pitch")
+        pres = f.student("pres@college.edu", prn="23CS1010")
+        f.member(mine, pres, R.CLUB_PRESIDENT)
+        f.as_user(self.client, "pres@college.edu")
+        response = self.client.get("/api/v1/venue-calendar",
+                                   {"from": self.day.isoformat(),
+                                    "to": (self.day + timedelta(days=6)).isoformat()})
+        self.assertEqual(response.status_code, 200)
+        shown = sorted((b["title"], b["club"]) for b in response.data["bookings"])
+        self.assertEqual(shown, [("Our pitch", "Natya"), ("Requested", ""), ("Requested", "")])
+        self.assertNotIn("Open Mic", response.content.decode())
+
+    def test_a_vice_president_sees_the_calendar_and_cannot_move_a_booking(self):
+        """AR-02: a VP stands in for the President: reads the calendar, moves nothing."""
+        mine = f.club("Natya")
+        hall = f.venue("Seminar Hall B", 100)
+        start = f.slot(days=3, hour=10)
+        event = booked(mine, hall, start=start, title="Our show")
+        vp = f.student("vp@college.edu", prn="23CS1012")
+        f.member(mine, vp, R.CLUB_VICE_PRESIDENT)
+        f.as_user(self.client, "vp@college.edu")
+        response = self.client.get("/api/v1/venue-calendar",
+                                   {"from": self.day.isoformat(),
+                                    "to": (self.day + timedelta(days=6)).isoformat()})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(("Our show", "Natya"),
+                      [(b["title"], b["club"]) for b in response.data["bookings"]])
+        moved = self.client.post(
+            f"/api/v1/events/{event.id}/reassign",
+            {"starts_at": (start + timedelta(hours=2)).isoformat(),
+             "ends_at": (start + timedelta(hours=3)).isoformat(),
+             "reason": "We would like a later hour"}, format="json")
+        self.assertEqual(moved.status_code, 403)
+        self.assertEqual(moved.data["code"], "EVENTS_REASSIGN_DENIED")
+        patched = self.client.patch(
+            f"/api/v1/events/{event.id}",
+            {"starts_at": (start + timedelta(hours=2)).isoformat(),
+             "ends_at": (start + timedelta(hours=3)).isoformat()}, format="json")
+        self.assertEqual(patched.status_code, 409)
+        event.refresh_from_db()
+        self.assertEqual(event.starts_at, start)
+
+    def test_a_treasurer_is_refused(self):
+        treas = f.student("treas@college.edu", prn="23CS1011")
+        f.member(f.club("Lens"), treas, R.CLUB_TREASURER)
+        f.as_user(self.client, "treas@college.edu")
+        self.assertEqual(self.client.get("/api/v1/venue-calendar").status_code, 403)
+
+
+class DeanMoveTests(TestCase):
+    """AR-02: only the Dean moves a booking, to a new time and/or venue."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.club, self.hall = f.club("Swara"), f.venue("Seminar Hall A", 150)
+        self.other = f.venue("Seminar Hall B", 150)
+        self.start = f.slot(days=5, hour=17)
+        self.event = booked(self.club, self.hall, start=self.start, title="Open Mic")
+        f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
+        pres = f.student("pres@college.edu", prn="23CS1001")
+        f.member(self.club, pres, R.CLUB_PRESIDENT)
+
+    def move(self, email="dean@college.edu", **body):
+        f.as_user(self.client, email, mfa_code="1" if email.startswith("dean") else "")
+        body.setdefault("reason", "Convocation rehearsal needs the hall")
+        return self.client.post(f"/api/v1/events/{self.event.id}/reassign", body, format="json")
+
+    def test_the_dean_moves_the_time_and_venue_together(self):
+        new = self.start + timedelta(days=1, hours=-2)
+        response = self.move(to_venue=str(self.other.id), starts_at=new.isoformat(),
+                             ends_at=(new + timedelta(hours=1)).isoformat())
+        self.assertEqual(response.status_code, 200, response.data)
+        self.event.refresh_from_db()
+        self.assertEqual((self.event.venue, self.event.starts_at), (self.other, new))
+
+    def test_the_dean_moves_only_the_time(self):
+        new = self.start + timedelta(hours=2)
+        response = self.move(starts_at=new.isoformat(), ends_at=(new + timedelta(hours=2)).isoformat())
+        self.assertEqual(response.status_code, 200, response.data)
+        self.event.refresh_from_db()
+        self.assertEqual((self.event.venue, self.event.starts_at), (self.hall, new))
+
+    def test_a_president_cannot_move_their_own_event(self):
+        new = self.start + timedelta(hours=2)
+        response = self.move("pres@college.edu", starts_at=new.isoformat(),
+                             ends_at=(new + timedelta(hours=1)).isoformat())
+        self.assertEqual(response.status_code, 403)
+
+    def test_a_move_into_a_taken_hour_is_refused(self):
+        taken = f.slot(days=6, hour=11)
+        booked(f.club("Natya"), self.hall, start=taken, title="Taken")
+        response = self.move(starts_at=taken.isoformat(),
+                             ends_at=(taken + timedelta(hours=1)).isoformat())
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["code"], "EVENTS_VENUE_UNAVAILABLE")
+
+    def test_a_half_hour_is_refused(self):
+        new = self.start + timedelta(minutes=30)
+        response = self.move(starts_at=new.isoformat(), ends_at=(new + timedelta(hours=1)).isoformat())
+        self.assertEqual(response.status_code, 422)
+
+    def test_nothing_to_change_is_refused(self):
+        self.assertEqual(self.move().status_code, 422)
+

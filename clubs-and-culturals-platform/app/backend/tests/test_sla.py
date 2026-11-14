@@ -26,7 +26,7 @@ class ApprovalSlaTests(TestCase):
         self.club = f.club("Swara")
         self.president = f.student("pres@college.edu", prn="23CS1001")
         f.member(self.club, self.president, R.CLUB_PRESIDENT)
-        f.user("society@college.edu", name="Society", global_roles=[R.CULTURAL_SOCIETY],
+        f.user("society@college.edu", name="Society", global_roles=[R.SOCIETY_SECRETARY],
                mfa=True)
         f.user("dean@college.edu", name="Dean", global_roles=[R.DEAN], mfa=True)
 

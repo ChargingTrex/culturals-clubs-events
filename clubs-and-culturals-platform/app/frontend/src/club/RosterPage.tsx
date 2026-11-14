@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import { fmtDate, roleLabel } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
@@ -14,8 +15,6 @@ import {
   type ClubRole,
   type HandoverOut,
   type HandoverRequest,
-  type JoinRequest,
-  type JoinRequests,
   type Membership,
   type OfficeBearerHistory,
 } from './api';
@@ -68,71 +67,14 @@ function RoleControl({ member, club }: { member: Membership; club: string }) {
   );
 }
 
-function JoinQueue({ club }: { club: string }) {
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const requests = useQuery<JoinRequests, ApiError>({
-    queryKey: ['clubs', club, 'join-requests'],
-    queryFn: () => clubApi.clubs.joinRequests(club),
-  });
-  const decide = useMutation<
-    JoinRequest,
-    ApiError,
-    { req: JoinRequest; outcome: 'accept' | 'decline' }
-  >({
-    mutationFn: ({ req, outcome }) => clubApi.clubs.decideJoin(club, req.id, outcome),
-    onSuccess: (r, { outcome }) => {
-      toast.show(`${r.full_name} ${outcome === 'accept' ? 'joined the club' : 'was declined'}`);
-      void queryClient.invalidateQueries({ queryKey: ['clubs', club] });
-    },
-  });
-  if (requests.isPending) return <Loading />;
-  if (requests.error) return <ProblemView error={requests.error} />;
-  const pending = requests.data.results.filter((r) => r.state === 'pending');
+function JoinQueueLink({ club, waiting }: { club: string; waiting: number }) {
   return (
     <section className="panel" aria-label="Join requests">
       <h3>Join requests</h3>
-      {pending.length === 0 ? (
-        <p className="mt-1.5 text-body-md text-ink-muted">Nobody is waiting.</p>
-      ) : (
-        <ul className="mt-2 list-none p-0">
-          {pending.map((r) => (
-            <li
-              key={r.id}
-              className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3 last:border-b-0"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <Avatar name={r.full_name} size="sm" />
-                <div className="min-w-0">
-                  <strong>{r.full_name}</strong>
-                  <span className="block text-body-md text-ink-muted">
-                    {r.prn} · {r.department} · year {r.year} · asked {fmtDate(r.created_at)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  icon="check"
-                  disabled={decide.isPending}
-                  onClick={() => decide.mutate({ req: r, outcome: 'accept' })}
-                >
-                  Accept
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outlined"
-                  disabled={decide.isPending}
-                  onClick={() => decide.mutate({ req: r, outcome: 'decline' })}
-                >
-                  Decline
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {decide.error ? <ProblemView error={decide.error} /> : null}
+      <p className="mt-1.5 text-body-md text-ink-muted">
+        {waiting ? `${waiting} waiting to join.` : 'Nobody is waiting.'}{' '}
+        <Link to={`/club/join-requests?club=${club}`}>Open join requests</Link>
+      </p>
     </section>
   );
 }
@@ -397,7 +339,7 @@ export function RosterPage() {
 
           {canAssign ? (
             <div className="grid content-start gap-3.5">
-              <JoinQueue club={club} />
+              <JoinQueueLink club={club} waiting={roster.data.pending_join_requests ?? 0} />
               <Handover club={club} members={roster.data.results} />
             </div>
           ) : null}

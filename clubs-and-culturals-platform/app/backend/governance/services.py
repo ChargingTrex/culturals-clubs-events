@@ -111,8 +111,41 @@ def submit(event, *, actor, actor_user=None):
     return request
 
 
-def _stage_role(stage):
-    return R.STAGE_ROLE[stage]
+def _stage_roles(stage):
+    """The roles that hold a stage (the Society's stage has two officers)."""
+    return R.STAGE_ROLES[stage]
+
+
+def stage_holders(stage):
+    """Every active user holding a stage by role, each once."""
+    from identity.models import User
+
+    holders = {}
+    for role in _stage_roles(stage):
+        for user in User.objects.with_global_role(role):
+            holders.setdefault(user.pk, user)
+    return list(holders.values())
+
+
+def events_with_society(event_ids=None):
+    """
+    Ids of events whose proposal is waiting on the Cultural Society's decision.
+
+    This is the window in which the Society's Secretary and Vice-Secretary may
+    move a booking. Once they approve, the proposal is the Dean's, and so is
+    any further move.
+    """
+    pending = ApprovalRequest.objects.filter(
+        state=ApprovalState.PENDING, current_stage=ApprovalStage.CULTURAL_SOCIETY)
+    if event_ids is not None:
+        pending = pending.filter(event_id__in=event_ids)
+    return set(pending.values_list("event_id", flat=True))
+
+
+def _acting_role(ctx, stage):
+    """The stage role the caller holds; a delegate acts under the stage's first role."""
+    roles = _stage_roles(stage)
+    return next((role for role in roles if ctx.has_any(role)), roles[0])
 
 
 def _notify_stage_holders(request, event):
@@ -126,9 +159,8 @@ def _notify_stage_holders(request, event):
     """
     from identity.models import User
 
-    role = _stage_role(request.current_stage)
     stage_label = ApprovalStage(request.current_stage).label
-    recipients = {u.pk: u for u in User.objects.with_global_role(role)}
+    recipients = {u.pk: u for u in stage_holders(request.current_stage)}
     for delegation in active_delegations(request.current_stage).select_related("delegate_user"):
         recipients.setdefault(delegation.delegate_user_id, delegation.delegate_user)
     for user in recipients.values():
@@ -139,7 +171,7 @@ def _notify_stage_holders(request, event):
                   f"{event.starts_at:%d %b %Y}, requesting "
                   f"{request.amount_requested:,.2f}. It is with the {stage_label}."),
             kind="approval.pending",
-            link=f"/staff/approvals/{event.id}",
+            link=f"/staff/approvals/{request.id}",
         )
 
 
@@ -160,7 +192,7 @@ def _notify_club(event, subject, body, kind):
         user = membership.student.user
         if isinstance(user, User):
             notifier().send(recipient=user, subject=subject, body=body, kind=kind,
-                            link=f"/club/{event.club_id}/events/{event.id}")
+                            link=f"/club/events/{event.id}")
 
 
 # --------------------------------------------------------------------------
@@ -186,13 +218,13 @@ def delegated_stages_for(ctx, at=None):
 def held_stages(ctx, *, delegated=None):
     """
     Every stage the caller may decide: by role, or by an active delegation.
-    Order follows STAGE_ROLE so the queue's `stages_you_hold` is stable.
+    Order follows STAGE_ROLES so the queue's `stages_you_hold` is stable.
     `delegated` lets a view that already looked the delegations up pass them
     in rather than querying again.
     """
     delegated = set(delegated_stages_for(ctx) if delegated is None else delegated)
-    return [stage for stage, role in R.STAGE_ROLE.items()
-            if ctx.has_any(role) or stage in delegated]
+    return [stage for stage, roles in R.STAGE_ROLES.items()
+            if ctx.has_any(*roles) or stage in delegated]
 
 
 def has_active_delegation(user, at=None):
@@ -248,18 +280,18 @@ def create_delegation(*, ctx, actor_user, stage, delegate_user, starts_at, ends_
     Dean's own form should not be able to make; an administrator can still do
     it knowingly, and the audit entry names them.
     """
-    if stage not in R.STAGE_ROLE:
+    if stage not in R.STAGE_ROLES:
         raise ProblemDetail(code="GOVERNANCE_UNKNOWN_STAGE", title="Unknown stage",
                             status_code=422,
                             detail=f"{stage!r} is not an approval stage.",
                             errors=[{"field": "stage", "code": "INVALID",
-                                     "message": ", ".join(R.STAGE_ROLE)}])
-    role = _stage_role(stage)
+                                     "message": ", ".join(R.STAGE_ROLES)}])
+    roles = _stage_roles(stage)
     is_admin = ctx.is_admin()
     if principal_user is None:
         principal_user = actor_user
     if not is_admin:
-        if not ctx.has_any(role):
+        if not ctx.has_any(*roles):
             raise ProblemDetail(
                 code="GOVERNANCE_DELEGATION_DENIED", title="Not permitted", status_code=403,
                 detail=(f"Only the {ApprovalStage(stage).label} or an administrator may "
@@ -270,13 +302,14 @@ def create_delegation(*, ctx, actor_user, stage, delegate_user, starts_at, ends_
                 code="GOVERNANCE_DELEGATION_DENIED", title="Not permitted", status_code=403,
                 detail="Only an administrator may delegate on somebody else's behalf.",
             )
-    if role not in (principal_user.global_roles or []):
+    if not any(role in (principal_user.global_roles or []) for role in roles):
         raise ProblemDetail(
             code="GOVERNANCE_PRINCIPAL_NOT_HOLDER", title="Principal does not hold that stage",
             status_code=422,
             detail=(f"{principal_user.display_name} does not hold the "
                     f"{ApprovalStage(stage).label} role, so there is nothing to delegate."),
-            errors=[{"field": "principal_user", "code": "NOT_HOLDER", "message": role}],
+            errors=[{"field": "principal_user", "code": "NOT_HOLDER",
+                     "message": " or ".join(roles)}],
         )
     if delegate_user.pk == principal_user.pk:
         raise ProblemDetail(
@@ -409,14 +442,14 @@ def assert_can_decide(request, ctx, *, stage=None, lock=False):
         )
 
     delegation = None
-    if not ctx.has_any(_stage_role(current)):
+    if not ctx.has_any(*_stage_roles(current)):
         delegation = active_delegation_for(ctx, current, lock=lock)
-    if not ctx.has_any(_stage_role(current)) and delegation is None:
+    if not ctx.has_any(*_stage_roles(current)) and delegation is None:
         # Does the caller hold some *other* gate on this route? If so this is a
         # turn-taking problem, not a permission problem.
         delegated = set(delegated_stages_for(ctx))
         held_elsewhere = [s for s in request.stages
-                          if s != current and (ctx.has_any(_stage_role(s)) or s in delegated)]
+                          if s != current and (ctx.has_any(*_stage_roles(s)) or s in delegated)]
         if held_elsewhere:
             raise Conflict(
                 code="GOVERNANCE_WRONG_STAGE", title="Not at your stage",
@@ -523,12 +556,13 @@ def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
         pk=request.event_id)
     budget = getattr(event, "budget", None)
 
-    if decision == Decision.APPROVE and stage == ApprovalStage.DEAN and sanctioned_lines:
-        _apply_sanctions(budget, sanctioned_lines)
+    if decision == Decision.APPROVE and stage == ApprovalStage.DEAN:
+        # No map, or a map that skips some heads, means those heads are sanctioned as requested.
+        _apply_sanctions(budget, sanctioned_lines or {})
 
     step = ApprovalStep.objects.create(
         request=request, stage=stage, decision=decision, comment=comment.strip(),
-        actor_sub=ctx.sub, actor_label=ctx.display_name, actor_role=_stage_role(stage),
+        actor_sub=ctx.sub, actor_label=ctx.display_name, actor_role=_acting_role(ctx, stage),
         mfa_verified=ctx.mfa,
         amount_sanctioned=budget.total_sanctioned if budget else None,
         on_behalf_of=delegation.principal_user if delegation else None,
@@ -671,6 +705,36 @@ def pending_for(ctx, *, escalated=False, held=None):
     if escalated:
         qs = qs.filter(stage_entered_at__lt=_sla_cutoff())
     return qs
+
+
+def upcoming_for(ctx):
+    """
+    Proposals on their way to the caller: pending at an earlier gate, on a route
+    that reaches a stage the caller holds by role.
+
+    The queue proper is only what the caller can decide now, which left the Dean
+    unable to see a proposal still with the Cultural Society. These are listed
+    separately and read-only, soonest event first, so nothing awaiting approval
+    is invisible to someone who will have to approve it.
+    """
+    mine = [stage for stage, roles in R.STAGE_ROLES.items() if ctx.has_any(*roles)]
+    if not mine:
+        return []
+    pending = (ApprovalRequest.objects
+               .filter(state=ApprovalState.PENDING)
+               .exclude(current_stage__in=mine)
+               .select_related("event__club", "event__venue")
+               .prefetch_related("event__budget__lines", "steps", "event__proposal_documents")
+               .order_by("event__starts_at"))
+    out = []
+    for request in pending:
+        stages = list(request.stages or [])
+        if request.current_stage not in stages:
+            continue
+        ahead = stages[stages.index(request.current_stage) + 1:]
+        if any(stage in ahead for stage in mine):
+            out.append(request)
+    return out
 
 
 def _sla_cutoff():

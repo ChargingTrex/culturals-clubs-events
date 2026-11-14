@@ -1,4 +1,5 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { API_BASE } from '../shared/api/client';
@@ -21,6 +22,7 @@ const booking = (over: Partial<CalendarBooking>): CalendarBooking => ({
   status: 'submitted',
   confirmed: false,
   clash: false,
+  can_move: false,
   ...over,
 });
 
@@ -77,6 +79,90 @@ describe('events calendar (C-03)', () => {
     serve([]);
     renderAt('/staff/calendar', { roles: ['cultural_society'] });
     expect((await screen.findAllByRole('link', { name: /Calendar/ })).length).toBeGreaterThan(0);
+  });
+
+  it('the Society sees the calendar read-only: no Move (AR-02)', async () => {
+    serve([booking({ status: 'approved', confirmed: true })]);
+    renderAt('/staff/calendar', { roles: ['cultural_society'] });
+    await screen.findAllByTestId('slot');
+    expect(screen.queryByRole('button', { name: 'Move Open Mic Night' })).toBeNull();
+  });
+
+  it('a Society officer gets Move only on the booking the API marks movable (AR-08)', async () => {
+    serve([
+      booking({ can_move: true }),
+      booking({ id: 'b-2', title: 'Recital', venue: 'v-1', venue_name: 'Amphitheatre', status: 'published', confirmed: true }),
+    ]);
+    renderAt('/staff/calendar', { roles: ['cultural_society_secretary'] });
+    expect(await screen.findByRole('button', { name: 'Move Open Mic Night' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move Recital' })).toBeNull();
+  });
+
+  it('the Dean moves a booking to another hour and venue', async () => {
+    serve([booking({ status: 'approved', confirmed: true, can_move: true })]);
+    let body: Record<string, string> | null = null;
+    server.use(
+      http.post(`${API_BASE}/events/b-1/reassign`, async ({ request }) => {
+        body = (await request.json()) as Record<string, string>;
+        return HttpResponse.json({ id: 'r-1' });
+      }),
+    );
+    const user = userEvent.setup();
+    renderAt('/staff/calendar', { roles: ['dean'] });
+    await user.click(await screen.findByRole('button', { name: 'Move Open Mic Night' }));
+    const form = screen.getByRole('form', { name: 'Move Open Mic Night' });
+    await user.selectOptions(within(form).getByLabelText('From'), '15');
+    await user.selectOptions(within(form).getByLabelText('To'), '16');
+    await user.selectOptions(within(form).getByLabelText('Venue'), 'v-1');
+    await user.type(within(form).getByLabelText(/Reason/), 'Hall A closed for repairs');
+    await user.click(within(form).getByRole('button', { name: 'Move' }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({ to_venue: 'v-1', starts_at: at(15), ends_at: at(16), reason: 'Hall A closed for repairs' });
+  });
+
+  it('lists a pending booking from a later week and jumps to its day', async () => {
+    const later = new Date(`${today}T12:00`);
+    later.setDate(later.getDate() + 21);
+    const laterDay = dayKey(later.toISOString());
+    const pending = booking({
+      id: 'b-9',
+      title: 'test',
+      starts_at: new Date(`${laterDay}T17:00`).toISOString(),
+      ends_at: new Date(`${laterDay}T19:00`).toISOString(),
+    });
+    // The week view asks for seven days; the look-ahead asks for months.
+    server.use(
+      http.get(`${API_BASE}/venue-calendar`, ({ request }) => {
+        const q = new URL(request.url).searchParams;
+        const days = (Date.parse(q.get('to')!) - Date.parse(q.get('from')!)) / 86_400_000;
+        const inRange = laterDay >= q.get('from')! && laterDay <= q.get('to')!;
+        return HttpResponse.json({
+          buffer_minutes: '0',
+          venues: [{ id: 'v-2', name: 'Seminar Hall A', capacity: 150, active: true }],
+          bookings: days > 7 || inRange ? [pending] : [],
+          clashes: [],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderAt('/staff/calendar', { roles: ['dean'] });
+    const list = await screen.findByRole('region', { name: 'Awaiting approval' });
+    await screen.findAllByTestId('slot');
+    expect(within(cell('Seminar Hall A', 17)).queryByText('test')).toBeNull();
+    await user.click(within(list).getByRole('button', { name: /Show test/ }));
+    await waitFor(() => expect(within(cell('Seminar Hall A', 17)).getByText('test')).toBeInTheDocument());
+  });
+
+  it('shades the Wednesday open-block hours, 15:00 and 16:00 (AR-03)', async () => {
+    serve([]);
+    const user = userEvent.setup();
+    renderAt('/staff/calendar', { roles: ['cultural_society'] });
+    const week = await screen.findByRole('group', { name: 'Week' });
+    await user.click(within(week).getAllByRole('button')[2]!); // the week starts on Monday
+    expect(cell('Seminar Hall A', 15).dataset.openBlock).toBe('true');
+    expect(cell('Seminar Hall A', 16).dataset.openBlock).toBe('true');
+    expect(cell('Seminar Hall A', 17).dataset.openBlock).toBe('false');
+    expect(within(cell('Amphitheatre', 15)).getByText('Open block')).toBeInTheDocument();
   });
 
   it('rounds a legacy half-hour booking outward to whole hours', () => {

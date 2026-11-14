@@ -29,7 +29,7 @@ class _ClosedEventFixture(TestCase):
         f.member(self.club, self.member, R.CLUB_MEMBER)
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
         f.user("vc@college.edu", global_roles=[R.VICE_CHANCELLOR], mfa=True)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         self.event = f.event(self.club, f.venue(), days=0, status=EventStatus.LIVE)
         self.attendee = f.student("att@college.edu", prn="23CS1002", name="Meera Attended")
         self.absentee = f.student("abs@college.edu", prn="23CS1003", name="Rohan Absent")

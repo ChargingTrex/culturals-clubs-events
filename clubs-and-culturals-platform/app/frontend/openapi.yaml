@@ -342,6 +342,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Budget'
           description: ''
+  /api/v1/budget/budgets/{id}/lines/import:
+    post:
+      operationId: budget_budgets_lines_import_create
+      summary: Replace or extend the budget lines from a CSV (all rows or none)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this budget.
+        required: true
+      tags:
+      - budget
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LineImport'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+          description: ''
   /api/v1/budget/budgets/{id}/settle:
     post:
       operationId: budget_budgets_settle_create
@@ -1238,10 +1267,277 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/events/{id}/photos:
+    get:
+      operationId: events_photos_list
+      summary: The event's photo gallery
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventPhotoList'
+          description: ''
+    post:
+      operationId: events_photos_create
+      summary: Upload a photo to the event
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoUpload'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPhoto'
+          description: ''
+  /api/v1/events/{id}/photos/{photo_id}:
+    patch:
+      operationId: events_photos_partial_update
+      summary: Caption a photo or mark it as a highlight
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPhotoUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPhotoUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPhotoUpdate'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPhoto'
+          description: ''
+    delete:
+      operationId: events_photos_destroy
+      summary: Take a photo down
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/events/{id}/photos/{photo_id}/file:
+    get:
+      operationId: events_photos_file_retrieve
+      summary: The photo file
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '302':
+          description: No response body
+  /api/v1/events/{id}/photos/{photo_id}/removal-request:
+    post:
+      operationId: events_photos_removal_request_create
+      summary: Ask for a photo you appear in to be removed
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPhoto'
+          description: ''
+  /api/v1/events/{id}/proposal-document:
+    post:
+      operationId: events_proposal_document_create
+      summary: Attach or replace the proposal document (draft or returned only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProposalDocumentUpload'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalDocument'
+          description: ''
+  /api/v1/events/{id}/proposal-document/file:
+    get:
+      operationId: events_proposal_document_file_retrieve
+      summary: The proposal document (the club's office bearers and staff)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '302':
+          description: No response body
+  /api/v1/events/{id}/proposal-document/preview:
+    get:
+      operationId: events_proposal_document_preview_retrieve
+      summary: A Word proposal as text, for reading in the app
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalPreview'
+          description: ''
   /api/v1/events/{id}/reassign:
     post:
       operationId: events_reassign_create
-      summary: Move an event to another venue (Dean only)
+      summary: Move an event to another venue and/or time (Dean; Society Secretary
+        and Vice-Secretary while it is at their stage)
       parameters:
       - in: path
         name: id
@@ -1273,6 +1569,152 @@ paths:
               schema:
                 $ref: '#/components/schemas/VenueReassignment'
           description: ''
+  /api/v1/events/{id}/report:
+    get:
+      operationId: events_report_retrieve
+      summary: The event report, auto-drafted from the records
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventReportDraft'
+          description: ''
+  /api/v1/events/{id}/social-posts:
+    get:
+      operationId: events_social_posts_list
+      summary: Links to posts promoting the event
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventSocialPostList'
+          description: ''
+    post:
+      operationId: events_social_posts_create
+      summary: Record a link to a post (stored, never fetched)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialPostIn'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocialPostIn'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSocialPost'
+          description: ''
+  /api/v1/events/{id}/social-posts/{post_id}:
+    delete:
+      operationId: events_social_posts_destroy
+      summary: Remove a wrongly recorded link
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: post_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/events/{id}/social-posts/{post_id}/screenshot:
+    get:
+      operationId: events_social_posts_screenshot_retrieve
+      summary: The screenshot kept with a post link
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event.
+        required: true
+      - in: path
+        name: post_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - events
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '302':
+          description: No response body
   /api/v1/events/{id}/submit:
     post:
       operationId: events_submit_create
@@ -1730,6 +2172,7 @@ paths:
           type: string
           enum:
           - apply-due-terms
+          - complete-ended
           - escalate-sla
           - flag-dormant
           - purge-external
@@ -1763,6 +2206,7 @@ paths:
           type: string
           enum:
           - apply-due-terms
+          - complete-ended
           - escalate-sla
           - flag-dormant
           - purge-external
@@ -1847,7 +2291,8 @@ paths:
   /api/v1/module/auth/demo/personas:
     get:
       operationId: module_auth_demo_personas_retrieve
-      description: The personas a demo can switch between. 404 when DEMO_MODE is off.
+      description: The personas a demo can switch between. 404 unless PILOT_ACCOUNTS
+        (or DEMO_MODE).
       summary: Pilot accounts (PILOT_ACCOUNTS or DEMO_MODE only)
       tags:
       - module
@@ -2001,6 +2446,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/Session'
           description: ''
+  /api/v1/module/cultural-society/members:
+    get:
+      operationId: module_cultural_society_members_retrieve
+      summary: The Cultural Society's officers and members
+      tags:
+      - module
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocietyRoster'
+          description: ''
+    post:
+      operationId: module_cultural_society_members_create
+      summary: Add a Society member, or (Dean/admin) appoint an officer
+      tags:
+      - module
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocietyMemberAdd'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SocietyMemberAdd'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocietyMemberAdd'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocietyRoster'
+          description: ''
+  /api/v1/module/cultural-society/members/{user_id}:
+    delete:
+      operationId: module_cultural_society_members_destroy
+      summary: Remove someone from the Cultural Society
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - module
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocietyRoster'
+          description: ''
   /api/v1/module/directory/students:
     get:
       operationId: module_directory_students_retrieve
@@ -2044,6 +2552,66 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Semester'
+          description: ''
+  /api/v1/open-block:
+    get:
+      operationId: open_block_retrieve
+      description: |-
+        AR-03: the Wednesday open block — two 1-hour slots a club can claim without a
+        proposal. First come, first served: the booking takes the venue row lock
+        the proposal path takes, so of two clubs racing for one hall the second is
+        refused. Auto-approved (published straight away, no budget, no approval
+        chain); the Dean can still move or cancel it like any event.
+      summary: The Wednesday open block's slots, free or taken
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: A Wednesday; default the next one.
+      tags:
+      - open-block
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenBlock'
+          description: ''
+    post:
+      operationId: open_block_create
+      description: |-
+        AR-03: the Wednesday open block — two 1-hour slots a club can claim without a
+        proposal. First come, first served: the booking takes the venue row lock
+        the proposal path takes, so of two clubs racing for one hall the second is
+        refused. Auto-approved (published straight away, no budget, no approval
+        chain); the Dean can still move or cancel it like any event.
+      summary: Book one open-block slot for a club (first come, first served)
+      tags:
+      - open-block
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenBlockBook'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OpenBlockBook'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OpenBlockBook'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
           description: ''
   /api/v1/participation/events/{event_id}/check-in:
     post:
@@ -2412,8 +2980,8 @@ paths:
     get:
       operationId: reporting_reports_overview_retrieve
       description: |-
-        Running totals and what needs chasing (PRD §6.3). Dean, admin and the
-        Cultural Society; the VC gets the semester report, not the chase list.
+        Running totals and what needs chasing (PRD §6.3). Dean, admin, the
+        Cultural Society and the VC — events and clubs only, no individual records.
         `capture` is documented by reporting.serializers.CaptureMetricsSerializer.
       summary: Running totals and what needs chasing
       parameters:
@@ -2528,7 +3096,7 @@ paths:
 
         Restricted to staff. A student does not need to see which club is pitching
         for Friday evening, and a pending proposal is not public information.
-      summary: Master venue calendar with clashes flagged (staff only)
+      summary: Master venue calendar with clashes flagged (staff and club presidents)
       parameters:
       - in: query
         name: date
@@ -2675,6 +3243,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ApprovalRequest'
+        upcoming:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalRequest'
+          description: Pending at an earlier gate and on their way to you; read-only.
       required:
       - count
       - escalated_only
@@ -2682,6 +3255,7 @@ components:
       - sla_hours
       - stages_delegated_to_you
       - stages_you_hold
+      - upcoming
     ApprovalRequest:
       type: object
       properties:
@@ -2759,6 +3333,11 @@ components:
           - $ref: '#/components/schemas/NilDeclaration'
           nullable: true
           readOnly: true
+        proposal_document:
+          allOf:
+          - $ref: '#/components/schemas/ProposalDocument'
+          nullable: true
+          readOnly: true
         stage_entered_at:
           type: string
           format: date-time
@@ -2789,6 +3368,7 @@ components:
       - lines
       - my_stage
       - nil_declaration
+      - proposal_document
       - requires_mfa
       - stage_label
       - starts_at
@@ -3270,7 +3850,11 @@ components:
           type: boolean
         clash:
           type: boolean
+        can_move:
+          type: boolean
+          description: Whether the caller may move this booking's time or venue.
       required:
+      - can_move
       - clash
       - club
       - confirmed
@@ -3310,6 +3894,12 @@ components:
           type: boolean
         is_cultural_society:
           type: boolean
+        is_society_officer:
+          type: boolean
+          description: Cultural Society Secretary or Vice-Secretary.
+        can_manage_society:
+          type: boolean
+          description: May add and remove Cultural Society members.
         is_admin:
           type: boolean
         clubs:
@@ -3365,6 +3955,7 @@ components:
           type: integer
       required:
       - approval_stages
+      - can_manage_society
       - can_see_all_clubs
       - can_see_individual_records
       - can_see_overview
@@ -3378,6 +3969,7 @@ components:
       - is_admin
       - is_cultural_society
       - is_dean
+      - is_society_officer
       - is_student
       - is_vice_chancellor
       - max_club_memberships
@@ -3559,17 +4151,20 @@ components:
       - free_venues
     CloseEvent:
       type: object
+      description: Photos and post links are attached beforehand; closing adds the
+        words.
       properties:
-        photo_count:
-          type: integer
-          minimum: 0
-        social_links:
-          type: array
-          items:
-            type: string
-            format: uri
+        outcomes:
+          type: string
+          description: What happened, for the report.
+          maxLength: 5000
+        learnings:
+          type: string
+          default: ''
+          description: What worked, what to change next time.
+          maxLength: 5000
       required:
-      - photo_count
+      - outcomes
     Club:
       type: object
       properties:
@@ -3592,6 +4187,9 @@ components:
         description:
           type: string
         instagram_handle:
+          type: string
+          maxLength: 64
+        linkedin_handle:
           type: string
           maxLength: 64
         status:
@@ -3769,6 +4367,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ChaseEvent'
+        events_missing_report:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingReport'
+          description: Completed more than REPORT_DUE_DAYS ago and still not closed.
+        social_activity:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocialActivity'
+        clubs_without_recent_post:
+          type: array
+          items:
+            type: string
+          description: Active clubs with no post link in DORMANCY_DAYS.
         venue_use:
           type: array
           items:
@@ -3780,14 +4392,17 @@ components:
       - clubs_active
       - clubs_inactive
       - clubs_total
+      - clubs_without_recent_post
       - dormant_clubs
       - escalated_approvals
       - events_missing_photos
+      - events_missing_report
       - events_missing_social_links
       - missing_evidence
       - pending_approvals
       - pending_by_stage
       - semester
+      - social_activity
       - venue_clashes
       - venue_use
     Decide:
@@ -4207,6 +4822,10 @@ components:
             type: string
             format: uri
           readOnly: true
+        highlight_photo_url:
+          type: string
+          nullable: true
+          readOnly: true
         registered:
           type: integer
           readOnly: true
@@ -4221,6 +4840,11 @@ components:
         my_registration:
           allOf:
           - $ref: '#/components/schemas/MyRegistration'
+          nullable: true
+          readOnly: true
+        proposal_document:
+          allOf:
+          - $ref: '#/components/schemas/ProposalDocument'
           nullable: true
           readOnly: true
         submitted_at:
@@ -4242,9 +4866,11 @@ components:
       - club_name
       - ends_at
       - expected_attendance
+      - highlight_photo_url
       - id
       - my_registration
       - photo_count
+      - proposal_document
       - registered
       - social_links
       - starts_at
@@ -4403,6 +5029,10 @@ components:
             type: string
             format: uri
           readOnly: true
+        highlight_photo_url:
+          type: string
+          nullable: true
+          readOnly: true
         registered:
           type: integer
           readOnly: true
@@ -4417,6 +5047,11 @@ components:
         my_registration:
           allOf:
           - $ref: '#/components/schemas/MyRegistration'
+          nullable: true
+          readOnly: true
+        proposal_document:
+          allOf:
+          - $ref: '#/components/schemas/ProposalDocument'
           nullable: true
           readOnly: true
         submitted_at:
@@ -4449,9 +5084,11 @@ components:
       - club_name
       - ends_at
       - expected_attendance
+      - highlight_photo_url
       - id
       - my_registration
       - photo_count
+      - proposal_document
       - registered
       - social_links
       - soft_clashes
@@ -4469,6 +5106,7 @@ components:
       - competition
       - exhibition
       - talk
+      - open_block
       type: string
       description: |-
         * `performance` - Performance
@@ -4476,6 +5114,7 @@ components:
         * `competition` - Competition
         * `exhibition` - Exhibition
         * `talk` - Talk
+        * `open_block` - Wednesday open block
     EventOrganiser:
       type: object
       properties:
@@ -4518,6 +5157,44 @@ components:
       - id
       - prn
       - student
+    EventPhoto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        caption:
+          type: string
+          readOnly: true
+        is_highlight:
+          type: boolean
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        byte_size:
+          type: integer
+          readOnly: true
+        file_url:
+          type: string
+          readOnly: true
+        removal_requested:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - byte_size
+      - caption
+      - content_type
+      - created_at
+      - file_url
+      - id
+      - is_highlight
+      - removal_requested
     EventRef:
       type: object
       properties:
@@ -4529,6 +5206,91 @@ components:
       required:
       - id
       - title
+    EventReportDraft:
+      type: object
+      description: GET /events/{id}/report — numbers from the records, words from
+        the organiser.
+      properties:
+        registered:
+          type: integer
+        attended:
+          type: integer
+        attended_students:
+          type: integer
+        attended_external:
+          type: integer
+        no_show:
+          type: integer
+        walk_ins:
+          type: integer
+        photos:
+          type: integer
+        highlights:
+          type: integer
+        social_posts:
+          type: integer
+        feedback:
+          $ref: '#/components/schemas/ReportFeedback'
+        budget:
+          allOf:
+          - $ref: '#/components/schemas/BudgetSummary'
+          nullable: true
+        social_post_required:
+          type: boolean
+          description: Closing will refuse without a post link at this attendance.
+        outcomes:
+          type: string
+        learnings:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - attended
+      - attended_external
+      - attended_students
+      - budget
+      - feedback
+      - highlights
+      - learnings
+      - no_show
+      - outcomes
+      - photos
+      - registered
+      - social_post_required
+      - social_posts
+      - submitted_at
+      - walk_ins
+    EventSocialPost:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        platform:
+          allOf:
+          - $ref: '#/components/schemas/PlatformEnum'
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        screenshot_url:
+          type: string
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - platform
+      - screenshot_url
+      - url
     EventStatusEnum:
       enum:
       - draft
@@ -4676,6 +5438,7 @@ components:
     JobEnum:
       enum:
       - apply-due-terms
+      - complete-ended
       - escalate-sla
       - flag-dormant
       - purge-external
@@ -4683,6 +5446,7 @@ components:
       type: string
       description: |-
         * `apply-due-terms` - apply-due-terms
+        * `complete-ended` - complete-ended
         * `escalate-sla` - escalate-sla
         * `flag-dormant` - flag-dormant
         * `purge-external` - purge-external
@@ -4755,7 +5519,6 @@ components:
           allOf:
           - $ref: '#/components/schemas/JoinRequestStateEnum'
           readOnly: true
-          default: pending
         note:
           type: string
           readOnly: true
@@ -4835,6 +5598,19 @@ components:
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
         basis:
           type: string
+    LineImport:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+          description: CSV with columns head, amount and optionally basis.
+        mode:
+          allOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          default: replace
+      required:
+      - file
     Login:
       type: object
       properties:
@@ -4983,6 +5759,32 @@ components:
       - id
       - missing
       - title
+    MissingReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        ended_at:
+          type: string
+          format: date-time
+      required:
+      - club
+      - ended_at
+      - id
+      - title
+    ModeEnum:
+      enum:
+      - replace
+      - append
+      type: string
+      description: |-
+        * `replace` - replace
+        * `append` - append
     MyRegistration:
       type: object
       description: The caller's own live registration on an event, if any.
@@ -5166,6 +5968,76 @@ components:
       - duplicates
       - results
       - synced
+    OpenBlock:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenBlockSlot'
+      required:
+      - date
+      - slots
+    OpenBlockBook:
+      type: object
+      properties:
+        club:
+          type: string
+          format: uuid
+        venue:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+          description: 'The slot''s start: a Wednesday, 15:00 or 16:00 campus time.'
+        title:
+          type: string
+          maxLength: 200
+      required:
+      - club
+      - starts_at
+      - venue
+    OpenBlockSlot:
+      type: object
+      properties:
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        venues:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenBlockSlotVenue'
+      required:
+      - ends_at
+      - starts_at
+      - venues
+    OpenBlockSlotVenue:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        booked_by:
+          type: string
+          nullable: true
+        event:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - booked_by
+      - event
+      - id
+      - name
     OrganiserAssign:
       type: object
       properties:
@@ -5306,6 +6178,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Event'
+    PaginatedEventPhotoList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventPhoto'
+    PaginatedEventSocialPostList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventSocialPost'
     PaginatedNotificationList:
       type: object
       required:
@@ -5455,6 +6373,9 @@ components:
         instagram_handle:
           type: string
           maxLength: 64
+        linkedin_handle:
+          type: string
+          maxLength: 64
         status:
           $ref: '#/components/schemas/ClubStatusEnum'
         join_mode:
@@ -5541,6 +6462,10 @@ components:
             type: string
             format: uri
           readOnly: true
+        highlight_photo_url:
+          type: string
+          nullable: true
+          readOnly: true
         registered:
           type: integer
           readOnly: true
@@ -5557,6 +6482,11 @@ components:
           - $ref: '#/components/schemas/MyRegistration'
           nullable: true
           readOnly: true
+        proposal_document:
+          allOf:
+          - $ref: '#/components/schemas/ProposalDocument'
+          nullable: true
+          readOnly: true
         submitted_at:
           type: string
           format: date-time
@@ -5567,6 +6497,14 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+    PatchedPhotoUpdate:
+      type: object
+      properties:
+        caption:
+          type: string
+          maxLength: 300
+        is_highlight:
+          type: boolean
     PatchedPreferencesPatch:
       type: object
       description: A partial update; a key not listed here is refused (422).
@@ -5584,6 +6522,28 @@ components:
         variance_note:
           type: string
           maxLength: 400
+    PhotoUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+          description: JPEG, PNG, WebP or HEIC, under 10 MB.
+        caption:
+          type: string
+          maxLength: 300
+      required:
+      - file
+    PlatformEnum:
+      enum:
+      - instagram
+      - linkedin
+      - other
+      type: string
+      description: |-
+        * `instagram` - Instagram
+        * `linkedin` - LinkedIn
+        * `other` - Other
     Preferences:
       type: object
       description: '`GET /module/auth/preferences`, and `preferences` on `/module/auth/me`.'
@@ -5592,6 +6552,12 @@ components:
           type: boolean
       required:
       - personalised_feed
+    PreviewEnum:
+      enum:
+      - pdf
+      - text
+      - none
+      type: string
     ProfileQr:
       type: object
       properties:
@@ -5606,18 +6572,109 @@ components:
       - image
       - token
       - version
+    ProposalDocument:
+      type: object
+      description: 'AR-10: the proposal write-up attached to an event.'
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        content_type:
+          type: string
+        byte_size:
+          type: integer
+        uploaded_by_label:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+        file_url:
+          type: string
+          readOnly: true
+        preview:
+          allOf:
+          - $ref: '#/components/schemas/PreviewEnum'
+          description: 'pdf: show the file itself; text: fetch the text preview; none:
+            download only.'
+          readOnly: true
+      required:
+      - byte_size
+      - content_type
+      - file_name
+      - file_url
+      - id
+      - preview
+      - uploaded_at
+      - uploaded_by_label
+    ProposalDocumentUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+          description: PDF or Word document, up to 10 MB.
+      required:
+      - file
+    ProposalPreview:
+      type: object
+      description: 'AR-11: a Word proposal as text, so it can be read without downloading
+        it.'
+      properties:
+        file_name:
+          type: string
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProposalPreviewBlock'
+        truncated:
+          type: boolean
+      required:
+      - blocks
+      - file_name
+      - truncated
+    ProposalPreviewBlock:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ProposalPreviewBlockKindEnum'
+        text:
+          type: string
+      required:
+      - kind
+      - text
+    ProposalPreviewBlockKindEnum:
+      enum:
+      - heading
+      - paragraph
+      - row
+      type: string
+      description: |-
+        * `heading` - heading
+        * `paragraph` - paragraph
+        * `row` - row
     ReassignRequest:
       type: object
+      description: 'AR-02: the Dean moves a booking to another venue, another time,
+        or both.'
       properties:
         to_venue:
           type: string
           format: uuid
+          description: Omit to keep the venue.
+        starts_at:
+          type: string
+          format: date-time
+          description: With ends_at; omit to keep the time.
+        ends_at:
+          type: string
+          format: date-time
         reason:
           type: string
           maxLength: 280
       required:
       - reason
-      - to_venue
     Receipt:
       type: object
       properties:
@@ -5819,12 +6876,17 @@ components:
           type: integer
         attendance:
           type: integer
+        highlight_photo_url:
+          type: string
+          nullable: true
+          description: A photo from the club's best-attended event that has one.
       required:
       - attendance
       - category
       - club
       - club_id
       - events_run
+      - highlight_photo_url
       - tag
     ReportByDepartment:
       type: object
@@ -5877,6 +6939,66 @@ components:
       - spent
       - starts_at
       - title
+    ReportFeedback:
+      type: object
+      properties:
+        count:
+          type: integer
+        average_rating:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - average_rating
+      - count
+    ReportGalleryPhoto:
+      type: object
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        club:
+          type: string
+        caption:
+          type: string
+        photo_url:
+          type: string
+      required:
+      - caption
+      - club
+      - event
+      - event_id
+      - photo_url
+    ReportHighlight:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        club:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        attended:
+          type: integer
+        outcomes:
+          type: string
+          description: First 200 characters.
+        photo_url:
+          type: string
+      required:
+      - attended
+      - club
+      - id
+      - outcomes
+      - photo_url
+      - starts_at
+      - title
     ReportMoney:
       type: object
       properties:
@@ -5890,6 +7012,32 @@ components:
       - requested
       - sanctioned
       - spent
+    ReportOutreach:
+      type: object
+      description: 'PRD §5.14.2: how many events were publicly promoted, and by which
+        clubs.'
+      properties:
+        events_promoted:
+          type: integer
+          description: Completed events with at least one post link.
+        events_completed:
+          type: integer
+        instagram:
+          type: integer
+          description: Events with an Instagram post link.
+        linkedin:
+          type: integer
+          description: Events with a LinkedIn post link.
+        clubs:
+          type: array
+          items:
+            type: string
+      required:
+      - clubs
+      - events_completed
+      - events_promoted
+      - instagram
+      - linkedin
     ReportSemester:
       type: object
       properties:
@@ -6209,6 +7357,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReportEvent'
+        highlights:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportHighlight'
+          description: Up to six best-attended events with a photo.
+        gallery:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportGalleryPhoto'
+          description: Every photo marked as a highlight.
+        outreach:
+          $ref: '#/components/schemas/ReportOutreach'
         caveats:
           type: array
           items:
@@ -6222,7 +7382,10 @@ components:
       - events
       - events_run
       - external_participants
+      - gallery
+      - highlights
       - money
+      - outreach
       - semester
       - total_participation
       - unique_students
@@ -6260,6 +7423,127 @@ components:
       - code
       - field
       - message
+    SocialActivity:
+      type: object
+      properties:
+        club_id:
+          type: string
+          format: uuid
+        club:
+          type: string
+        events_completed:
+          type: integer
+        events_with_post:
+          type: integer
+        share:
+          type: number
+          format: double
+          description: events_with_post / events_completed.
+        instagram:
+          type: integer
+        linkedin:
+          type: integer
+        both:
+          type: integer
+        last_post_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - both
+      - club
+      - club_id
+      - events_completed
+      - events_with_post
+      - instagram
+      - last_post_at
+      - linkedin
+      - share
+    SocialPostIn:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 500
+        platform:
+          allOf:
+          - $ref: '#/components/schemas/PlatformEnum'
+          description: |-
+            Inferred from the link's host when omitted.
+
+            * `instagram` - Instagram
+            * `linkedin` - LinkedIn
+            * `other` - Other
+        screenshot:
+          type: string
+          format: uri
+          description: Optional image of the post.
+      required:
+      - url
+    SocietyMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/SocietyRoleEnum'
+        role_label:
+          type: string
+        can_remove:
+          type: boolean
+          description: Whether the caller may remove this person.
+      required:
+      - can_remove
+      - display_name
+      - email
+      - role
+      - role_label
+      - user_id
+    SocietyMemberAdd:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: The person's institutional address.
+        role:
+          allOf:
+          - $ref: '#/components/schemas/SocietyRoleEnum'
+          default: cultural_society
+      required:
+      - email
+    SocietyRoleEnum:
+      enum:
+      - cultural_society_secretary
+      - cultural_society_vice_secretary
+      - cultural_society
+      type: string
+      description: |-
+        * `cultural_society_secretary` - cultural_society_secretary
+        * `cultural_society_vice_secretary` - cultural_society_vice_secretary
+        * `cultural_society` - cultural_society
+    SocietyRoster:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocietyMember'
+        can_manage:
+          type: boolean
+        can_appoint_officers:
+          type: boolean
+      required:
+      - can_appoint_officers
+      - can_manage
+      - members
     SoftClash:
       type: object
       properties:

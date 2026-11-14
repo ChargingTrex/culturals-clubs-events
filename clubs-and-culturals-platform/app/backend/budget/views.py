@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from budget import services
 from budget.models import Budget, BudgetLine, BudgetTemplate, ReceiptDocument
 from budget.serializers import (
-    BudgetTemplatesSerializer, BudgetThresholdsSerializer, NilDeclarationSerializer,
+    BudgetTemplatesSerializer, BudgetThresholdsSerializer, LineImportSerializer, NilDeclarationSerializer,
     ReceiptUploadSerializer, SettlementProblemSerializer,
 )
 from common import roles as R
@@ -287,6 +287,28 @@ class BudgetViewSet(viewsets.GenericViewSet):
         data = LineEditSerializer(data=request.data, partial=True)
         data.is_valid(raise_exception=True)
         services.update_line(budget, line, **{k: v for k, v in data.validated_data.items()})
+        budget.refresh_from_db()
+        return Response(BudgetSerializer(budget, context={"request": request}).data)
+
+    @extend_schema(request={"multipart/form-data": LineImportSerializer},
+                   responses=BudgetSerializer,
+                   summary="Replace or extend the budget lines from a CSV (all rows or none)")
+    @action(detail=True, methods=["post"], url_path="lines/import")
+    def import_lines(self, request, pk=None):
+        budget = self._get(pk)
+        self._require_preparer(budget)
+        data = LineImportSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        upload = data.validated_data["file"]
+        if upload.size > 100_000:
+            raise ProblemDetail(code="BUDGET_IMPORT_TOO_LARGE", title="File too large",
+                                status_code=413, detail="A budget CSV is at most 100 KB.")
+        try:
+            text = upload.read().decode("utf-8-sig")  # Excel saves CSV with a BOM
+        except UnicodeDecodeError:
+            raise ProblemDetail(code="BUDGET_IMPORT_ENCODING", title="Not a text CSV",
+                                status_code=422, detail="Save the sheet as CSV (UTF-8) and try again.")
+        services.import_lines(budget, text, replace=data.validated_data["mode"] == "replace")
         budget.refresh_from_db()
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 

@@ -224,7 +224,11 @@ def _capabilities(ctx):
         "is_student": ctx.has_any(R.STUDENT),
         "is_dean": ctx.has_any(R.DEAN),
         "is_vice_chancellor": ctx.has_any(R.VICE_CHANCELLOR),
-        "is_cultural_society": ctx.has_any(R.CULTURAL_SOCIETY),
+        "is_cultural_society": ctx.has_any(*R.SOCIETY_ROLES),
+        # The Society's Secretary and Vice-Secretary: they hold its approval stage,
+        # move a booking while the proposal is with them, and keep the member list.
+        "is_society_officer": ctx.has_any(*R.SOCIETY_OFFICERS),
+        "can_manage_society": ctx.has_any(*R.SOCIETY_MANAGERS),
         "is_admin": ctx.has_any(R.ADMIN),
         "clubs": led,
         "clubs_with_budget_access": sorted(ctx.scopes_for(*R.BUDGET_VIEWERS)),
@@ -236,10 +240,10 @@ def _capabilities(ctx):
         # response carries names and PRNs, and the Treasurer because running a door
         # is not their job. The client cannot derive this from `clubs`.
         "clubs_door_staff": sorted(ctx.scopes_for(*R.DOOR_STAFF)),
-        "can_see_overview": ctx.has_any(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY),
+        "can_see_overview": ctx.has_any(*R.STAFF_ROLES),
         "organiser_events": sorted(ctx.organiser_events()),
-        "approval_stages": [s for s, role in R.STAGE_ROLE.items() if ctx.has_any(role)],
-        # Counted from the rows, not the token, so "2 of 3" is right the moment
+        "approval_stages": [s for s, roles in R.STAGE_ROLES.items() if ctx.has_any(*roles)],
+        # Counted from the rows, not the token, so "2 of 5" is right the moment
         # a join or leave lands rather than at the next refresh.
         "my_clubs_count": _active_membership_count(ctx.student_id),
         "max_club_memberships": settings.MAX_CLUB_MEMBERSHIPS,
@@ -328,8 +332,12 @@ DEMO_PERSONAS = {
         "find": lambda: _club_officer("Music Club", R.CLUB_MEMBER),
     },
     "society": {
-        "label": "Cultural Society", "sub": "Cultural secretary — approval gate 1",
+        "label": "Cultural Society", "sub": "Society Secretary — approval gate 1",
         "find": lambda: _staff("cultural.secretary@college.edu"),
+    },
+    "society_vice": {
+        "label": "Society Vice-Secretary", "sub": "Stands in for the Secretary at gate 1",
+        "find": lambda: _staff("cultural.vicesecretary@college.edu"),
     },
     "dean": {
         "label": "Dean", "sub": "Dean of Student Affairs — the mandatory gate",

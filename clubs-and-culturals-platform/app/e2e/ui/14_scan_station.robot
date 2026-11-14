@@ -4,7 +4,7 @@ Documentation     Step 6 on screen: the Photography Club president opens the sca
 Resource          ../resources/ui.resource
 Resource          ../resources/api.resource
 Suite Setup       A Student Holds A Pass For The Live Event
-Test Tags         ui
+Test Tags         ui    participation
 
 
 *** Test Cases ***

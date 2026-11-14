@@ -9,7 +9,7 @@ import type { ClubOut, EventOut, PassOut, Session, Wallet } from '../shared/api/
 import { makeMe, makeSession } from './capabilities';
 
 const OFFICES = ['club_president', 'club_vice_president', 'club_treasurer', 'club_secretary'];
-const MAX_CLUBS = 3;
+const MAX_CLUBS = 5;
 
 const B = API_BASE;
 
@@ -98,10 +98,12 @@ const baseEvent = (over: Partial<EventOut>): EventOut => ({
   status_label: 'Published',
   photo_count: 0,
   social_links: [],
+  highlight_photo_url: null,
   registered: 38,
   attended: 0,
   budget: null,
   my_registration: null,
+  proposal_document: null,
   submitted_at: null,
   closed_at: null,
   ...over,
@@ -194,6 +196,8 @@ const ROLE_BY_EMAIL: Record<string, string[]> = {
 };
 
 export const handlers = [
+  // AR-03: no venues in the default open block, so club pages render it empty.
+  http.get(`${B}/open-block`, () => HttpResponse.json({ date: '2026-11-11', slots: [] })),
   // Demo server: the pilot accounts the sign-in page lists.
   http.get(`${B}/module/auth/demo/personas`, () =>
     HttpResponse.json({

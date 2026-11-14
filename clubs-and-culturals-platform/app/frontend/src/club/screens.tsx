@@ -10,6 +10,7 @@ import { BudgetPage } from './BudgetPage';
 import { ClubEventDetailPage } from './ClubEventDetailPage';
 import { ClubEventsPage } from './ClubEventsPage';
 import { NewEventPage } from './NewEventPage';
+import { JoinRequestsPage } from './JoinRequestsPage';
 import { RosterPage } from './RosterPage';
 
 export const SCREENS: Screen[] = [
@@ -17,6 +18,7 @@ export const SCREENS: Screen[] = [
   ['/club/events/new', <NewEventPage key="club-new-event" />],
   ['/club/budget', <BudgetPage key="club-budget" />],
   ['/club/roster', <RosterPage key="club-roster" />],
+  ['/club/join-requests', <JoinRequestsPage key="club-join-requests" />],
 ];
 
 export const EXTRA: Screen[] = [

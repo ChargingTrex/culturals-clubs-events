@@ -6,7 +6,7 @@ Resource          ../resources/api.resource
 Suite Setup       Look Up The Member
 Test Setup        Open App
 Test Teardown     Close Context
-Test Tags         ui
+Test Tags         ui    budget    members
 
 
 *** Test Cases ***

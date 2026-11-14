@@ -3,7 +3,7 @@ Documentation     Step 5: two clubs want Seminar Hall A the same evening. No gat
 ...               the clash; the Dean moves one with a reason, and then the approval goes through.
 Resource          ../resources/api.resource
 Suite Setup       Dean And Society Sign In
-Test Tags         api
+Test Tags         api    calendar
 
 
 *** Test Cases ***

@@ -36,6 +36,37 @@ describe('student journey', () => {
     expect(within(bright).getByRole('img')).toHaveAttribute('data-qr-value', 'pass.reg-1');
   });
 
+  it('a reported event shows its photos and a student can ask for one to be removed (AR-01)', async () => {
+    state.events[0] = { ...state.events[0]!, status: 'reported', status_label: 'Reported' };
+    const photo = {
+      id: 'p1', caption: 'Group shot', is_highlight: true, content_type: 'image/jpeg', byte_size: 10,
+      file_url: '/api/v1/events/e1/photos/p1/file', removal_requested: false,
+      created_at: '2026-11-02T13:00:00Z',
+    };
+    let asked = false;
+    server.use(
+      http.get(`${API_BASE}/events/e1/photos`, () =>
+        HttpResponse.json([{ ...photo, removal_requested: asked }]),
+      ),
+      http.get(`${API_BASE}/events/e1/photos/p1/file`, () => new HttpResponse(null, { status: 404 })),
+      http.post(`${API_BASE}/events/e1/photos/p1/removal-request`, () => {
+        asked = true;
+        return HttpResponse.json({ ...photo, removal_requested: true });
+      }),
+    );
+    const user = userEvent.setup();
+    renderAt('/events/e1', { roles: ['student'] });
+    const gallery = await screen.findByRole('region', { name: 'Photos' });
+    await user.click(within(gallery).getByRole('button', { name: 'Request removal' }));
+    expect(await within(gallery).findByText('Removal requested')).toBeInTheDocument();
+    expect(asked).toBe(true);
+  });
+
+  it('the Register panel carries the photo consent line', async () => {
+    renderAt('/events/e1', { roles: ['student'] });
+    expect(await screen.findByTestId('photo-consent')).toHaveTextContent('ask for one to be removed');
+  });
+
   it('event full → the API 409 is shown as a message with its code', async () => {
     const user = userEvent.setup();
     renderAt('/events/e2', { roles: ['student'] });
@@ -197,7 +228,7 @@ describe('navigation and guards', () => {
     ).toEqual(['Feed', "What's on", 'My passes', 'Profile QR', 'Clubs']);
   });
 
-  it('offers a president ten pages on phones: four on the bottom bar, six under More', async () => {
+  it('offers a president twelve pages on phones: four on the bottom bar, eight under More', async () => {
     const user = userEvent.setup();
     renderAt('/events', { roles: [...PERSONAS.president] });
     const nav = await screen.findByTestId('nav-bottom');
@@ -205,7 +236,7 @@ describe('navigation and guards', () => {
     expect(within(nav).getAllByRole('link')).toHaveLength(4);
     await user.click(within(nav).getByRole('button', { name: 'More' }));
     const more = await screen.findByTestId('nav-more');
-    expect(within(more).getAllByRole('link')).toHaveLength(6);
+    expect(within(more).getAllByRole('link')).toHaveLength(8);
   });
 
   it("renders the API's own refusal when a student opens a staff page", async () => {

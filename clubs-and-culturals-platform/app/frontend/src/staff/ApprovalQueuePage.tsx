@@ -76,6 +76,30 @@ function QueueRow({ item, slaHours }: { item: ApprovalRequest; slaHours: number 
   );
 }
 
+/** A proposal still at an earlier gate: shown so it is not invisible, not to be decided yet. */
+function UpcomingRow({ item }: { item: ApprovalRequest }) {
+  return (
+    <li
+      data-testid="upcoming-row"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line px-4 py-3 last:border-b-0"
+    >
+      <ClubIcon name={item.club} accent={accentFor(item.club)} size="sm" />
+      <div className="min-w-0 flex-1">
+        <Link to={`/staff/approvals/${item.id}`} className="font-semibold text-ink hover:underline">
+          {item.event_title}
+        </Link>
+        <div className="caption text-ink-muted">
+          {item.club} · {item.venue} · {fmtDate(item.starts_at)}, {fmtTime(item.starts_at)} ·{' '}
+          {inr(item.amount_requested)}
+        </div>
+      </div>
+      <Chip tone="in-review" icon="clock">
+        With the {STAGE_LABEL[item.current_stage]}
+      </Chip>
+    </li>
+  );
+}
+
 export function ApprovalQueuePage({ stage }: { stage: ApprovalStage }) {
   const [escalatedOnly, setEscalatedOnly] = useState(false);
   const queue = useQuery<ApprovalQueue, ApiError>({
@@ -84,6 +108,10 @@ export function ApprovalQueuePage({ stage }: { stage: ApprovalStage }) {
   });
 
   const rows = (queue.data?.results ?? []).filter((r) => r.current_stage === stage);
+  const upcoming = (queue.data?.upcoming ?? []).filter((r) => {
+    const stages = (r.stages as ApprovalStage[] | undefined) ?? [];
+    return stages.indexOf(stage) > stages.indexOf(r.current_stage);
+  });
   const delegated = queue.data?.stages_delegated_to_you.includes(stage) ?? false;
   const escalatedCount = rows.filter((r) => r.escalated).length;
   const total = rows.reduce((sum, r) => sum + Number(r.amount_requested ?? 0), 0);
@@ -140,6 +168,21 @@ export function ApprovalQueuePage({ stage }: { stage: ApprovalStage }) {
           ))}
         </ul>
       )}
+
+      {upcoming.length > 0 ? (
+        <section className="mt-6" aria-label="On the way to you">
+          <h2 className="title-md">On the way to you</h2>
+          <p className="mt-1 mb-3 max-w-[66ch] text-body-md text-ink-muted">
+            Submitted and still at an earlier gate. You can read them now; they join your queue
+            above once that gate approves.
+          </p>
+          <ul className="m-0 list-none rounded-lg border border-line bg-surface p-0">
+            {upcoming.map((item) => (
+              <UpcomingRow key={item.id} item={item} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }

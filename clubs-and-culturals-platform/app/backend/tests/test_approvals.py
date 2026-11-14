@@ -92,7 +92,7 @@ class ApprovalFlowTests(TestCase):
         self.dean = f.user("dean@college.edu", name="Dean", global_roles=[R.DEAN], mfa=True)
         self.vc = f.user("vc@college.edu", name="VC", global_roles=[R.VICE_CHANCELLOR], mfa=True)
         self.society = f.user("society@college.edu", name="Society",
-                              global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+                              global_roles=[R.SOCIETY_SECRETARY], mfa=True)
 
         self.event = f.event(self.club, self.venue, title="Swara Unplugged")
         f.budget(self.event, amounts=(10000, 5000))
@@ -132,7 +132,7 @@ class ApprovalFlowTests(TestCase):
 
     def test_the_club_president_cannot_approve_their_own_proposal(self):
         """AGENT_PROMPT §6: no club role approves its own budget."""
-        self.president.user.global_roles = [R.STUDENT, R.CULTURAL_SOCIETY]
+        self.president.user.global_roles = [R.STUDENT, R.SOCIETY_SECRETARY]
         self.president.user.save()
         response = self.decide("pres@college.edu", "approve")
         self.assertEqual(response.status_code, 403)
@@ -210,6 +210,19 @@ class ApprovalFlowTests(TestCase):
         self.assertEqual(first.amount_sanctioned, Decimal("8000.00"))
         self.assertEqual(second.amount_sanctioned, second.amount_requested)
 
+    def test_approving_without_edits_sanctions_every_head_as_requested(self):
+        """No `sanctioned` map at all: the Dean approved the budget as asked."""
+        self.decide("society@college.edu", "approve")
+        response = self.decide("dean@college.edu", "approve")
+        self.assertEqual(response.status_code, 200)
+        lines = list(self.event.budget.lines.all())
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertEqual(line.amount_sanctioned, line.amount_requested, line.head)
+        self.event.budget.refresh_from_db()
+        self.assertEqual(self.event.budget.total_sanctioned,
+                         sum(line.amount_requested for line in lines))
+
     # ---- queue scoping -------------------------------------------------
     def test_each_approver_sees_only_their_own_stage(self):
         f.as_user(self.client, "society@college.edu", mfa_code="1")
@@ -242,7 +255,7 @@ class MfaOnHighValueTests(TestCase):
         f.budget(self.event, amounts=(80000,))
         self.approval = governance.submit(
             self.event, actor=f.ctx_for(self.president.user))
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
 
     def test_approving_an_above_threshold_budget_without_mfa_is_refused(self):
         society = f.User.objects.get(email="society@college.edu")

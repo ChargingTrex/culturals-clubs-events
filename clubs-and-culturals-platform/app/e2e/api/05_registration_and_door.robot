@@ -4,7 +4,7 @@ Documentation     Steps 6–7: a student registers and holds a pass; a full even
 ...               records every attempt — and the Treasurer and the Vice-Chancellor are kept away from the door.
 Resource          ../resources/api.resource
 Suite Setup       People Sign In
-Test Tags         api
+Test Tags         api    participation
 
 
 *** Test Cases ***

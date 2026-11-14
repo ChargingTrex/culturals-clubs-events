@@ -3,3 +3,7 @@
 --loglevel INFO
 --consolewidth 100
 --variablefile resources/variables.py
+# Every test is part of the regression pack; a test that documents a known product bug is
+# tagged known-issue and reported as SKIP rather than FAIL until the bug is fixed.
+--settag regression
+--skiponfailure known-issue

@@ -6,7 +6,7 @@ Resource          ../resources/api.resource
 Suite Setup       Clubs Send Their Proposals
 Test Setup        Open App
 Test Teardown     Close Context
-Test Tags         ui
+Test Tags         ui    approvals    calendar    dashboards
 
 
 *** Test Cases ***
@@ -30,6 +30,22 @@ Dean sanctions one head lower and approves
     Wait For Heading    Dean approvals
     Wait For Text    Approved: ${proposal}
 
+Society sees the clash in the hour grid
+    [Documentation]    C-03. The suite setup books both clash events in Seminar Hall B 54 days out at 10:00 India
+    ...               time; this runs before the Dean moves one. (It used the seed's Seminar Hall A clash, which
+    ...               api/04 resolves first when the suites run together.)
+    Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}
+    Wait For Heading    Cultural Society approvals
+    Click Link    Calendar
+    Wait For Heading    Calendar
+    ${weeks}=    Evaluate    ((datetime.date.today() + datetime.timedelta(days=54)) - (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday()))).days // 7    modules=datetime
+    FOR    ${i}    IN RANGE    ${weeks}
+        Click Button    Next week
+    END
+    Click    [aria-label="Week"] >> button[aria-label$=", clash"] >> nth=0
+    Wait For Elements State    [data-testid="slot"][data-venue="Seminar Hall B"][data-hour="10"][data-clash="true"]    visible
+    Snapshot    13-society-calendar
+
 Dean resolves the clash from the Venues page
     [Tags]    smoke
     Sign In As    ${DEAN_EMAIL}    ${MFA_CODE}
@@ -45,25 +61,10 @@ Dean resolves the clash from the Venues page
     # The seed's own clash may still be listed; ours must be gone.
     Wait For Elements State    [aria-label="Venue clashes"] >> text=${clash_b}    detached
 
-Society sees the seeded clash in the hour grid
-    [Documentation]    C-03. The seed books Open Mic Night 16:00–18:00 and the Contemporary Dance
-    ...               Workshop 17:00–19:00 in Seminar Hall A, 16 days out: they share the 17:00 slot.
-    Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}
-    Wait For Heading    Cultural Society approvals
-    Click Link    Calendar
-    Wait For Heading    Calendar
-    ${weeks}=    Evaluate    ((datetime.date.today() + datetime.timedelta(days=16)) - (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday()))).days // 7    modules=datetime
-    FOR    ${i}    IN RANGE    ${weeks}
-        Click Button    Next week
-    END
-    Click    [aria-label="Week"] >> button[aria-label$=", clash"] >> nth=0
-    Wait For Elements State    [data-testid="slot"][data-venue="Seminar Hall A"][data-hour="17"][data-clash="true"]    visible
-    Snapshot    13-society-calendar
-
-Vice-Chancellor sees two pages and the report's unique-student figure
+Vice-Chancellor sees four pages and the report's unique-student figure
     Sign In As    ${VC_EMAIL}    ${MFA_CODE}
     Wait For Heading    Vice-Chancellor approvals
-    Pages Should Be    Above-threshold    Semester report
+    Pages Should Be    Above-threshold    Calendar    This semester    Semester report
     Click Link    Semester report
     Wait For Heading    Semester report
     ${tiles}=    Get Elements    [data-testid="tile"]
@@ -101,17 +102,3 @@ Clubs Send Their Proposals
     ${vc}=    Staff Login As    ${VC_EMAIL}
     ${report}=    GET As    ${vc}    /reporting/reports/semester
     Set Suite Variable    ${unique_students}    ${report.json()}[unique_students]
-
-Review
-    [Documentation]    Open the queue row for this proposal.
-    [Arguments]    ${title}
-    Wait For Text    ${title}
-    ${rows}=    Get Elements    [data-testid="queue-row"]
-    FOR    ${r}    IN    @{rows}
-        ${text}=    Get Text    ${r}
-        IF    $title in $text
-            Click    ${r} >> a:has-text("Review")
-            BREAK
-        END
-    END
-    Wait For Heading    ${title}

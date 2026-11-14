@@ -29,7 +29,7 @@ class ReceiptFileTests(TestCase):
         self.outsider = f.student("outsider@college.edu", prn="23CS1004")
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
         f.user("vc@college.edu", global_roles=[R.VICE_CHANCELLOR], mfa=True)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
 
         self.event = f.event(self.club, f.venue(), days=-3, status=EventStatus.REPORTED)
         self.budget = f.budget(self.event, amounts=(10000,))

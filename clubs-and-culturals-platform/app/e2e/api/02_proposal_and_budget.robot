@@ -3,7 +3,7 @@ Documentation     Steps 1–2: the Treasurer creates an event priced later, pric
 ...               (or declares it needs no budget), and sends it. Under review the lines freeze.
 Resource          ../resources/api.resource
 Suite Setup       Treasurer Drafts An Event
-Test Tags         api
+Test Tags         api    budget
 
 
 *** Test Cases ***
@@ -34,6 +34,8 @@ Adding a priced line withdraws the nil declaration
 
 The Treasurer sends it for approval and the route is frozen
     [Tags]    smoke
+    # Under --include smoke the pricing tests above have not run: make sure one priced line exists (a duplicate is a harmless 409).
+    Add Budget Line    ${treasurer}    ${budget_id}    Sound & lighting    12000    expected=any
     ${r}=    POST As    ${treasurer}    /events/${event_id}/submit
     Lists Should Be Equal    ${r.json()}[stages]    ${{ ['cultural_society', 'dean'] }}
     Should Be Equal    ${r.json()}[current_stage]    cultural_society

@@ -3,6 +3,7 @@ import type { ApiError } from '../shared/api/client';
 import { BarChart, BudgetSheet, BudgetSummary, Button } from '../shared/ds';
 import { fmtDate, inr } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
+import { AuthImage } from '../shared/ui/AuthImage';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { Tile } from './OverviewPage';
 import { STAFF_KEYS, downloadSemesterCsv, staffApi, type SemesterReport } from './api';
@@ -129,6 +130,35 @@ export function ReportPage() {
           ) : null}
         </section>
       </div>
+
+      {(r.highlights ?? []).length > 0 ? (
+        <section className="panel mt-5" aria-label="Highlights">
+          <h3>Highlights</h3>
+          <p className="mb-3 text-body-md text-ink-muted">
+            The best-attended events, with the photo each club starred
+          </p>
+          <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            {r.highlights.map((h) => (
+              <li key={h.id} data-testid="report-highlight" className="grid gap-2">
+                <AuthImage src={h.photo_url} alt={h.title} className="aspect-video w-full rounded-md" />
+                <strong>{h.title}</strong>
+                <span className="caption text-ink-muted">
+                  {h.club} · {fmtDate(h.starts_at)} · {h.attended} attended
+                </span>
+                {h.outcomes ? <span className="text-body-md">{h.outcomes}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {r.outreach ? (
+        <p className="note mt-5" data-testid="report-outreach">
+          <strong>Outreach.</strong> {r.outreach.events_promoted} of {r.outreach.events_completed}{' '}
+          events had a social media post ({r.outreach.instagram} on Instagram,{' '}
+          {r.outreach.linkedin} on LinkedIn).
+        </p>
+      ) : null}
 
       <div className="mt-5">
         {events.length === 0 ? (

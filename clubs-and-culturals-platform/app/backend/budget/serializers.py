@@ -39,6 +39,11 @@ class ReceiptUploadSerializer(serializers.Serializer):
     supersedes = serializers.UUIDField(required=False, help_text="Receipt this one replaces.")
 
 
+class LineImportSerializer(serializers.Serializer):
+    file = serializers.FileField(help_text="CSV with columns head, amount and optionally basis.")
+    mode = serializers.ChoiceField(choices=["replace", "append"], default="replace")
+
+
 class TemplateLineSerializer(serializers.Serializer):
     head = serializers.CharField()
     basis = serializers.ChoiceField(choices=BudgetTemplateLine.Basis.choices)

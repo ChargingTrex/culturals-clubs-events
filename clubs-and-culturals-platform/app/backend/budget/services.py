@@ -1,7 +1,9 @@
 """
 Budget seeding from a template, and settlement.
 """
-from decimal import Decimal
+import csv
+import io
+from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -107,6 +109,66 @@ def add_line(budget, *, head, amount_requested, basis=None, position=None):
     if amount > 0 and budget.is_nil:
         _clear_nil(budget)
     return line
+
+
+IMPORT_MAX_ROWS = 200
+
+
+def import_lines(budget, text, *, replace):
+    """
+    Budget lines from a CSV (columns head, amount, optional basis), all or nothing.
+
+    Every row is checked before anything is written, so a file with one bad row
+    changes nothing and the Treasurer gets every problem at once, by row number.
+    """
+    _assert_editable(budget)
+    reader = csv.DictReader(io.StringIO(text))
+    reader.fieldnames = [(h or "").strip().lower() for h in (reader.fieldnames or [])]
+    if not {"head", "amount"} <= set(reader.fieldnames):
+        raise Unprocessable(code="BUDGET_IMPORT_COLUMNS", title="Columns missing",
+                            detail="The first row must name the columns head and amount.")
+    existing = set() if replace else {h.lower() for h in budget.lines.values_list("head", flat=True)}
+    rows, errors = [], []
+    for number, row in enumerate(reader, start=2):
+        head = (row.get("head") or "").strip()
+        raw = (row.get("amount") or "").strip().replace(",", "").lstrip("₹").strip()
+        basis = (row.get("basis") or "").strip() or BudgetTemplateLine.Basis.LUMP_SUM
+        if not head and not raw:
+            continue  # blank line in the sheet
+        if not head:
+            errors.append({"field": f"row {number}: head", "code": "REQUIRED",
+                           "message": "Give the line a head."})
+        elif head.lower() in existing:
+            errors.append({"field": f"row {number}: head", "code": "DUPLICATE",
+                           "message": f"“{head}” appears more than once."})
+        existing.add(head.lower())
+        try:
+            amount = Decimal(raw)
+            if amount < 0 or not amount.is_finite():
+                raise InvalidOperation
+        except InvalidOperation:
+            errors.append({"field": f"row {number}: amount", "code": "INVALID",
+                           "message": f"“{raw}” is not an amount of zero or more."})
+            amount = None
+        if basis not in BudgetTemplateLine.Basis.values:
+            errors.append({"field": f"row {number}: basis", "code": "INVALID",
+                           "message": f"Basis must be one of {', '.join(BudgetTemplateLine.Basis.values)}."})
+        rows.append((head, amount, basis))
+    if not rows:
+        raise Unprocessable(code="BUDGET_IMPORT_EMPTY", title="No lines in the file",
+                            detail="Add at least one row under the head,amount header.")
+    if len(rows) > IMPORT_MAX_ROWS:
+        raise Unprocessable(code="BUDGET_IMPORT_TOO_LONG", title="Too many lines",
+                            detail=f"A budget can be imported with at most {IMPORT_MAX_ROWS} lines.")
+    if errors:
+        raise Unprocessable(code="BUDGET_IMPORT_INVALID", title="Some rows need fixing",
+                            detail=f"{len(errors)} problem(s); nothing was saved.", errors=errors)
+    with transaction.atomic():
+        if replace:
+            budget.lines.all().delete()
+        for head, amount, basis in rows:
+            add_line(budget, head=head, amount_requested=amount, basis=basis)
+    return budget
 
 
 def update_line(budget, line, *, head=None, amount_requested=None, basis=None):

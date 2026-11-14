@@ -21,10 +21,15 @@ import {
 import { fmtDate, fmtTime, inr, roleLabel } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
+import { ProposalPreview } from '../shared/ui/DocumentPreview';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { useToast } from '../shared/ui/Toast';
 import { clubApi, type ApprovalRequest, type Clashes } from './api';
 import { SubmitButton } from './ClubEventsPage';
+import { PostEventReport } from './PostEventReport';
+
+// AR-01: the report opens once the event is running and stays for bills after it is submitted.
+const REPORTING = new Set(['live', 'completed', 'reported']);
 
 const DECISION: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' | 'plain' }> = {
   approve: { label: 'Approved', tone: 'ok' },
@@ -153,67 +158,63 @@ function ClashPanel({ eventId }: { eventId: string }) {
   );
 }
 
-function CloseForm({ event }: { event: EventOut }) {
-  const toast = useToast();
+/** AR-10: the proposal write-up. Replaceable while the proposal is a draft or returned. */
+function ProposalDocumentPanel({ event, canEdit }: { event: EventOut; canEdit: boolean }) {
   const queryClient = useQueryClient();
-  const [photos, setPhotos] = useState('0');
-  const [links, setLinks] = useState('');
-  const close = useMutation<EventOut, ApiError>({
-    mutationFn: () =>
-      clubApi.events.close(event.id, {
-        photo_count: Number(photos) || 0,
-        social_links: links
-          .split(/\s+/)
-          .map((l) => l.trim())
-          .filter(Boolean),
-      }),
+  const toast = useToast();
+  const doc = event.proposal_document;
+  const [previewing, setPreviewing] = useState(false);
+  const attach = useMutation<unknown, ApiError, File>({
+    mutationFn: (file) => clubApi.events.setProposalDocument(event.id, file),
     onSuccess: () => {
-      toast.show('Event closed');
       void queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.show('Proposal document attached');
     },
   });
   return (
-    <form
-      className="mt-3 grid gap-3 sm:grid-cols-[140px_1fr_auto] sm:items-end"
-      onSubmit={(e) => {
-        e.preventDefault();
-        close.mutate();
-      }}
-    >
-      <div>
-        <label className="label" htmlFor="close-photos">
-          Photos taken
-        </label>
-        <input
-          id="close-photos"
-          type="number"
-          min={0}
-          className="field"
-          value={photos}
-          onChange={(e) => setPhotos(e.target.value)}
-        />
-      </div>
-      <div>
-        <label className="label" htmlFor="close-links">
-          Social posts (links, space separated)
-        </label>
-        <input
-          id="close-links"
-          className="field"
-          value={links}
-          onChange={(e) => setLinks(e.target.value)}
-          placeholder="https://instagram.com/p/…"
-        />
-      </div>
-      <Button type="submit" disabled={close.isPending}>
-        Close event
-      </Button>
-      {close.error ? (
-        <div className="sm:col-span-3">
-          <ProblemView error={close.error} />
+    <section className="cc-card mt-5 p-5" aria-label="Proposal document">
+      <h3 className="title-md mb-3">Proposal document</h3>
+      {doc ? (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Icon name="sheet" size={18} className="text-ink-muted" />
+          <button
+            type="button"
+            className="text-primary hover:underline"
+            aria-label={`Preview ${doc.file_name}`}
+            onClick={() => setPreviewing(true)}
+          >
+            {doc.file_name}
+          </button>
+          <span className="caption text-ink-muted">
+            {Math.max(1, Math.round(doc.byte_size / 1024))} KB
+            {doc.uploaded_by_label ? ` · ${doc.uploaded_by_label}` : ''} · {fmtDate(doc.uploaded_at)}
+          </span>
+        </p>
+      ) : (
+        <p className="text-body-md text-ink-muted">No proposal document attached.</p>
+      )}
+      {canEdit ? (
+        <div className="mt-3">
+          <label className="label" htmlFor="proposal-doc">
+            {doc ? 'Replace it' : 'Attach it'} (PDF or Word, up to 10 MB)
+          </label>
+          <input
+            id="proposal-doc"
+            type="file"
+            accept=".pdf,.doc,.docx"
+            className="field"
+            disabled={attach.isPending}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) attach.mutate(file);
+              e.target.value = '';
+            }}
+          />
         </div>
       ) : null}
-    </form>
+      {attach.error ? <ProblemView error={attach.error} /> : null}
+      {doc && previewing ? <ProposalPreview doc={doc} onClose={() => setPreviewing(false)} /> : null}
+    </section>
   );
 }
 
@@ -346,6 +347,10 @@ export function ClubEventDetailPage() {
         )}
       </div>
 
+      {propose || e.proposal_document ? (
+        <ProposalDocumentPanel event={e} canEdit={propose && (e.status === 'draft' || e.status === 'returned')} />
+      ) : null}
+
       <section className="cc-card mt-5 p-5" aria-label="Approval trail">
         <h3 className="title-md mb-4">Approval trail</h3>
         <ApprovalTrail eventId={e.id} />
@@ -353,14 +358,11 @@ export function ClubEventDetailPage() {
 
       <div className="mt-5 grid gap-3.5 md:grid-cols-2 lg:gap-5">
         <ClashPanel eventId={e.id} />
-        {operate && e.status === 'live' ? (
-          <section className="panel" aria-label="Close event">
-            <h3>Close the event</h3>
-            <p className="mt-1.5 text-body-md text-ink-muted">
-              Record the evidence. Attendance is taken from the scan station.
-            </p>
-            <CloseForm event={e} />
-          </section>
+        {operate && REPORTING.has(e.status) ? (
+          <PostEventReport
+            event={e}
+            canSpend={capabilities?.clubs_can_enter_spend.includes(e.club) ?? false}
+          />
         ) : null}
         {propose && deletable ? (
           <section className="panel" aria-label="Delete proposal">

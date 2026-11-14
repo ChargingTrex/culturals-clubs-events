@@ -189,6 +189,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budget/budgets/{id}/lines/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace or extend the budget lines from a CSV (all rows or none) */
+        post: operations["budget_budgets_lines_import_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budget/budgets/{id}/settle": {
         parameters: {
             query?: never;
@@ -560,6 +577,127 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The event's photo gallery */
+        get: operations["events_photos_list"];
+        put?: never;
+        /** Upload a photo to the event */
+        post: operations["events_photos_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/photos/{photo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Take a photo down */
+        delete: operations["events_photos_destroy"];
+        options?: never;
+        head?: never;
+        /** Caption a photo or mark it as a highlight */
+        patch: operations["events_photos_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/events/{id}/photos/{photo_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The photo file */
+        get: operations["events_photos_file_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/photos/{photo_id}/removal-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask for a photo you appear in to be removed */
+        post: operations["events_photos_removal_request_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/proposal-document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Attach or replace the proposal document (draft or returned only) */
+        post: operations["events_proposal_document_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/proposal-document/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The proposal document (the club's office bearers and staff) */
+        get: operations["events_proposal_document_file_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/proposal-document/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A Word proposal as text, for reading in the app */
+        get: operations["events_proposal_document_preview_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{id}/reassign": {
         parameters: {
             query?: never;
@@ -569,8 +707,77 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Move an event to another venue (Dean only) */
+        /** Move an event to another venue and/or time (Dean; Society Secretary and Vice-Secretary while it is at their stage) */
         post: operations["events_reassign_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The event report, auto-drafted from the records */
+        get: operations["events_report_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/social-posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Links to posts promoting the event */
+        get: operations["events_social_posts_list"];
+        put?: never;
+        /** Record a link to a post (stored, never fetched) */
+        post: operations["events_social_posts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/social-posts/{post_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a wrongly recorded link */
+        delete: operations["events_social_posts_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{id}/social-posts/{post_id}/screenshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The screenshot kept with a post link */
+        get: operations["events_social_posts_screenshot_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -945,8 +1152,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Demo personas (DEMO_MODE only)
-         * @description The personas a demo can switch between. 404 when DEMO_MODE is off.
+         * Pilot accounts (PILOT_ACCOUNTS or DEMO_MODE only)
+         * @description The personas a demo can switch between. 404 unless PILOT_ACCOUNTS (or DEMO_MODE).
          */
         get: operations["module_auth_demo_personas_retrieve"];
         put?: never;
@@ -1069,6 +1276,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/module/cultural-society/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Cultural Society's officers and members */
+        get: operations["module_cultural_society_members_retrieve"];
+        put?: never;
+        /** Add a Society member, or (Dean/admin) appoint an officer */
+        post: operations["module_cultural_society_members_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/module/cultural-society/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove someone from the Cultural Society */
+        delete: operations["module_cultural_society_members_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/module/directory/students": {
         parameters: {
             query?: never;
@@ -1104,6 +1346,38 @@ export interface paths {
         get: operations["module_semesters_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Wednesday open block's slots, free or taken
+         * @description AR-03: the Wednesday open block — two 1-hour slots a club can claim without a
+         *     proposal. First come, first served: the booking takes the venue row lock
+         *     the proposal path takes, so of two clubs racing for one hall the second is
+         *     refused. Auto-approved (published straight away, no budget, no approval
+         *     chain); the Dean can still move or cancel it like any event.
+         */
+        get: operations["open_block_retrieve"];
+        put?: never;
+        /**
+         * Book one open-block slot for a club (first come, first served)
+         * @description AR-03: the Wednesday open block — two 1-hour slots a club can claim without a
+         *     proposal. First come, first served: the booking takes the venue row lock
+         *     the proposal path takes, so of two clubs racing for one hall the second is
+         *     refused. Auto-approved (published straight away, no budget, no approval
+         *     chain); the Dean can still move or cancel it like any event.
+         */
+        post: operations["open_block_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1341,8 +1615,8 @@ export interface paths {
         };
         /**
          * Running totals and what needs chasing
-         * @description Running totals and what needs chasing (PRD §6.3). Dean, admin and the
-         *     Cultural Society; the VC gets the semester report, not the chase list.
+         * @description Running totals and what needs chasing (PRD §6.3). Dean, admin, the
+         *     Cultural Society and the VC — events and clubs only, no individual records.
          *     `capture` is documented by reporting.serializers.CaptureMetricsSerializer.
          */
         get: operations["reporting_reports_overview_retrieve"];
@@ -1418,7 +1692,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Master venue calendar with clashes flagged (staff only)
+         * Master venue calendar with clashes flagged (staff and club presidents)
          * @description The master calendar: every venue, every booking, clashes flagged.
          *
          *     Restricted to staff. A student does not need to see which club is pitching
@@ -1495,6 +1769,8 @@ export interface components {
             escalated_only: boolean;
             count: number;
             results: components["schemas"]["ApprovalRequest"][];
+            /** @description Pending at an earlier gate and on their way to you; read-only. */
+            upcoming: components["schemas"]["ApprovalRequest"][];
         };
         ApprovalRequest: {
             /** Format: uuid */
@@ -1525,6 +1801,7 @@ export interface components {
             readonly my_stage: boolean;
             readonly requires_mfa: boolean;
             readonly nil_declaration: components["schemas"]["NilDeclaration"] | null;
+            readonly proposal_document: components["schemas"]["ProposalDocument"] | null;
             /** Format: date-time */
             stage_entered_at?: string;
             /** Format: double */
@@ -1720,6 +1997,8 @@ export interface components {
             status: components["schemas"]["EventStatusEnum"];
             confirmed: boolean;
             clash: boolean;
+            /** @description Whether the caller may move this booking's time or venue. */
+            can_move: boolean;
         };
         CalendarClash: {
             venue: string;
@@ -1733,6 +2012,10 @@ export interface components {
             is_dean: boolean;
             is_vice_chancellor: boolean;
             is_cultural_society: boolean;
+            /** @description Cultural Society Secretary or Vice-Secretary. */
+            is_society_officer: boolean;
+            /** @description May add and remove Cultural Society members. */
+            can_manage_society: boolean;
             is_admin: boolean;
             clubs: string[];
             clubs_with_budget_access: string[];
@@ -1839,9 +2122,15 @@ export interface components {
             clashes: components["schemas"]["EventClash"][];
             free_venues: components["schemas"]["Venue"][];
         };
+        /** @description Photos and post links are attached beforehand; closing adds the words. */
         CloseEvent: {
-            photo_count: number;
-            social_links?: string[];
+            /** @description What happened, for the report. */
+            outcomes: string;
+            /**
+             * @description What worked, what to change next time.
+             * @default
+             */
+            learnings: string;
         };
         Club: {
             /** Format: uuid */
@@ -1852,6 +2141,7 @@ export interface components {
             category: components["schemas"]["ClubCategoryEnum"];
             description?: string;
             instagram_handle?: string;
+            linkedin_handle?: string;
             status?: components["schemas"]["ClubStatusEnum"];
             join_mode?: components["schemas"]["JoinModeEnum"];
             /** Format: date-time */
@@ -1927,6 +2217,11 @@ export interface components {
             missing_evidence: components["schemas"]["MissingEvidence"][];
             events_missing_photos: components["schemas"]["ChaseEvent"][];
             events_missing_social_links: components["schemas"]["ChaseEvent"][];
+            /** @description Completed more than REPORT_DUE_DAYS ago and still not closed. */
+            events_missing_report: components["schemas"]["MissingReport"][];
+            social_activity: components["schemas"]["SocialActivity"][];
+            /** @description Active clubs with no post link in DORMANCY_DAYS. */
+            clubs_without_recent_post: string[];
             venue_use: components["schemas"]["VenueUse"][];
             capture: components["schemas"]["CaptureMetrics"];
         };
@@ -2101,10 +2396,12 @@ export interface components {
             readonly status_label: string;
             readonly photo_count: number;
             readonly social_links: string[];
+            readonly highlight_photo_url: string | null;
             readonly registered: number;
             readonly attended: number;
             readonly budget: components["schemas"]["BudgetSummary"] | null;
             readonly my_registration: components["schemas"]["MyRegistration"] | null;
+            readonly proposal_document: components["schemas"]["ProposalDocument"] | null;
             /** Format: date-time */
             readonly submitted_at: string | null;
             /** Format: date-time */
@@ -2178,10 +2475,12 @@ export interface components {
             readonly status_label: string;
             readonly photo_count: number;
             readonly social_links: string[];
+            readonly highlight_photo_url: string | null;
             readonly registered: number;
             readonly attended: number;
             readonly budget: components["schemas"]["BudgetSummary"] | null;
             readonly my_registration: components["schemas"]["MyRegistration"] | null;
+            readonly proposal_document: components["schemas"]["ProposalDocument"] | null;
             /** Format: date-time */
             readonly submitted_at: string | null;
             /** Format: date-time */
@@ -2195,9 +2494,10 @@ export interface components {
          *     * `competition` - Competition
          *     * `exhibition` - Exhibition
          *     * `talk` - Talk
+         *     * `open_block` - Wednesday open block
          * @enum {string}
          */
-        EventKindEnum: "performance" | "workshop" | "competition" | "exhibition" | "talk";
+        EventKindEnum: "performance" | "workshop" | "competition" | "exhibition" | "talk" | "open_block";
         EventOrganiser: {
             /** Format: uuid */
             readonly id: string;
@@ -2213,10 +2513,52 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
         };
+        EventPhoto: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly caption: string;
+            readonly is_highlight: boolean;
+            readonly content_type: string;
+            readonly byte_size: number;
+            readonly file_url: string;
+            readonly removal_requested: boolean;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
         EventRef: {
             /** Format: uuid */
             id: string;
             title: string;
+        };
+        /** @description GET /events/{id}/report — numbers from the records, words from the organiser. */
+        EventReportDraft: {
+            registered: number;
+            attended: number;
+            attended_students: number;
+            attended_external: number;
+            no_show: number;
+            walk_ins: number;
+            photos: number;
+            highlights: number;
+            social_posts: number;
+            feedback: components["schemas"]["ReportFeedback"];
+            budget: components["schemas"]["BudgetSummary"] | null;
+            /** @description Closing will refuse without a post link at this attendance. */
+            social_post_required: boolean;
+            outcomes: string;
+            learnings: string;
+            /** Format: date-time */
+            submitted_at: string | null;
+        };
+        EventSocialPost: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly platform: components["schemas"]["PlatformEnum"];
+            /** Format: uri */
+            readonly url: string;
+            readonly screenshot_url: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
         };
         /**
          * @description * `draft` - Draft
@@ -2286,13 +2628,14 @@ export interface components {
         };
         /**
          * @description * `apply-due-terms` - apply-due-terms
+         *     * `complete-ended` - complete-ended
          *     * `escalate-sla` - escalate-sla
          *     * `flag-dormant` - flag-dormant
          *     * `purge-external` - purge-external
          *     * `rollup-scans` - rollup-scans
          * @enum {string}
          */
-        JobEnum: "apply-due-terms" | "escalate-sla" | "flag-dormant" | "purge-external" | "rollup-scans";
+        JobEnum: "apply-due-terms" | "complete-ended" | "escalate-sla" | "flag-dormant" | "purge-external" | "rollup-scans";
         /** @description What `run_job` returns; `result` is the job's own counts. */
         JobRun: {
             job: components["schemas"]["JobEnum"];
@@ -2325,7 +2668,6 @@ export interface components {
             readonly department: string;
             readonly programme: string;
             readonly year: number;
-            /** @default pending */
             readonly state: components["schemas"]["JoinRequestStateEnum"];
             readonly note: string;
             readonly decided_by_label: string;
@@ -2357,6 +2699,15 @@ export interface components {
             /** Format: decimal */
             amount_requested?: string;
             basis?: string;
+        };
+        LineImport: {
+            /**
+             * Format: uri
+             * @description CSV with columns head, amount and optionally basis.
+             */
+            file: string;
+            /** @default replace */
+            mode: components["schemas"]["ModeEnum"];
         };
         Login: {
             /** Format: email */
@@ -2414,6 +2765,20 @@ export interface components {
             club: string;
             missing: string[];
         };
+        MissingReport: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            club: string;
+            /** Format: date-time */
+            ended_at: string;
+        };
+        /**
+         * @description * `replace` - replace
+         *     * `append` - append
+         * @enum {string}
+         */
+        ModeEnum: "replace" | "append";
         /** @description The caller's own live registration on an event, if any. */
         MyRegistration: {
             /** Format: uuid */
@@ -2483,6 +2848,38 @@ export interface components {
             duplicates: number;
             results: components["schemas"]["ScanOutcome"][];
             counters: components["schemas"]["ScanCounters"];
+        };
+        OpenBlock: {
+            /** Format: date */
+            date: string;
+            slots: components["schemas"]["OpenBlockSlot"][];
+        };
+        OpenBlockBook: {
+            /** Format: uuid */
+            club: string;
+            /** Format: uuid */
+            venue: string;
+            /**
+             * Format: date-time
+             * @description The slot's start: a Wednesday, 15:00 or 16:00 campus time.
+             */
+            starts_at: string;
+            title?: string;
+        };
+        OpenBlockSlot: {
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            venues: components["schemas"]["OpenBlockSlotVenue"][];
+        };
+        OpenBlockSlotVenue: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            booked_by: string | null;
+            /** Format: uuid */
+            event: string | null;
         };
         OrganiserAssign: {
             /** Format: uuid */
@@ -2570,6 +2967,36 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Event"][];
         };
+        PaginatedEventPhotoList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["EventPhoto"][];
+        };
+        PaginatedEventSocialPostList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["EventSocialPost"][];
+        };
         PaginatedNotificationList: {
             /** @example 123 */
             count: number;
@@ -2648,6 +3075,7 @@ export interface components {
             category?: components["schemas"]["ClubCategoryEnum"];
             description?: string;
             instagram_handle?: string;
+            linkedin_handle?: string;
             status?: components["schemas"]["ClubStatusEnum"];
             join_mode?: components["schemas"]["JoinModeEnum"];
             /** Format: date-time */
@@ -2682,14 +3110,20 @@ export interface components {
             readonly status_label?: string;
             readonly photo_count?: number;
             readonly social_links?: string[];
+            readonly highlight_photo_url?: string | null;
             readonly registered?: number;
             readonly attended?: number;
             readonly budget?: components["schemas"]["BudgetSummary"] | null;
             readonly my_registration?: components["schemas"]["MyRegistration"] | null;
+            readonly proposal_document?: components["schemas"]["ProposalDocument"] | null;
             /** Format: date-time */
             readonly submitted_at?: string | null;
             /** Format: date-time */
             readonly closed_at?: string | null;
+        };
+        PatchedPhotoUpdate: {
+            caption?: string;
+            is_highlight?: boolean;
         };
         /** @description A partial update; a key not listed here is refused (422). */
         PatchedPreferencesPatch: {
@@ -2700,19 +3134,85 @@ export interface components {
             amount_spent?: string | null;
             variance_note?: string;
         };
+        PhotoUpload: {
+            /**
+             * Format: uri
+             * @description JPEG, PNG, WebP or HEIC, under 10 MB.
+             */
+            file: string;
+            caption?: string;
+        };
+        /**
+         * @description * `instagram` - Instagram
+         *     * `linkedin` - LinkedIn
+         *     * `other` - Other
+         * @enum {string}
+         */
+        PlatformEnum: "instagram" | "linkedin" | "other";
         /** @description `GET /module/auth/preferences`, and `preferences` on `/module/auth/me`. */
         Preferences: {
             personalised_feed: boolean;
         };
+        /** @enum {string} */
+        PreviewEnum: "pdf" | "text" | "none";
         ProfileQr: {
             token: string;
             version: number;
             /** @description QR as a data: URI. */
             image: string;
         };
-        ReassignRequest: {
+        /** @description AR-10: the proposal write-up attached to an event. */
+        ProposalDocument: {
             /** Format: uuid */
-            to_venue: string;
+            id: string;
+            file_name: string;
+            content_type: string;
+            byte_size: number;
+            uploaded_by_label: string;
+            /** Format: date-time */
+            uploaded_at: string;
+            readonly file_url: string;
+            /** @description pdf: show the file itself; text: fetch the text preview; none: download only. */
+            readonly preview: components["schemas"]["PreviewEnum"];
+        };
+        ProposalDocumentUpload: {
+            /**
+             * Format: uri
+             * @description PDF or Word document, up to 10 MB.
+             */
+            file: string;
+        };
+        /** @description AR-11: a Word proposal as text, so it can be read without downloading it. */
+        ProposalPreview: {
+            file_name: string;
+            blocks: components["schemas"]["ProposalPreviewBlock"][];
+            truncated: boolean;
+        };
+        ProposalPreviewBlock: {
+            kind: components["schemas"]["ProposalPreviewBlockKindEnum"];
+            text: string;
+        };
+        /**
+         * @description * `heading` - heading
+         *     * `paragraph` - paragraph
+         *     * `row` - row
+         * @enum {string}
+         */
+        ProposalPreviewBlockKindEnum: "heading" | "paragraph" | "row";
+        /** @description AR-02: the Dean moves a booking to another venue, another time, or both. */
+        ReassignRequest: {
+            /**
+             * Format: uuid
+             * @description Omit to keep the venue.
+             */
+            to_venue?: string;
+            /**
+             * Format: date-time
+             * @description With ends_at; omit to keep the time.
+             */
+            starts_at?: string;
+            /** Format: date-time */
+            ends_at?: string;
             reason: string;
         };
         Receipt: {
@@ -2809,6 +3309,8 @@ export interface components {
             category: string;
             events_run: number;
             attendance: number;
+            /** @description A photo from the club's best-attended event that has one. */
+            highlight_photo_url: string | null;
         };
         ReportByDepartment: {
             department: string;
@@ -2829,10 +3331,46 @@ export interface components {
             sanctioned: string;
             spent: string;
         };
+        ReportFeedback: {
+            count: number;
+            /** Format: double */
+            average_rating: number | null;
+        };
+        ReportGalleryPhoto: {
+            /** Format: uuid */
+            event_id: string;
+            event: string;
+            club: string;
+            caption: string;
+            photo_url: string;
+        };
+        ReportHighlight: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            club: string;
+            /** Format: date-time */
+            starts_at: string;
+            attended: number;
+            /** @description First 200 characters. */
+            outcomes: string;
+            photo_url: string;
+        };
         ReportMoney: {
             requested: string;
             sanctioned: string;
             spent: string;
+        };
+        /** @description PRD §5.14.2: how many events were publicly promoted, and by which clubs. */
+        ReportOutreach: {
+            /** @description Completed events with at least one post link. */
+            events_promoted: number;
+            events_completed: number;
+            /** @description Events with an Instagram post link. */
+            instagram: number;
+            /** @description Events with a LinkedIn post link. */
+            linkedin: number;
+            clubs: string[];
         };
         ReportSemester: {
             /** Format: uuid */
@@ -2964,6 +3502,11 @@ export interface components {
             by_department: components["schemas"]["ReportByDepartment"][];
             money: components["schemas"]["ReportMoney"];
             events: components["schemas"]["ReportEvent"][];
+            /** @description Up to six best-attended events with a photo. */
+            highlights: components["schemas"]["ReportHighlight"][];
+            /** @description Every photo marked as a highlight. */
+            gallery: components["schemas"]["ReportGalleryPhoto"][];
+            outreach: components["schemas"]["ReportOutreach"];
             caveats: string[];
         };
         Session: {
@@ -2979,6 +3522,72 @@ export interface components {
             field: string;
             code: string;
             message: string;
+        };
+        SocialActivity: {
+            /** Format: uuid */
+            club_id: string;
+            club: string;
+            events_completed: number;
+            events_with_post: number;
+            /**
+             * Format: double
+             * @description events_with_post / events_completed.
+             */
+            share: number;
+            instagram: number;
+            linkedin: number;
+            both: number;
+            /** Format: date-time */
+            last_post_at: string | null;
+        };
+        SocialPostIn: {
+            /** Format: uri */
+            url: string;
+            /**
+             * @description Inferred from the link's host when omitted.
+             *
+             *     * `instagram` - Instagram
+             *     * `linkedin` - LinkedIn
+             *     * `other` - Other
+             */
+            platform?: components["schemas"]["PlatformEnum"];
+            /**
+             * Format: uri
+             * @description Optional image of the post.
+             */
+            screenshot?: string;
+        };
+        SocietyMember: {
+            /** Format: uuid */
+            user_id: string;
+            display_name: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["SocietyRoleEnum"];
+            role_label: string;
+            /** @description Whether the caller may remove this person. */
+            can_remove: boolean;
+        };
+        SocietyMemberAdd: {
+            /**
+             * Format: email
+             * @description The person's institutional address.
+             */
+            email: string;
+            /** @default cultural_society */
+            role: components["schemas"]["SocietyRoleEnum"];
+        };
+        /**
+         * @description * `cultural_society_secretary` - cultural_society_secretary
+         *     * `cultural_society_vice_secretary` - cultural_society_vice_secretary
+         *     * `cultural_society` - cultural_society
+         * @enum {string}
+         */
+        SocietyRoleEnum: "cultural_society_secretary" | "cultural_society_vice_secretary" | "cultural_society";
+        SocietyRoster: {
+            members: components["schemas"]["SocietyMember"][];
+            can_manage: boolean;
+            can_appoint_officers: boolean;
         };
         SoftClash: {
             /** Format: uuid */
@@ -3321,6 +3930,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Budget"];
+                };
+            };
+        };
+    };
+    budget_budgets_lines_import_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this budget. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["LineImport"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -4083,6 +4718,240 @@ export interface operations {
             };
         };
     };
+    events_photos_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedEventPhotoList"];
+                };
+            };
+        };
+    };
+    events_photos_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["PhotoUpload"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhoto"];
+                };
+            };
+        };
+    };
+    events_photos_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    events_photos_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedPhotoUpdate"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedPhotoUpdate"];
+                "multipart/form-data": components["schemas"]["PatchedPhotoUpdate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhoto"];
+                };
+            };
+        };
+    };
+    events_photos_file_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": string;
+                };
+            };
+            /** @description No response body */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    events_photos_removal_request_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhoto"];
+                };
+            };
+        };
+    };
+    events_proposal_document_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ProposalDocumentUpload"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalDocument"];
+                };
+            };
+        };
+    };
+    events_proposal_document_file_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description No response body */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    events_proposal_document_preview_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalPreview"];
+                };
+            };
+        };
+    };
     events_reassign_create: {
         parameters: {
             query?: never;
@@ -4108,6 +4977,134 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["VenueReassignment"];
                 };
+            };
+        };
+    };
+    events_report_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventReportDraft"];
+                };
+            };
+        };
+    };
+    events_social_posts_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedEventSocialPostList"];
+                };
+            };
+        };
+    };
+    events_social_posts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialPostIn"];
+                "multipart/form-data": components["schemas"]["SocialPostIn"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSocialPost"];
+                };
+            };
+        };
+    };
+    events_social_posts_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+                post_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    events_social_posts_screenshot_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this event. */
+                id: string;
+                post_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": string;
+                };
+            };
+            /** @description No response body */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -4469,7 +5466,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Job name */
-                name: "apply-due-terms" | "escalate-sla" | "flag-dormant" | "purge-external" | "rollup-scans";
+                name: "apply-due-terms" | "complete-ended" | "escalate-sla" | "flag-dormant" | "purge-external" | "rollup-scans";
             };
             cookie?: never;
         };
@@ -4491,7 +5488,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Job name */
-                name: "apply-due-terms" | "escalate-sla" | "flag-dormant" | "purge-external" | "rollup-scans";
+                name: "apply-due-terms" | "complete-ended" | "escalate-sla" | "flag-dormant" | "purge-external" | "rollup-scans";
             };
             cookie?: never;
         };
@@ -4725,6 +5722,71 @@ export interface operations {
             };
         };
     };
+    module_cultural_society_members_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocietyRoster"];
+                };
+            };
+        };
+    };
+    module_cultural_society_members_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocietyMemberAdd"];
+                "application/x-www-form-urlencoded": components["schemas"]["SocietyMemberAdd"];
+                "multipart/form-data": components["schemas"]["SocietyMemberAdd"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocietyRoster"];
+                };
+            };
+        };
+    };
+    module_cultural_society_members_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocietyRoster"];
+                };
+            };
+        };
+    };
     module_directory_students_retrieve: {
         parameters: {
             query?: {
@@ -4762,6 +5824,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Semester"][];
+                };
+            };
+        };
+    };
+    open_block_retrieve: {
+        parameters: {
+            query?: {
+                /** @description A Wednesday; default the next one. */
+                date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenBlock"];
+                };
+            };
+        };
+    };
+    open_block_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenBlockBook"];
+                "application/x-www-form-urlencoded": components["schemas"]["OpenBlockBook"];
+                "multipart/form-data": components["schemas"]["OpenBlockBook"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
                 };
             };
         };

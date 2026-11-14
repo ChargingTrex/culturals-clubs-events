@@ -34,23 +34,23 @@ Treasurer
 President
     Sign In As    ${PRESIDENT_EMAIL}
     Wait For Heading    Feed
-    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles    Scan station
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles    Join requests    Scan station    Calendar
 
 Organiser of the live event
     Sign In As    ${LENS_PRESIDENT_EMAIL}
     Wait For Heading    Feed
-    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles    Scan station
+    Pages Should Be    Feed    What's on    My passes    Profile QR    Clubs    Club events    New event    Budget    Members & roles    Join requests    Scan station    Calendar
 
 Cultural Society
     Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}
     Wait For Heading    Cultural Society approvals
-    Pages Should Be    Society approvals    Calendar    This semester    Semester report
+    Pages Should Be    Society approvals    Calendar    Society members    This semester    Semester report
 
 Dean
     [Tags]    smoke
     Sign In As    ${DEAN_EMAIL}    ${MFA_CODE}
     Wait For Heading    Dean approvals
-    Pages Should Be    Dean approvals    Venues    Calendar    This semester    Semester report
+    Pages Should Be    Dean approvals    Venues    Calendar    Society members    This semester    Semester report
 
 Vice-Chancellor
     Sign In As    ${VC_EMAIL}    ${MFA_CODE}

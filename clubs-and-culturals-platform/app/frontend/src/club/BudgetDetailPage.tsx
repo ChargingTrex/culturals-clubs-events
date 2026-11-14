@@ -7,14 +7,15 @@ import { BudgetSummary, Button, EditTag, Icon, Stat, buttonClass, cx } from '../
 import { fmtDate, inr } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
+import { FilePreview } from '../shared/ui/DocumentPreview';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { useToast } from '../shared/ui/Toast';
 import { clubApi, type Budget, type BudgetLine, type Receipt } from './api';
 import { EnvelopeMeter } from './BudgetPage';
-import { STAGE_TONE, useEventIndex } from './budgetShared';
+import { CSV_TEMPLATE, STAGE_TONE, useEventIndex } from './budgetShared';
 import { SubmitButton } from './ClubEventsPage';
 
-const budgetKey = (id: string) => ['budget', 'detail', id] as const;
+export const budgetKey = (id: string) => ['budget', 'detail', id] as const;
 
 /** One mutation shape for every call that answers with the budget. */
 function useBudgetAction<V>(id: string, fn: (v: V) => Promise<Budget>, done?: string) {
@@ -151,6 +152,95 @@ function LineRow({
   );
 }
 
+/**
+ * AR-04: every entry's head and amount as text boxes at once, one Save. Saved line
+ * by line through the same edit endpoint, so a refused row (duplicate head, negative
+ * amount) shows its own error and the rest still save.
+ */
+function EditAllRows({ budget, onDone }: { budget: Budget; onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [drafts, setDrafts] = useState<Record<string, { head: string; amount: string }>>(() =>
+    Object.fromEntries(
+      budget.lines.map((l) => [l.id, { head: l.head, amount: Number(l.amount_requested).toString() }]),
+    ),
+  );
+  const [errors, setErrors] = useState<Record<string, unknown>>({});
+  const [busy, setBusy] = useState(false);
+  const set = (id: string, field: 'head' | 'amount', value: string) =>
+    setDrafts((d) => ({ ...d, [id]: { ...d[id]!, [field]: value } }));
+
+  async function saveAll() {
+    setBusy(true);
+    const failed: Record<string, unknown> = {};
+    let saved = 0;
+    for (const line of budget.lines) {
+      const d = drafts[line.id]!;
+      const body: { head?: string; amount_requested?: string } = {};
+      if (d.head.trim() !== line.head) body.head = d.head.trim();
+      if (Number(d.amount) !== Number(line.amount_requested)) body.amount_requested = d.amount;
+      if (!body.head && body.amount_requested === undefined) continue;
+      try {
+        const updated = await clubApi.budget.editLine(budget.id, line.id, body);
+        queryClient.setQueryData(budgetKey(budget.id), updated);
+        saved += 1;
+      } catch (e) {
+        failed[line.id] = e;
+      }
+    }
+    setBusy(false);
+    setErrors(failed);
+    void queryClient.invalidateQueries({ queryKey: ['budget', 'list'] });
+    void queryClient.invalidateQueries({ queryKey: ['events'] });
+    const n = Object.keys(failed).length;
+    toast.show(n ? `${saved} saved, ${n} need fixing` : `${saved} entr${saved === 1 ? 'y' : 'ies'} saved`);
+    if (!n) onDone();
+  }
+
+  return (
+    <>
+      {budget.lines.map((line, i) => (
+        <tr key={line.id} data-testid="budget-line-edit">
+          <td className="cc-rownum mono-sm">{i + 1}</td>
+          <td className="cc-cell--text body-md" colSpan={2}>
+            <input
+              aria-label={`Head of entry ${i + 1}`}
+              className="cc-cell-input"
+              value={drafts[line.id]!.head}
+              onChange={(e) => set(line.id, 'head', e.target.value)}
+            />
+            {errors[line.id] ? <ProblemView error={errors[line.id]} /> : null}
+          </td>
+          <td className="cc-cell--money figure-md">
+            <input
+              aria-label={`Amount of entry ${i + 1}`}
+              type="number"
+              min={0}
+              className="cc-cell-input"
+              value={drafts[line.id]!.amount}
+              onChange={(e) => set(line.id, 'amount', e.target.value)}
+            />
+          </td>
+          <td colSpan={2} />
+        </tr>
+      ))}
+      <tr>
+        <td />
+        <td colSpan={5}>
+          <span className="flex items-center justify-end gap-2 py-2">
+            <Button size="sm" disabled={busy} onClick={() => void saveAll()}>
+              Save all
+            </Button>
+            <Button size="sm" variant="text" disabled={busy} onClick={onDone}>
+              Cancel
+            </Button>
+          </span>
+        </td>
+      </tr>
+    </>
+  );
+}
+
 function AddLineForm({ budget }: { budget: Budget }) {
   const [head, setHead] = useState('');
   const [amount, setAmount] = useState('');
@@ -203,6 +293,83 @@ function AddLineForm({ budget }: { budget: Budget }) {
       {add.error ? (
         <div className="sm:col-span-3">
           <ProblemView error={add.error} />
+        </div>
+      ) : null}
+    </form>
+  );
+}
+
+/** AR-04: price the budget from a spreadsheet. The server checks every row; one bad row saves nothing. */
+function CsvImportForm({ budget }: { budget: Budget }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [mode, setMode] = useState<'replace' | 'append'>('replace');
+  const [previewing, setPreviewing] = useState(false);
+  const send = useBudgetAction(
+    budget.id,
+    () => {
+      const form = new FormData();
+      form.append('file', file!);
+      form.append('mode', mode);
+      return clubApi.budget.importLines(budget.id, form);
+    },
+    'Entries imported from the CSV',
+  );
+  return (
+    <form
+      aria-label="Upload a CSV"
+      className="grid gap-3 border-t border-line px-4 py-4 sm:grid-cols-[1fr_200px_auto] sm:items-end"
+      onSubmit={(e) => {
+        e.preventDefault();
+        send.mutate(undefined, { onSuccess: () => setFile(null) });
+      }}
+    >
+      <div>
+        <label className="label" htmlFor="line-csv">
+          Or upload a CSV (columns head, amount, basis optional)
+        </label>
+        <input
+          id="line-csv"
+          type="file"
+          accept=".csv,text/csv"
+          className="field"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+        <span className="flex flex-wrap gap-x-4">
+          <a className="caption text-primary hover:underline" href={CSV_TEMPLATE} download="budget-template.csv">
+            Download template
+          </a>
+          {file ? (
+            <button
+              type="button"
+              className="caption text-primary hover:underline"
+              onClick={() => setPreviewing(true)}
+            >
+              Preview the sheet
+            </button>
+          ) : null}
+        </span>
+        {file && previewing ? <FilePreview file={file} onClose={() => setPreviewing(false)} /> : null}
+      </div>
+      <div>
+        <label className="label" htmlFor="line-csv-mode">
+          Existing entries
+        </label>
+        <select
+          id="line-csv-mode"
+          className="field"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as 'replace' | 'append')}
+        >
+          <option value="replace">Replace them</option>
+          <option value="append">Keep them, add these</option>
+        </select>
+      </div>
+      <Button type="submit" icon="upload" disabled={send.isPending || !file}>
+        Upload
+      </Button>
+      {send.error ? (
+        <div className="sm:col-span-3">
+          <ProblemView error={send.error} />
         </div>
       ) : null}
     </form>
@@ -317,7 +484,7 @@ function ReceiptUpload({ budget, line }: { budget: Budget; line: BudgetLine }) {
   );
 }
 
-function SpendRow({
+export function SpendRow({
   budget,
   line,
   canSpend,
@@ -428,6 +595,7 @@ function SpendRow({
 export function BudgetDetailPage() {
   const { id = '' } = useParams();
   const { capabilities } = useCapabilities();
+  const [editAll, setEditAll] = useState(false);
   const events = useEventIndex();
   const budget = useQuery<Budget, ApiError>({
     queryKey: budgetKey(id),
@@ -525,6 +693,11 @@ export function BudgetDetailPage() {
             </div>
           </div>
           <span className="cc-spacer" />
+          {editable && b.lines.length > 1 && !editAll ? (
+            <Button size="sm" variant="tonal" icon="edit" onClick={() => setEditAll(true)}>
+              Edit all
+            </Button>
+          ) : null}
           {awaitingSubmit && canPropose && b.is_ready_to_submit && ev ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-body-md text-ink-muted">Priced — ready for the approvers.</span>
@@ -558,9 +731,13 @@ export function BudgetDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {b.lines.map((line, i) => (
-                  <LineRow key={line.id} budget={b} line={line} index={i} editable={editable} />
-                ))}
+                {editAll && editable ? (
+                  <EditAllRows budget={b} onDone={() => setEditAll(false)} />
+                ) : (
+                  b.lines.map((line, i) => (
+                    <LineRow key={line.id} budget={b} line={line} index={i} editable={editable} />
+                  ))
+                )}
               </tbody>
               <tfoot>
                 <tr>
@@ -583,7 +760,12 @@ export function BudgetDetailPage() {
           </p>
         ) : null}
         <NilPanel budget={b} />
-        {editable && !b.nil_declaration ? <AddLineForm budget={b} /> : null}
+        {editable && !b.nil_declaration ? (
+          <>
+            <AddLineForm budget={b} />
+            <CsvImportForm budget={b} />
+          </>
+        ) : null}
       </section>
 
       {spendPhase && b.lines.length > 0 ? (

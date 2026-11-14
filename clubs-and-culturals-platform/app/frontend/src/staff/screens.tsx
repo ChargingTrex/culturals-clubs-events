@@ -10,6 +10,7 @@ import { ApprovalQueuePage } from './ApprovalQueuePage';
 import { CalendarPage } from './CalendarPage';
 import { OverviewPage } from './OverviewPage';
 import { ReportPage } from './ReportPage';
+import { SocietyPage } from './SocietyPage';
 import { VenuesPage } from './VenuesPage';
 
 export const SCREENS: Screen[] = [
@@ -18,6 +19,7 @@ export const SCREENS: Screen[] = [
   ['/staff/approvals/vc', <ApprovalQueuePage key="q-vc" stage="vc" />],
   ['/staff/venues', <VenuesPage key="venues" />],
   ['/staff/calendar', <CalendarPage key="calendar" />],
+  ['/staff/society', <SocietyPage key="society" />],
   ['/staff/overview', <OverviewPage key="overview" />],
   ['/staff/report', <ReportPage key="report" />],
 ];

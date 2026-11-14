@@ -36,7 +36,7 @@ class EnvelopeTests(TestCase):
         f.member(self.other, self.rival, R.CLUB_TREASURER)
         f.user("dean@college.edu", name="Dean", global_roles=[R.DEAN], mfa=True)
         f.user("vc@college.edu", name="VC", global_roles=[R.VICE_CHANCELLOR], mfa=True)
-        f.user("society@college.edu", name="Society", global_roles=[R.CULTURAL_SOCIETY],
+        f.user("society@college.edu", name="Society", global_roles=[R.SOCIETY_SECRETARY],
                mfa=True)
         f.user("admin@college.edu", name="Admin", global_roles=[R.ADMIN], mfa=True)
 

@@ -12,10 +12,10 @@ const EXPECTED: Record<PersonaKey, string[]> = {
   member: [...STUDENT, 'Club events', 'Members & roles'],
   secretary: [...STUDENT, 'Club events', 'New event', 'Members & roles', 'Scan station'],
   treasurer: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles'],
-  president: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Scan station'],
-  organiser: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Scan station'],
-  society: ['Society approvals', 'Calendar', 'This semester', 'Semester report'],
-  dean: ['Dean approvals', 'Venues', 'Calendar', 'This semester', 'Semester report'],
+  president: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Join requests', 'Scan station', 'Calendar'],
+  organiser: [...STUDENT, 'Club events', 'New event', 'Budget', 'Members & roles', 'Join requests', 'Scan station', 'Calendar'],
+  society: ['Society approvals', 'Calendar', 'Society members', 'This semester', 'Semester report'],
+  dean: ['Dean approvals', 'Venues', 'Calendar', 'Society members', 'This semester', 'Semester report'],
   vc: ['Above-threshold', 'Calendar', 'This semester', 'Semester report'],
 };
 
@@ -27,7 +27,7 @@ describe('role-scoped page offers', () => {
     });
   }
 
-  it('matches the web-app page counts plus Feed, Clubs and Calendar (5 / 7 / 9 / 9 / 10 / 10 / 4 / 5 / 4)', () => {
+  it('matches the web-app page counts plus Feed, Clubs and Calendar (5 / 7 / 9 / 9 / 12 / 12 / 5 / 6 / 4)', () => {
     const counts = Object.fromEntries(
       (Object.keys(PERSONAS) as PersonaKey[]).map((k) => [
         k,
@@ -39,10 +39,10 @@ describe('role-scoped page offers', () => {
       member: 7,
       secretary: 9,
       treasurer: 9,
-      president: 10,
-      organiser: 10,
-      society: 4,
-      dean: 5,
+      president: 12,
+      organiser: 12,
+      society: 5,
+      dean: 6,
       vc: 4,
     });
   });
@@ -72,5 +72,15 @@ describe('role-scoped page offers', () => {
       '/staff/approvals/vc',
     );
     expect(firstAllowedPath(null)).toBe('/events');
+  });
+
+  it('a plain Society member sees the work but holds no approval queue (AR-08)', () => {
+    const titles = allowedPages(capabilitiesFromRoles(['cultural_society'])).map((p) => p.title);
+    expect(titles).toEqual(['Calendar', 'Society members', 'This semester', 'Semester report']);
+  });
+
+  it('the Vice-Secretary is offered the Society approval queue (AR-08)', () => {
+    const titles = allowedPages(capabilitiesFromRoles(['cultural_society_vice_secretary'])).map((p) => p.title);
+    expect(titles).toContain('Society approvals');
   });
 });

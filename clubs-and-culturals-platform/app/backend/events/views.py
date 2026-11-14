@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from budget.models import BudgetTemplate
-from budget.services import create_lines, ensure_budget, seed_from_template
+from budget.services import create_lines, declare_nil, ensure_budget, seed_from_template
 from clubs.models import Club, Membership
 from common import roles as R
 from common.errors import Conflict, ProblemDetail
@@ -22,12 +22,13 @@ from events.models import SLOT_HOLDING, Event, EventOrganiser, EventStatus, Venu
 from events.serializers import (
     ClashesSerializer, CloseEventSerializer, EventCreatedSerializer, EventCreateSerializer,
     EventOrganiserSerializer, EventSerializer, OrganiserAssignSerializer, OrganisersSerializer,
-    ReassignRequestSerializer, SubmitOutSerializer, VenueCalendarSerializer,
+    OpenBlockBookSerializer, OpenBlockSerializer, ReassignRequestSerializer, SubmitOutSerializer,
+    VenueCalendarSerializer,
     VenueReassignmentSerializer, VenueSerializer,
 )
 from events.services import (
-    all_clashes, assert_bookable, clashes_for, close_event, free_venues_for, notify_venue_change,
-    reassign_venue,
+    all_clashes, assert_bookable, clashes_for, close_event, free_venues_for, movable_by,
+    notify_venue_change, reassign_venue,
 )
 from governance import services as governance
 from integrations.registry import audit_sink
@@ -95,7 +96,7 @@ class EventViewSet(EventEvidenceMixin, viewsets.ModelViewSet):
         ctx = self.request.auth_context
         base = (Event.objects
                 .select_related("club", "venue", "budget")
-                .prefetch_related("budget__lines", "photos", "social_posts",
+                .prefetch_related("budget__lines", "photos", "social_posts", "proposal_documents",
                                   Prefetch("registrations",
                                            queryset=Registration.objects.filter(
                                                cancelled_at__isnull=True))))
@@ -358,7 +359,8 @@ class EventViewSet(EventEvidenceMixin, viewsets.ModelViewSet):
         })
 
     @extend_schema(request=ReassignRequestSerializer, responses=VenueReassignmentSerializer,
-                   summary="Move an event to another venue (Dean only)")
+                   summary=("Move an event to another venue and/or time (Dean; Society "
+                            "Secretary and Vice-Secretary while it is at their stage)"))
     @action(detail=True, methods=["post"])
     def reassign(self, request, pk=None):
         event = self.get_object()
@@ -366,23 +368,34 @@ class EventViewSet(EventEvidenceMixin, viewsets.ModelViewSet):
         # Venue precedence when two events clash is an open question
         # (AGENT_PROMPT §9), so the system does not decide: it surfaces the clash
         # and the Dean moves one, with a reason the club is shown.
-        if not ctx.is_dean():
+        # AR-08: the Society's Secretary and Vice-Secretary may also move it, but
+        # only while the proposal is still theirs to decide.
+        if not ctx.is_dean() and event.id not in movable_by(ctx, [event]):
+            detail = ("The Cultural Society has already decided this proposal; only the Dean "
+                      "may move it now." if ctx.has_any(*R.SOCIETY_OFFICERS) else
+                      "Only the Dean, or the Cultural Society's Secretary and Vice-Secretary "
+                      "while a proposal is with them, may move an event.")
             raise ProblemDetail(code="EVENTS_REASSIGN_DENIED", title="Not permitted",
-                                status_code=status.HTTP_403_FORBIDDEN,
-                                detail="Only the Dean may move an event to another venue.")
+                                status_code=status.HTTP_403_FORBIDDEN, detail=detail)
         data = ReassignRequestSerializer(data=request.data)
         data.is_valid(raise_exception=True)
-        venue = Venue.objects.filter(pk=data.validated_data["to_venue"]).first()
+        v = data.validated_data
+        venue = Venue.objects.filter(pk=v.get("to_venue", event.venue_id)).first()
         if venue is None:
             raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
                                 detail="No such venue.")
-        from_name = event.venue.name
-        reassign_venue(event, to_venue=venue, reason=data.validated_data["reason"], actor=ctx)
+        from_name, from_starts, from_ends = event.venue.name, event.starts_at, event.ends_at
+        reassign_venue(event, to_venue=venue, reason=v["reason"], actor=ctx,
+                       starts_at=v.get("starts_at"), ends_at=v.get("ends_at"))
         event.refresh_from_db()
-        notify_venue_change(event, from_name=from_name, reason=data.validated_data["reason"])
+        notify_venue_change(event, from_name=from_name, reason=v["reason"],
+                            from_starts_at=from_starts)
         audit_sink().record(actor=ctx, action="event.venue_reassigned", target=event,
-                            before={"venue": from_name}, after={"venue": venue.name},
-                            reason=data.validated_data["reason"])
+                            before={"venue": from_name, "starts_at": from_starts.isoformat(),
+                                    "ends_at": from_ends.isoformat()},
+                            after={"venue": venue.name, "starts_at": event.starts_at.isoformat(),
+                                   "ends_at": event.ends_at.isoformat()},
+                            reason=v["reason"])
         return Response(VenueReassignmentSerializer(event.reassignments.first()).data)
 
     # ---- organisers (event_organiser scope, local mode) ------------------
@@ -501,14 +514,23 @@ class VenueCalendarView(APIView):
                              description="Bookings starting on or before this day (campus time)."),
         ],
         responses=VenueCalendarSerializer,
-        summary="Master venue calendar with clashes flagged (staff only)",
+        summary="Master venue calendar with clashes flagged (staff and club presidents)",
     )
     def get(self, request):
         ctx = request.auth_context
-        if not ctx.can_see_all_clubs():
+        staff = ctx.can_see_all_clubs()
+        led = {str(c) for c in ctx.scopes_for(*R.ROLE_ASSIGNERS)}  # President, Vice-President
+        if not staff and not led:
             raise ProblemDetail(code="EVENTS_CALENDAR_DENIED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
-                                detail="The venue calendar is available to staff.")
+                                detail="The venue calendar is available to staff and club presidents.")
+
+        # AR-02: a president sees every slot that is taken, but another club's
+        # pending proposal only as "Requested" — what is being pitched stays private.
+        def shown(e):
+            if staff or e.status != EventStatus.SUBMITTED or str(e.club_id) in led:
+                return e.title, e.club.name
+            return "Requested", ""
         events = (Event.objects.filter(status__in=SLOT_HOLDING)
                   .select_related("club", "venue").order_by("starts_at"))
         if day := request.query_params.get("date"):
@@ -525,6 +547,7 @@ class VenueCalendarView(APIView):
             events = events.filter(starts_at__lt=end)
         events = list(events)
         in_range = {e.id for e in events}
+        movable = movable_by(ctx, events)
         clash_ids = set()
         pairs = []
         for a, b in all_clashes():
@@ -534,7 +557,7 @@ class VenueCalendarView(APIView):
             pairs.append({
                 "venue": a.venue.name,
                 "events": [
-                    {"id": str(e.id), "title": e.title, "club": e.club.name,
+                    {"id": str(e.id), "title": shown(e)[0], "club": shown(e)[1],
                      "starts_at": e.starts_at, "ends_at": e.ends_at,
                      "expected_attendance": e.expected_attendance, "status": e.status}
                     for e in (a, b)
@@ -545,12 +568,118 @@ class VenueCalendarView(APIView):
             "buffer_minutes": settings.VENUE_BUFFER_MINUTES,
             "venues": VenueSerializer(Venue.objects.filter(active=True), many=True).data,
             "bookings": [
-                {"id": str(e.id), "title": e.title, "club": e.club.name,
+                {"id": str(e.id), "title": shown(e)[0], "club": shown(e)[1],
                  "venue": str(e.venue_id), "venue_name": e.venue.name,
                  "starts_at": e.starts_at, "ends_at": e.ends_at, "status": e.status,
                  "confirmed": e.status != EventStatus.SUBMITTED,
-                 "clash": str(e.id) in clash_ids}
+                 "clash": str(e.id) in clash_ids,
+                 "can_move": e.id in movable}
                 for e in events
             ],
             "clashes": pairs,
         })
+
+
+def _next_open_block(today):
+    """The open-block Wednesday on or after `today` (campus date)."""
+    return today + timedelta(days=(settings.OPEN_BLOCK_WEEKDAY - today.weekday()) % 7)
+
+
+class OpenBlockView(APIView):
+    """
+    AR-03: the Wednesday open block — two 1-hour slots a club can claim without a
+    proposal. First come, first served: the booking takes the venue row lock
+    the proposal path takes, so of two clubs racing for one hall the second is
+    refused. Auto-approved (published straight away, no budget, no approval
+    chain); the Dean can still move or cancel it like any event.
+    """
+
+    def _require_viewer(self, ctx):
+        if not (ctx.can_see_all_clubs() or ctx.scopes_for(*R.ROLE_ASSIGNERS)):
+            raise ProblemDetail(code="EVENTS_OPEN_BLOCK_DENIED", title="Not permitted",
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                detail="The open block is booked by a club's President or Vice-President.")
+
+    @extend_schema(
+        parameters=[OpenApiParameter("date", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                                     description="A Wednesday; default the next one.")],
+        responses=OpenBlockSerializer, summary="The Wednesday open block's slots, free or taken",
+    )
+    def get(self, request):
+        self._require_viewer(request.auth_context)
+        local = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+        if raw := request.query_params.get("date"):
+            day = serializers.DateField().to_internal_value(raw)
+        else:
+            day = _next_open_block(timezone.now().astimezone(local).date())
+        venues = list(Venue.objects.filter(active=True))
+        slots = []
+        for hour in settings.OPEN_BLOCK_HOURS:
+            starts = datetime.combine(day, time(hour), local)
+            ends = starts + timedelta(hours=1)
+            taken = {e.venue_id: e for e in Event.objects.filter(
+                status__in=SLOT_HOLDING, starts_at__lt=ends, ends_at__gt=starts,
+            ).select_related("club")}
+            slots.append({"starts_at": starts, "ends_at": ends, "venues": [
+                {"id": v.id, "name": v.name,
+                 "booked_by": taken[v.id].club.name if v.id in taken else None,
+                 "event": taken[v.id].id if v.id in taken else None}
+                for v in venues]})
+        return Response({"date": day, "slots": slots})
+
+    @extend_schema(request=OpenBlockBookSerializer, responses={201: EventSerializer},
+                   summary="Book one open-block slot for a club (first come, first served)")
+    def post(self, request):
+        ctx = request.auth_context
+        data = OpenBlockBookSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        v = data.validated_data
+        club = Club.objects.filter(pk=v["club"]).first()
+        venue = Venue.objects.filter(pk=v["venue"], active=True).first()
+        if club is None or venue is None:
+            raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,
+                                detail="No such club or open venue.")
+        if not ctx.has_club_role(club.id, *R.ROLE_ASSIGNERS):
+            raise ProblemDetail(code="EVENTS_OPEN_BLOCK_DENIED", title="Not permitted",
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Only the club's President or Vice-President may book the open block.")
+        local = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+        clock = v["starts_at"].astimezone(local)
+        if (clock.weekday() != settings.OPEN_BLOCK_WEEKDAY or clock.hour not in settings.OPEN_BLOCK_HOURS
+                or (clock.minute, clock.second, clock.microsecond) != (0, 0, 0)):
+            hours = " or ".join(f"{h}:00" for h in settings.OPEN_BLOCK_HOURS)
+            raise ProblemDetail(code="EVENTS_NOT_OPEN_BLOCK", title="Not an open-block slot",
+                                status_code=422,
+                                detail=f"The open block is Wednesday, starting at {hours}.",
+                                errors=[{"field": "starts_at", "code": "NOT_OPEN_BLOCK",
+                                         "message": f"Choose a Wednesday at {hours}."}])
+        if v["starts_at"] <= timezone.now():
+            raise ProblemDetail(code="EVENTS_IN_PAST", title="That slot has passed", status_code=422,
+                                detail="Book a future Wednesday.")
+        starts, ends = v["starts_at"], v["starts_at"] + timedelta(hours=1)
+        day_start = datetime.combine(clock.date(), time.min, local)
+        with transaction.atomic():
+            Venue.objects.select_for_update().get(pk=venue.pk)
+            if Event.objects.filter(club=club, kind=Event.Kind.OPEN_BLOCK, status__in=SLOT_HOLDING,
+                                    starts_at__gte=day_start,
+                                    starts_at__lt=day_start + timedelta(days=1)).exists():
+                raise Conflict(code="EVENTS_OPEN_BLOCK_ONE_PER_CLUB", title="Already booked",
+                               detail=f"{club.name} already holds an open-block slot that Wednesday.")
+            # A pending proposal holds the hour too: first come, first served means
+            # the open block never jumps a request already in the queue.
+            if assert_bookable(venue_id=venue.id, starts_at=starts, ends_at=ends):
+                raise Conflict(code="EVENTS_VENUE_UNAVAILABLE", title="That slot is taken",
+                               detail=f"{venue.name} is already requested for that hour.")
+            event = Event.objects.create(
+                title=(v.get("title") or "").strip() or f"{club.name} — open block",
+                club=club, kind=Event.Kind.OPEN_BLOCK, venue=venue, starts_at=starts, ends_at=ends,
+                capacity=venue.capacity, expected_attendance=0, status=EventStatus.PUBLISHED,
+                created_by=request.user.record,
+            )
+            declare_nil(ensure_budget(event), reason="Wednesday open block: no budget.", actor=ctx)
+        audit_sink().record(actor=ctx, action="event.open_block_booked", target=event,
+                            after={"venue": venue.name, "starts_at": starts.isoformat()})
+        return Response(EventSerializer(event, context={"request": request}).data,
+                        status=status.HTTP_201_CREATED,
+                        headers={"Location": f"/api/v1/events/{event.id}"})
+
