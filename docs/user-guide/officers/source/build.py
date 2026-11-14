@@ -23,14 +23,14 @@ BOXES = json.loads((SHOTS / "boxes.json").read_text())
 # Per-mark tweaks: "at" puts a ring's badge l/r/t/b of the ring; "side" hangs a pin off the l/r edge
 # of the screenshot; "n" renumbers; x/y/w/h retarget the mark; "drop" leaves it out.
 OV = {
-    "go-live": {1: {"at": "l"}, 2: {"at": "t"}},
+    "go-live": {1: {"at": "l"}, 2: {"at": "b"}},
     "scan": {5: {"side": "r"}, 6: {"side": "r"}},
     "calendar": {2: {"at": "b"}, 3: {"at": "b"}},
     "events": {2: {"drop": True}},
-    "roster": {3: {"at": "t"}, 4: {"side": "r"}},
-    "join": {3: {"at": "t"}, 4: {"at": "l"}},
+    "roster": {3: {"at": "b"}, 4: {"side": "r"}},
+    "join": {3: {"at": "r"}, 4: {"at": "l"}},
     "budget-edit": {5: {"at": "b"}},
-    "new-event": {5: {"at": "t"}, 6: {"at": "r"}, 7: {"at": "r"}, 8: {"at": "r"}},
+    "new-event": {5: {"at": "l"}, 6: {"at": "r"}, 7: {"at": "r"}, 8: {"at": "r"}},
     "budget-sanctioned": {1: {"side": "l"}, 2: {"side": "r"}},
 }
 EXTRA = {}
@@ -92,11 +92,22 @@ def page(body, part=None, cls=""):
     n = len(pages) + 1
     extra = ""
     if part:
-        extra = (f'<div class="tab" style="top:{22 + (part - 1) * 43}mm;height:41mm"><b>{part}</b><span>{PARTS[part]}</span></div>'
-                 f'<footer><span>Part {part} · {PARTS[part]}</span><span>{n}</span></footer>')
+        extra = (f'<div class="band"></div>'
+                 f'<div class="tab" style="top:{22 + (part - 1) * 43}mm;height:41mm"><b>{part}</b><span>{PARTS[part]}</span></div>'
+                 f'<footer><span><b class="part-dot"></b>Part {part} · {PARTS[part]}</span><span>{n}</span></footer>')
     elif n > 1:
         extra = f'<footer><span>Culturals · Guide for club officials</span><span>{n}</span></footer>'
-    pages.append(f'<section class="page {cls}">{body}{extra}</section>')
+    pages.append(f'<section class="page {cls}" data-part="{part or 0}">{body}{extra}</section>')
+
+
+def caps(*items, kind="click", cols=2):
+    """Short captions under a picture, in columns: the picture leads, these name its numbers."""
+    return steps(*items, kind=kind).replace('class="steps', f'class="steps caps c{cols}', 1)
+
+
+def facts(*items):
+    """A row of one-line facts: a bold term and a few words."""
+    return '<div class="facts">' + "".join(f"<p><b>{t}</b>{d}</p>" for t, d in items) + "</div>"
 
 
 MAIN = (250, 60, 1020, 740)  # a viewport shot without the side menu and the top bar
@@ -110,7 +121,7 @@ page(f"""
 <div class="cover-main">
   <h1>Guide for club officials</h1>
   <p class="cover-sub">For every club's <b>President</b>, <b>Vice-President</b>, <b>Secretary</b> and
-  <b>Treasurer</b>. Every page you use, step by step: proposing, budgets, approvals, the door and the report.</p>
+  <b>Treasurer</b>. Every screen you use, in pictures.</p>
 </div>
 <div class="cover-shot">{fig("events", crop=(250, 60, 1020, 830))}</div>
 <div class="cover-foot">
@@ -130,524 +141,374 @@ TOC = [
     (6, [("Members, roles and join requests", 19), ("Tags and statuses", 20), ("Quick answers", 21)]),
 ]
 toc_html = "".join(
-    f'<div class="toc-part"><div class="toc-num">{p}</div><div><h2>{PARTS[p]}</h2>'
+    f'<div class="toc-part" data-part="{p}"><div class="toc-num">{p}</div><div><h2>{PARTS[p]}</h2>'
     + "".join(f'<div class="toc-row"><span>{t}</span><i></i><b>{pg}</b></div>' for t, pg in rows)
     + "</div></div>" for p, rows in TOC)
 page(f"""
 <h1 class="solo">Contents</h1>
-<div class="toc">{toc_html}</div>
-<div class="howto">
+<div class="howto first">
   <h2>How to read the pictures</h2>
   <div class="legend">
-    <div><span class="ring demo"><b class="badge at-l">1</b></span><p><b>Amber ring: click or type here.</b> The number matches the step next to the picture.</p></div>
-    <div><b class="pin static">1</b><p><b>Blue dot: look here.</b> It points out part of the page. Nothing to click. Pictures are from the pilot, with made-up names.</p></div>
+    <div><span class="ring demo"><b class="badge at-l">1</b></span><p><b>Amber ring: click or type here.</b> The number matches the caption under the picture.</p></div>
+    <div><b class="pin static">1</b><p><b>Blue dot: look here.</b> Nothing to click. Each part has its own colour on the page edge.</p></div>
   </div>
 </div>
+<div class="toc">{toc_html}</div>
 """)
 
 # ================================================================== part 1
 page(f"""
 {title("Who does what")}
-<p class="lead">A club runs an event in four stages. <b>Each stage leaves a record</b>, so the semester
-report is built from the app and nobody collects it by hand.</p>
+<p class="lead">An event goes through five stages. <b>Each one leaves a record.</b></p>
 <div class="route">
-  <div class="stop"><b>Propose</b><span>event, proposal document, budget</span></div>{ARROW}
-  <div class="stop strong"><b>Approval</b><span>Cultural Society, Dean, sometimes the Vice-Chancellor</span></div>{ARROW}
-  <div class="stop"><b>Published</b><span>students register and get a pass</span></div>{ARROW}
-  <div class="stop"><b>Event day</b><span>passes scanned at the door</span></div>{ARROW}
-  <div class="stop end"><b>Reported</b><span>report in, bills attached, budget settled</span></div>
+  <div class="stop"><b>Propose</b><span>event, document, budget</span></div>{ARROW}
+  <div class="stop strong"><b>Approval</b><span>Society, Dean, sometimes the VC</span></div>{ARROW}
+  <div class="stop"><b>Published</b><span>students register</span></div>{ARROW}
+  <div class="stop"><b>Event day</b><span>passes scanned</span></div>{ARROW}
+  <div class="stop end"><b>Reported</b><span>report, bills, settled</span></div>
 </div>
 
 <h2 class="sec">What each office bearer can do</h2>
 <table class="who">
-  <thead><tr><th>Task</th><th>President</th><th>Vice-President</th><th>Secretary</th><th>Treasurer</th><th>See page</th></tr></thead>
+  <thead><tr><th>Task</th><th>President</th><th>Vice-President</th><th>Secretary</th><th>Treasurer</th><th>Page</th></tr></thead>
   <tbody>
-    <tr><td><b>Propose an event</b> <span class="muted">· and send it for approval</span></td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>6</td></tr>
+    <tr><td><b>Propose an event</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>6</td></tr>
     <tr><td><b>Attach the proposal document</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>7</td></tr>
-    <tr><td><b>Build the budget</b> <span class="muted">· lines or an uploaded sheet</span></td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>{CHECK}</td><td>14</td></tr>
+    <tr><td><b>Build the budget</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>{CHECK}</td><td>14</td></tr>
     <tr><td><b>Enter spend, attach bills, settle</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>{CHECK}</td><td>15</td></tr>
-    <tr><td><b>Go live and close the event</b> <span class="muted">· the post-event report</span></td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>18</td></tr>
     <tr><td><b>Scan passes at the door</b> <span class="muted">· core team too</span></td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>16</td></tr>
-    <tr><td><b>See the calendar, book the Wednesday open block</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>{DASH}</td><td>13</td></tr>
+    <tr><td><b>Go live, send the post-event report</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>18</td></tr>
+    <tr><td><b>Calendar and the Wednesday open block</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>{DASH}</td><td>13</td></tr>
     <tr><td><b>Assign roles, accept join requests</b></td><td>{CHECK}</td><td>{CHECK}</td><td>{DASH}</td><td>{DASH}</td><td>19</td></tr>
   </tbody>
 </table>
-<div class="rules">
-  <p><b>Nobody in the club approves the club's own proposal</b>, and nobody in the club can move an event's
-  time or venue once it is sent. The approvers do that, and you are told when they do.</p>
-  <p><b>Plain members</b> see the club's events and roster. They never see budgets or the proposal document.</p>
-</div>
+{facts(("Nobody approves their own club's proposal.", " Approvers do, and you are told what they decide."),
+       ("Nobody in the club moves a sent event.", " Only the Cultural Society and the Dean can."),
+       ("Plain members", " see events and the roster, never budgets or the proposal."))}
 """, part=1)
 
 page(f"""
 {title("Sign in and find your way")}
-<p class="lead">Use your <b>college email and password</b>. Office bearers do not need an authenticator code;
-only approvers do.</p>
-<div class="split menu-split">
-  {fig("signin", alt="The sign-in form")}
+<p class="lead">Your <b>college email and password</b>. No authenticator code: only approvers need one.</p>
+<div class="pair even">
   <div>
-    {steps((1, "Type your <b>institutional email</b>."), (2, "Type your <b>password</b>."), (3, "Click <b>Sign in</b>."))}
-    <p class="note"><b>On the pilot:</b> every account's password is <b>culturals-demo</b>. The sign-in page lists
-    one pilot account per role.</p>
+    {fig("signin", alt="The sign-in form")}
+    {caps((1, "<b>Email</b>"), (2, "<b>Password</b>"), (3, "<b>Sign in</b>"), cols=1)}
+    <p class="note">On the pilot every password is <b>culturals-demo</b>.</p>
+  </div>
+  <div>
+    {fig("menu", crop=(0, 370, 240, 420), cls="menu", alt="The club part of a President's menu")}
+  </div>
+  <div>
+    <h2 class="mini">Your menu</h2>
+    {caps((1, "<b>Club events</b> · everything your club proposed"),
+          (2, "<b>New event</b> · propose one"),
+          (3, "<b>Budget</b> · not for the Secretary"),
+          (4, "<b>Members &amp; roles</b> · the roster"),
+          (5, "<b>Join requests</b> · President, Vice-President"),
+          (6, "<b>Scan station</b> · the door"),
+          (7, "<b>Calendar</b> · President, Vice-President"), kind="look", cols=1)}
   </div>
 </div>
-
-<h2 class="sec">Your menu</h2>
-<div class="split menu-split">
-  {fig("menu", crop=(0, 370, 240, 420), cls="menu", alt="The club part of a President's menu")}
-  <div>
-    <p>The <b>Club</b> part of the menu is what this guide covers. This is a <b>President's</b> menu;
-    you see only the pages your role has.</p>
-    {steps((1, "<b>Club events</b>: every event your club has proposed. You will use this most."),
-           (2, "<b>New event</b>: propose one."),
-           (3, "<b>Budget</b>: every budget, from draft to settled. Not for the Secretary."),
-           (4, "<b>Members &amp; roles</b>: the roster. Presidents and Vice-Presidents assign roles."),
-           (5, "<b>Join requests</b>: students waiting to join. President and Vice-President."),
-           (6, "<b>Scan station</b>: the door on event day."),
-           (7, "<b>Calendar</b>: every venue booking. President and Vice-President."), kind="look")}
-  </div>
-</div>
-<p class="note">The pages above <b>Club</b> (Feed, What's on, My passes, Profile QR, Clubs) are the student pages
-everyone has.</p>
+<p class="note">You see only the pages your role has. The pages above <b>Club</b> are the student pages everyone has.</p>
 """, part=1)
 
 # ================================================================== part 2
 page(f"""
 {title("Club events")}
-<p class="lead">Every event your club has proposed, newest first.</p>
-<div style="width:86%;margin:0 auto">{fig("events", crop=(250, 60, 1020, 840), alt="Club events for the Music Club")}</div>
-<div class="cols2">
-  {steps((1, "<b>New event</b> starts a proposal."),
-         (3, "<b>Send for approval</b> appears on a draft or a returned proposal once it has a budget."))}
-  {steps((4, "<b>Open</b> shows the event's page: its approval trail, budget, proposal document and report."))}
-</div>
-<div class="cols3">
-  <div><h2 class="mini">The two labels on a card</h2><p>The first is the <b>event's status</b> (Draft, Awaiting approval,
-  Published…). The second is the <b>budget's stage</b> (With the Cultural Society, Sanctioned, Settled…).</p></div>
-  <div><h2 class="mini">The tabs</h2><p><b>Drafts</b> are not sent yet. <b>With approvers</b> are waiting for a decision.
-  <b>Upcoming</b> are approved. <b>Past</b> have run.</p></div>
-  <div><h2 class="mini">The bar</h2><p>How many students have registered, out of the capacity, and what was requested.</p></div>
-</div>
-
-<h2 class="sec">Wednesday open block <span class="chip">President · Vice-President</span></h2>
-<p>The card at the top of the page. Choose a <b>venue</b> for the 3–4 pm or the 4–5 pm hour and click <b>Book</b>:
-it is yours at once. <b>No proposal, no budget, no approval.</b> First come, first served, and <b>one slot per
-club each Wednesday</b>.</p>
+<p class="lead">Everything your club has proposed, newest first.</p>
+{fig("events", crop=(250, 60, 1020, 840), alt="Club events for the Music Club")}
+{caps((1, "<b>New event</b> starts a proposal"),
+      (3, "<b>Send for approval</b> on a draft or returned proposal"),
+      (4, "<b>Open</b> the event's page"), cols=3)}
+{facts(("Two labels on a card.", " The event's status, then the budget's stage."),
+       ("Tabs.", " Drafts, With approvers, Upcoming, Past."),
+       ("Wednesday open block.", " The card on top: pick a venue, click Book. No proposal needed; one slot per club. "
+        "President and Vice-President."))}
 """, part=2)
 
 page(f"""
 {title("Propose a new event")}
-<p class="lead">One form. <b>Fill it top to bottom, attach the proposal, choose how the budget comes in,</b>
-then send it or save it as a draft.</p>
-<div class="split tall">
-  {fig("new-event", crop=(250, 60, 1020, 819), alt="The New event form, filled in")}
-  <div>
-    {steps((1, "<b>Title</b>, and the kind of event."),
-           (2, "<b>Venue.</b> Each option shows how many it seats."),
-           (3, "<b>Start date and hours.</b> Venues are booked in whole hours."),
-           (4, "<b>Capacity</b> fills in from the venue you chose. <b>Lower it</b> if you are admitting fewer."),
-           (5, "<b>Budget.</b> Pick a template, <b>Upload the budget sheet (CSV)</b>, or leave it for the Treasurer."),
-           (6, "<b>Budget sheet.</b> Appears when you choose to upload."),
-           (7, "<b>Proposal document.</b> A PDF or Word file, up to 10 MB."),
-           (8, "<b>Propose and send</b> sends it for approval. With no budget chosen the button reads <b>Save draft</b>."))}
-    <div class="aside"><h2 class="mini">If two events want the same hall</h2><p>A slot another club has <b>already
-    been approved for</b> is refused. A slot another club has only <b>asked for</b> is allowed, and the approvers
-    see the clash. One of the two will be moved.</p></div>
-  </div>
-</div>
+<p class="lead">One form, top to bottom. <b>Then send it, or save a draft.</b></p>
+{fig("new-event", crop=(250, 60, 1020, 819), alt="The New event form, filled in")}
+{caps((1, "<b>Title</b>"),
+      (2, "<b>Venue</b> · shows the seats"),
+      (3, "<b>Date and hours</b> · whole hours"),
+      (4, "<b>Capacity</b> · filled from the venue; lower it if needed"),
+      (5, "<b>Budget</b> · template, uploaded sheet, or leave to the Treasurer"),
+      (6, "<b>Budget sheet</b> · a CSV"),
+      (7, "<b>Proposal document</b> · PDF or Word, up to 10 MB"),
+      (8, "<b>Propose and send</b> · reads <b>Save draft</b> with no budget"), cols=2)}
+<p class="note"><b>Two clubs, one hall?</b> A slot already approved for another club is refused. A slot only asked for is
+allowed; the approvers see the clash and move one.</p>
 """, part=2)
 
 page(f"""
 {title("The budget and the proposal document")}
-<p class="lead">A proposal is sent with <b>a document that explains it</b> and <b>a budget that prices it</b>.</p>
-
-<h2 class="mini">Three ways to give the budget</h2>
+<p class="lead">Every proposal carries <b>a document that explains it</b> and <b>a budget that prices it</b>.</p>
 <div class="decisions">
-  <div class="d ok"><h3>A template</h3><p>Choose <b>Performance, Workshop, Competition</b> or <b>Exhibition</b>. The lines are
-  priced from your expected attendance. Fastest.</p></div>
-  <div class="d ret"><h3>Upload the budget sheet</h3><p>A CSV with the columns <b>head, amount</b> (and optionally
-  <b>basis</b>). <b>Download the budget template</b> gives you the layout. President, Vice-President, Treasurer.</p></div>
-  <div class="d"><h3>The Treasurer enters it</h3><p>Choose <b>None</b>. The event is saved as a <b>draft</b> and the
-  Treasurer adds the lines on the Budget page (page 14).</p></div>
+  <div class="d ok"><h3>A template</h3><p>Performance, Workshop, Competition or Exhibition, priced from your expected attendance.</p></div>
+  <div class="d ret"><h3>Upload the budget sheet</h3><p>A CSV: <b>head, amount</b>. <b>Download the budget template</b> for the layout.</p></div>
+  <div class="d plain"><h3>The Treasurer enters it</h3><p>Choose <b>None</b>. Saved as a draft; priced on the Budget page.</p></div>
 </div>
 
-<h2 class="sec">Check the sheet before you send it</h2>
-<p>Click <b>Preview the sheet</b> to read your CSV as a table before anything is uploaded.</p>
+<h2 class="sec">Preview the sheet before sending</h2>
 {fig("sheet-preview", crop=(0, 560, 1280, 230), alt="Preview of a budget sheet")}
-<div class="cols2">
-  {steps((1, "Each row becomes one budget line."), kind="look")}
-  <p class="note"><b>Every row is checked.</b> If one row is wrong, nothing is imported, the event is kept as a
-  draft, and you are told which row to fix.</p>
-</div>
+{caps((1, "<b>Each row is one budget line.</b> One wrong row and nothing is imported; you are told which."), kind="look", cols=1)}
 
 <h2 class="sec">The proposal document</h2>
-<div class="cols3">
-  <div><h2 class="mini">Who reads it</h2><p>Your club's office bearers, the <b>Cultural Society</b>, the <b>Dean</b> and the
-  <b>Vice-Chancellor</b>. <b>Students and plain members never see it.</b></p></div>
-  <div><h2 class="mini">Reading it in the app</h2><p>Click the file name on the event page. A <b>PDF</b> opens in the
-  page; a <b>Word .docx</b> shows as its text. An old <b>.doc</b> can only be downloaded.</p></div>
-  <div><h2 class="mini">Changing it</h2><p>Replace it while the event is a <b>draft</b> or <b>returned</b>. Once sent, it is
-  <b>locked</b>, so approvers read what you sent.</p></div>
-</div>
+{facts(("Who reads it.", " Your office bearers, the Cultural Society, the Dean, the Vice-Chancellor. Never students."),
+       ("In the app.", " Click the file name: a PDF opens in the page, a .docx shows as text."),
+       ("Locked once sent.", " Replace it only while the event is a draft or returned."))}
 """, part=2)
 
 # ================================================================== part 3
 page(f"""
 {title("Following your proposal")}
-<p class="lead">Open the event from <b>Club events</b>. <b>The page tells you where the proposal is and what
-happened to it.</b></p>
+<p class="lead">Open the event from <b>Club events</b>. The page shows where it is.</p>
 {fig("event-top", crop=MAIN, alt="An event that is awaiting approval")}
-{steps((1, "<b>Status.</b> <b>Awaiting approval</b> means an approver has it."),
-       (2, "<b>When and where.</b> If an approver moved it, the old value is struck through (page 10)."),
-       (3, "<b>Open budget</b> shows every line and what was sanctioned."),
-       (4, "<b>Proposal document.</b> Click the file name to read it."), kind="look")}
-
-<h2 class="sec">The approval route</h2>
+{caps((1, "<b>Status</b> · an approver has it"),
+      (2, "<b>When and where</b> · struck through if moved"),
+      (3, "<b>Open budget</b> · every line"),
+      (4, "<b>Proposal document</b> · click to read"), kind="look", cols=2)}
+<h2 class="sec">The route</h2>
 <div class="route">
   <div class="stop"><b>Club</b><span>you send it</span></div>{ARROW}
-  <div class="stop"><b>Cultural Society</b><span>its Secretary or Vice-Secretary</span></div>{ARROW}
-  <div class="stop strong"><b>Dean</b><span>every event; may lower a budget line</span></div>{ARROW}
-  <div class="stop"><b>Vice-Chancellor</b><span>only over <b>₹50,000</b> or part of a fest</span></div>{ARROW}
-  <div class="stop end"><b>Published</b><span>students can register</span></div>
+  <div class="stop"><b>Cultural Society</b><span>Secretary or Vice-Secretary</span></div>{ARROW}
+  <div class="stop strong"><b>Dean</b><span>every event</span></div>{ARROW}
+  <div class="stop"><b>Vice-Chancellor</b><span>over <b>₹50,000</b> or a fest</span></div>{ARROW}
+  <div class="stop end"><b>Published</b><span>students register</span></div>
 </div>
-<div class="rules">
-  <p><b>Each approver can approve, return for changes, or reject.</b> To return or reject they must write a
-  comment, and you see it.</p>
-  <p><b>While it is with an approver you cannot edit it.</b> That way they approve exactly what they read.</p>
-</div>
+<p class="note">Each approver can <b>approve</b>, <b>return for changes</b> or <b>reject</b>. While they have it, you cannot edit it.</p>
 """, part=3)
 
 page(f"""
 {title("Notifications")}
-<p class="lead">Every decision and every change an approver makes <b>reaches you twice: in the app, and by email</b>
-to your institutional address.</p>
-<div class="split menu-split">
+<p class="lead">Every decision and change reaches you <b>in the app and by email</b>.</p>
+<div class="inline-fig">
   {fig("bell", crop=(120, 0, 200, 64), alt="The bell in the top bar")}
-  {steps((1, "The <b>bell</b> in the top bar shows how many you have not read. Click it."))}
+  {caps((1, "Click the <b>bell</b>. The number is what you have not read."), cols=1)}
 </div>
 {fig("notifications", crop=MAIN, alt="The Notifications page")}
-{steps((1, "<b>Colour key.</b> Violet <b>A</b> is a change by the Cultural Society or the Dean. Teal <b>M</b> is the Vice-Chancellor."),
-       (2, "<b>Filters.</b> <b>Decisions</b>, or only <b>Changes by approvers</b>."),
-       (3, "<b>Venue or time changed.</b> The new slot, the old one, the reason, and who moved it."),
-       (4, "<b>Rejected</b>, with the approver's comment."),
-       (5, "<b>Returned for changes</b>, with what to fix."), kind="look")}
-<p class="note"><b>New</b> marks what you had not read. <b>Open it</b> on a notification takes you to the event.
-Decisions go to the President, Vice-President and Treasurer; a move also goes to the Secretary and to
-every student who registered.</p>
+{caps((1, "<b>Colour key</b> · violet <b>A</b>: Society or Dean; teal <b>M</b>: Vice-Chancellor"),
+      (2, "<b>Filters</b> · decisions, or changes by approvers"),
+      (3, "<b>Venue or time changed</b> · new slot, old slot, reason, who"),
+      (4, "<b>Rejected</b> · with the reason"),
+      (5, "<b>Returned for changes</b> · with what to fix"), kind="look", cols=2)}
+<p class="note"><b>Open it</b> takes you to the event. Decisions go to the President, Vice-President and Treasurer.</p>
 """, part=3)
 
 page(f"""
 {title("When an approver changes something")}
-<p class="lead">Approvers can change two things: <b>when and where</b> the event is, and <b>how much money</b> it
-gets. <b>The old value is struck through and the new one is in the approver's colour.</b></p>
-
+<p class="lead"><b>Old value struck through, new value in the approver's colour.</b></p>
 <h2 class="mini">A new venue or time <span class="chip">Cultural Society officers · Dean</span></h2>
-<div class="split">
-  {fig("event-moved", alt="An event page after the Cultural Society moved it")}
-  <div>
-    {steps((1, "<b>When and where</b> shows the old slot struck out and the new one beside it."),
-           (2, "<b>Changes by approvers</b> lists each change: what it was, what it is now."),
-           (3, "<b>The reason</b> the approver gave."), kind="look")}
-    <p class="note">The Society's Secretary and Vice-Secretary can move an event <b>while it is with the
-    Society</b>. After that, only the <b>Dean</b> can. Students who registered are told too.</p>
-  </div>
-</div>
+<div class="narrow">{fig("event-moved", alt="An event page after the Cultural Society moved it")}</div>
+{caps((1, "<b>When and where</b> · old slot struck, new beside it"),
+      (2, "<b>What changed</b> · was, is now"),
+      (3, "<b>Why</b> · the approver's reason"), kind="look", cols=3)}
 
 <h2 class="sec">A smaller budget <span class="chip">Dean</span></h2>
-<div class="split">
-  {fig("approved-trail", crop=(0, 290, 996, 368), alt="An approval trail where the Dean lowered the budget")}
-  <div>
-    {steps((1, "<b>Cultural Society</b> approved, with a comment."),
-           (2, "<b>The Dean lowered the total.</b> Struck figure: what you asked. Violet figure: what you have."),
-           (3, "<b>Vice-Chancellor</b> approved. Their mark is the teal <b>M</b>."), kind="look")}
-    <p class="note">The Dean can <b>lower a line, never raise it</b>. You get a notification naming each line
-    that changed. The budget page shows the lines (page 15).</p>
-  </div>
-</div>
+{fig("approved-trail", crop=(0, 290, 996, 368), alt="An approval trail where the Dean lowered the budget")}
+{caps((1, "<b>Society</b> approved"),
+      (2, "<b>Dean lowered the total</b> · struck: asked; violet: granted"),
+      (3, "<b>Vice-Chancellor</b> approved · teal <b>M</b>"), kind="look", cols=3)}
+<p class="note">The Dean can <b>lower a line, never raise it</b>. A notification names each line that changed.</p>
 """, part=3)
 
 page(f"""
 {title("Returned for changes")}
-<p class="lead">An approver wants something fixed. <b>The proposal is yours again: edit it and send it back.</b></p>
-{fig("returned-top", crop=MAIN, alt="A returned proposal")}
-<div class="cols2">
-  {steps((1, "<b>Returned for changes</b>: the status."),
-         (3, "<b>Open budget</b> to change the lines. Every field is open again."))}
-  {steps((4, "<b>Replace</b> the proposal document if the comment asks for it."),
-         (5, "<b>Send for approval</b> when it is fixed."))}
-</div>
-
+<p class="lead">An approver wants something fixed. <b>Edit it and send it back.</b></p>
+{fig("returned-top", crop=(250, 60, 1020, 500), alt="A returned proposal")}
+{caps((1, "<b>Returned for changes</b>"),
+      (3, "<b>Open budget</b> · every field is open again"),
+      (4, "<b>Replace</b> the document if asked"),
+      (5, "<b>Send for approval</b> when fixed"), cols=2)}
 <h2 class="sec">What they asked for</h2>
-<div class="split">
-  {fig("returned-trail", alt="The approval trail of a returned proposal")}
-  <div>
-    {steps((1, "<b>The approver's comment</b> is under their name in the <b>Approval trail</b>."), kind="look")}
-    <p class="note"><b>When you send it again it starts at the first step</b>, so earlier approvers see the
-    changed version. The trail keeps the returned request and adds the new one below it.</p>
-  </div>
-</div>
+{fig("returned-trail", alt="The approval trail of a returned proposal")}
+{caps((1, "<b>The approver's comment</b>, under their name in the Approval trail."), kind="look", cols=1)}
+<p class="note">Sent again, it <b>starts at the first step</b>, so earlier approvers see the new version.</p>
 """, part=3)
 
 page(f"""
 {title("Rejected")}
-<p class="lead"><b>A rejection is final.</b> The proposal cannot be edited or sent again. To try again, propose a
-new event.</p>
-<div class="split">
-  {fig("rejected", alt="A proposal rejected by the Cultural Society")}
-  <div>
-    {steps((1, "<b>Why.</b> The approver's comment is required, and it is shown here."), kind="look")}
-    {steps((2, "<b>Delete</b> removes the rejected proposal from your list. Optional."))}
-    <p class="note">The event's status and budget both read <b>Rejected</b>. The venue slot is released at
-    once, so another club can book it.</p>
-  </div>
-</div>
+<p class="lead"><b>Final.</b> It cannot be edited or sent again. To try again, propose a new event.</p>
+{fig("rejected", alt="A proposal rejected by the Cultural Society")}
+{caps((1, "<b>Why</b> · the comment is required"), cols=2, kind="look")}
+{caps((2, "<b>Delete</b> removes it from your list. Optional."), cols=2)}
 
 <h2 class="sec">Rejected at a later step</h2>
-<div class="split">
-  {fig("vc-rejected-trail", crop=(0, 290, 996, 339), alt="A proposal the Dean trimmed and the Vice-Chancellor rejected")}
-  <div>
-    <p>Any approver on the route can reject. Here the Cultural Society and the Dean approved, and the
-    <b>Vice-Chancellor</b> rejected.</p>
-    {steps((1, "The Dean's change to the budget still shows, in violet."),
-           (2, "The Vice-Chancellor's reason."), kind="look")}
-  </div>
-</div>
-<div class="rules">
-  <p><b>Returned or rejected?</b> Returned means "fix this and send it again". Rejected means "no".</p>
-</div>
+{fig("vc-rejected-trail", crop=(0, 290, 996, 339), alt="A proposal the Dean trimmed and the Vice-Chancellor rejected")}
+{caps((1, "<b>The Dean's cut</b> still shows, in violet"),
+      (2, "<b>The Vice-Chancellor's reason</b>"), kind="look", cols=2)}
+<p class="note"><b>Returned</b> means "fix this and send it again". <b>Rejected</b> means "no". The venue slot is released.</p>
 """, part=3)
 
 page(f"""
 {title("The calendar", who="Presidents and Vice-Presidents")}
-<p class="lead">Every venue booking in the college, <b>so you can pick a free slot before you propose.</b></p>
+<p class="lead">Every venue booking, <b>so you can pick a free slot before you propose.</b></p>
 {fig("calendar", crop=(250, 60, 1020, 760), alt="The semester event calendar")}
-<div class="cols2">
-  <div>
-  {steps((1, "<b>Upcoming events</b>: every booking from today on, marked <b>Approved</b> or "
-             "<b>Awaiting approval</b>. Click one to open its day."), kind="look")}
-  {steps((2, "<b>Previous / Next month</b> and <b>week</b> move the calendar."),
-         (3, "<b>Go to date</b> jumps to any day."))}
-  </div>
-  {steps((4, "<b>The week.</b> Each day says <b>Free</b> or how many events. Click a day to see it hour by hour, "
-             "one column per venue."), kind="look")}
-</div>
-<div class="cols2">
-  <div class="aside"><h2 class="mini">What you see of other clubs</h2><p>An approved event shows its name. Another
-  club's event that is <b>not approved yet</b> shows only as <b>Requested</b>: the slot is taken, the idea stays
-  private.</p></div>
-  <p class="note"><b>You cannot move a booking.</b> Only the Dean, and the Cultural Society's officers while a
-  proposal is with them, can.</p>
-</div>
+{caps((1, "<b>Upcoming events</b> · approved or awaiting approval; click one to open its day"), kind="look", cols=1)}
+{caps((2, "<b>Month and week</b> buttons"), (3, "<b>Go to date</b>"), cols=2)}
+{caps((4, "<b>The week</b> · Free, or how many events; click a day for its hours"), kind="look", cols=1)}
+{facts(("Other clubs.", " Approved events show their name. One not approved yet shows only as Requested."),
+       ("Read only.", " You cannot move a booking. The Dean can, and the Society's officers while a proposal is with them."))}
 """, part=3)
 
 # ================================================================== part 4
 page(f"""
 {title("Build the budget", who="Treasurer · President · Vice-President")}
-<p class="lead">Open <b>Budget</b>, then the event. <b>You can change the budget while the event is a draft or
-has been returned.</b></p>
+<p class="lead"><b>Budget</b>, then the event. Editable while it is a draft or returned.</p>
 {fig("budget-edit", crop=(250, 60, 1020, 820), alt="A budget that can be edited")}
-<div class="cols2">
-  {steps((1, "<b>Edit all</b> turns every line into text boxes. Change several, save once."),
-         (2, "<b>Edit</b> or <b>Remove</b> one line."),
-         (3, "<b>Add an entry</b>: a head (what it is for) and an amount."))}
-  {steps((4, "<b>Upload a CSV</b> to add many lines at once. Choose whether it <b>replaces</b> the existing "
-             "lines or is <b>added</b> to them."),
-         (5, "<b>Download template</b> for the CSV layout."),
-         (6, "<b>Send for approval</b> when the lines are right."))}
-</div>
-<div class="cols3">
-  <div><h2 class="mini">The three figures</h2><p><b>Requested</b> is what the club asks. <b>Sanctioned</b> is what the
-  approvers allowed. <b>Spent</b> is what you record after the event.</p></div>
-  <div><h2 class="mini">The envelope</h2><p>Your club's budget for the year, if the Dean has set one, with how much
-  is already sanctioned and settled.</p></div>
-  <div><h2 class="mini">An event that costs nothing</h2><p>With no priced lines, <b>declare the budget nil</b> and give
-  the reason. It can then be sent without lines.</p></div>
-</div>
-<p class="note"><b>Over ₹50,000</b>, or part of a fest, the proposal also goes to the Vice-Chancellor. The page
-tells you before you send it.</p>
+{caps((1, "<b>Edit all</b> · every line as text boxes, one Save"),
+      (2, "<b>Edit</b> or <b>Remove</b> one line"),
+      (3, "<b>Add an entry</b> · a head and an amount"),
+      (4, "<b>Upload a CSV</b> · replace or add to the lines"),
+      (5, "<b>Download template</b>"),
+      (6, "<b>Send for approval</b>"), cols=3)}
+{facts(("Requested, Sanctioned, Spent.", " What you ask, what was allowed, what you record afterwards."),
+       ("Costs nothing?", " Declare the budget nil, with a reason."),
+       ("Over ₹50,000", " or part of a fest: it also goes to the Vice-Chancellor."))}
 """, part=4)
 
 page(f"""
 {title("After approval: spend and receipts", who="Treasurer · President · Vice-President")}
-<p class="lead">Once approved the budget is <b>Sanctioned</b>. The lines are fixed; <b>after the event you record
-what was actually spent.</b></p>
-<div class="split">
-  {fig("budget-sanctioned", alt="A sanctioned budget where the Dean lowered two lines")}
-  <div>
-    {steps((1, "<b>Sanctioned</b> is the money you may spend."),
-           (2, "<b>A line the Dean lowered</b> shows what you asked struck through, the new figure, and a "
-               "violet <b>A</b>."), kind="look")}
-    <p>Lines left alone are sanctioned as requested.</p>
-  </div>
-</div>
-
+<p class="lead">Sanctioned lines are fixed. <b>After the event, record what was spent.</b></p>
+{fig("budget-sanctioned", crop=(0, 0, 1036, 610), alt="A sanctioned budget where the Dean lowered two lines")}
+{caps((1, "<b>Sanctioned</b> · what you may spend"),
+      (2, "<b>A line the Dean lowered</b> · asked struck through, new figure, violet <b>A</b>"), kind="look", cols=2)}
 <h2 class="sec">Record the spend</h2>
 {fig("budget-spend", alt="Entering spend and attaching a bill for one line")}
-<div class="cols2">
-  {steps((1, "<b>Spent</b>: what the line actually cost."),
-         (2, "<b>Note</b>: anything worth recording. Required if the line went over."),
-         (3, "<b>Save</b>."))}
-  {steps((4, "<b>Choose the bill</b> (PDF or a photo)."),
-         (5, "<b>Attach</b>. It appears under the line; click it to open."))}
-</div>
-<div class="rules">
-  <p><b>A receipt is required for any line above ₹5,000.</b> A line that went over what was sanctioned is marked
-  <b>Over sanctioned</b> and needs a reason.</p>
-  <p><b>Settle budget</b>, at the bottom, closes it. If something is missing, the page lists exactly which
-  lines need a receipt or a reason. A settled budget cannot be changed.</p>
-</div>
+{caps((1, "<b>Spent</b>"), (2, "<b>Note</b> · required if over"), (3, "<b>Save</b>"),
+      (4, "<b>Choose the bill</b>"), (5, "<b>Attach</b>"), cols=5)}
+{facts(("Receipts.", " Required for any line above ₹5,000."),
+       ("Over sanctioned.", " Needs a reason in the note."),
+       ("Settle budget.", " At the bottom. It lists what is missing; once settled it is closed."))}
 """, part=4)
 
 # ================================================================== part 5
 page(f"""
 {title("Open the door", who="President · Vice-President · Secretary · core team")}
-<p class="lead">On the day, the event page of a <b>published</b> event has two buttons.</p>
+<p class="lead">On the day, a published event has two buttons.</p>
 {fig("go-live", alt="Go live and Scan station on a published event")}
-<div class="cols2">
-  {steps((1, "<b>Go live</b> when the event starts. Students see it as <b>Live now</b>."))}
-  {steps((2, "<b>Scan station</b> opens the door page on this device."))}
-</div>
-
+{caps((1, "<b>Go live</b> when it starts"), (2, "<b>Scan station</b> opens the door page"), cols=2)}
 <h2 class="sec">The scan station</h2>
-<div class="split tall">
+<div class="split wide">
   {fig("scan", crop=(10, 0, 1020, 1050), alt="The scan station")}
   <div>
-    {steps((1, "<b>Event at this door.</b> Check it is the right one."),
-           (2, "<b>Start camera</b>, then hold each student's <b>pass</b> or <b>profile QR</b> up to it."),
-           (3, "<b>No camera?</b> Type or paste the code under the QR and click <b>Check code</b>."),
-           (4, "<b>No phone?</b> Type the <b>PRN</b> from their ID card and click <b>Check in by PRN</b>."))}
-    {steps((5, "<b>At the door</b>: checked in, registered, capacity."),
-           (6, "<b>Recent scans</b>: the last few, with their result."), kind="look")}
-    <p class="note">Use a phone or a laptop. Several people can scan at once on their own devices.</p>
+    {caps((1, "<b>Event at this door</b>"),
+          (2, "<b>Start camera</b>, hold up the pass or profile QR"),
+          (3, "<b>No camera?</b> Type the code"),
+          (4, "<b>No phone?</b> Type the PRN"), cols=1)}
+    {caps((5, "<b>At the door</b> · the count"),
+          (6, "<b>Recent scans</b>"), kind="look", cols=1)}
+    <p class="note">Any phone or laptop. Several people can scan at once.</p>
   </div>
 </div>
 """, part=5)
 
 page(f"""
 {title("Check people in", who="whoever is at the door")}
-<p class="lead">Every scan gets an answer in under a second. <b>Green: let them in. Amber: look again. Red: do not
-admit on this code.</b></p>
+<p class="lead"><b>Green: let them in. Amber: look again. Red: not on this code.</b></p>
 {fig("scan-verdict", crop=(250, 318, 1020, 145), alt="A student checked in by PRN")}
-{steps((1, "<b>The verdict</b> names the student, so you can check the face against the ID card."), kind="look")}
+{caps((1, "<b>The verdict</b> names the student: check the face against the ID card."), kind="look", cols=1)}
 <dl class="gloss">
-  <dt><b class="tag green">Checked in</b></dt><dd>A registered student. Let them in.</dd>
-  <dt><b class="tag green">Registered and checked in</b></dt><dd>A walk-in who was not registered. They are now, and they are in.</dd>
-  <dt><b class="tag amber">Already checked in</b></dt><dd>This pass was used before; it says when. A pass works once.</dd>
-  <dt><b class="tag red">Wrong event</b></dt><dd>A pass for another event. Ask for their <b>profile QR</b> instead.</dd>
-  <dt><b class="tag red">Pass was replaced</b></dt><dd>An old copy. Ask them to open the current pass.</dd>
-  <dt><b class="tag red">Event at capacity</b></dt><dd>A walk-in, but every place is taken.</dd>
-  <dt><b class="tag red">Code not recognised</b></dt><dd>Not a Culturals code, or mistyped. Scan again or use the PRN.</dd>
-  <dt><b class="tag amber">Saved offline</b></dt><dd>No connection. The scan is kept on this device and sent when the network returns.</dd>
+  <dt><b class="tag green">Checked in</b></dt><dd>Registered. Let them in.</dd>
+  <dt><b class="tag green">Registered and checked in</b></dt><dd>A walk-in. Now registered, and in.</dd>
+  <dt><b class="tag amber">Already checked in</b></dt><dd>Used before; it says when. A pass works once.</dd>
+  <dt><b class="tag red">Wrong event</b></dt><dd>Ask for their <b>profile QR</b> instead.</dd>
+  <dt><b class="tag red">Pass was replaced</b></dt><dd>An old copy. Ask for the current pass.</dd>
+  <dt><b class="tag red">Event at capacity</b></dt><dd>A walk-in, and every place is taken.</dd>
+  <dt><b class="tag red">Code not recognised</b></dt><dd>Scan again, or use the PRN.</dd>
+  <dt><b class="tag amber">Saved offline</b></dt><dd>No network. Kept on the device, sent when it returns.</dd>
 </dl>
-
 <h2 class="sec">Who is in, who is not</h2>
-<div class="split">
-  {fig("scan-attendees", alt="The attendee list at the door")}
-  <div>
-    {steps((1, "<b>Find by name or PRN</b> to check one person."))}
-    <p>The filter shows <b>All</b>, only those <b>Checked in</b>, or those <b>Not yet</b> here. The counts on the
-    event page come from these scans; <b>nobody types attendance in.</b></p>
-  </div>
-</div>
+{fig("scan-attendees", alt="The attendee list at the door")}
+{caps((1, "<b>Find by name or PRN.</b> Filter to Checked in or Not yet. Nobody types attendance in."), cols=1)}
 """, part=5)
 
 page(f"""
 {title("The post-event report", who="President · Vice-President · Secretary")}
-<p class="lead">Once the event is live, its page has a <b>Post-event report</b>. <b>Fill it in after the event; it is
-what the semester report is built from.</b></p>
+<p class="lead">On the event's page once it is live. <b>The semester report is built from it.</b></p>
 {fig("report-top", alt="The top of the post-event report")}
-<div class="cols2">
-  {steps((1, "<b>Checklist.</b> What is still needed before you can submit."),
-         (2, "<b>Attendance</b> is already filled in from the door."), kind="look")}
-  {steps((3, "<b>Photos.</b> At least one is required. Mark the best as a highlight."),
-         (4, "<b>Social media posts.</b> Paste the link to each post. Optional."))}
-</div>
-<div class="cols2">
+{caps((1, "<b>Checklist</b> · what is still needed"), (2, "<b>Attendance</b> · from the door"), kind="look", cols=2)}
+{caps((3, "<b>Photos</b> · at least one"), (4, "<b>Post links</b> · optional"), cols=2)}
+<div class="cols2 figs">
   <div>
     {fig("report-bills", alt="Bills and spend in the report")}
-    {steps((1, "<b>Spent</b> on each line."), (2, "<b>The bill</b> for it."))}
-    <p class="muted small">Bills do not hold up the report. The budget cannot be settled without them.</p>
+    {caps((1, "<b>Spent</b>"), (2, "<b>The bill</b>"), cols=2)}
   </div>
   <div>
     {fig("report-submit", alt="Outcomes and Submit report")}
-    {steps((1, "<b>Outcomes</b> (required): what happened, who came, what it achieved."),
-           (2, "<b>Learnings</b>: what to keep or change."),
-           (3, "<b>Submit report.</b> The event becomes <b>Reported</b>."))}
+    {caps((1, "<b>Outcomes</b> · required"), (2, "<b>Learnings</b>"), (3, "<b>Submit</b>"), cols=3)}
   </div>
 </div>
-<p class="note"><b>A student in a photo can ask for it to be taken down.</b> You see the request on the photo and
-can remove it there.</p>
+<p class="note">Bills do not hold up the report; the budget cannot settle without them. A student in a photo can ask
+for it to be taken down.</p>
 """, part=5)
 
 # ================================================================== part 6
 page(f"""
 {title("Members, roles and join requests", who="Presidents and Vice-Presidents")}
-<p class="lead">The roster is <b>Members &amp; roles</b>. <b>Every change of role is recorded with who made it.</b></p>
-<div class="split tall">
+<p class="lead"><b>Members &amp; roles</b> is the roster. Every change is recorded.</p>
+<div class="split wide">
   {fig("roster", crop=(250, 60, 1030, 1000), alt="The Music Club roster")}
   <div>
-    {steps((1, "<b>Role.</b> Choose a member's role: Member, Core team, Secretary, Treasurer, Vice-President, President."))}
-    {steps((2, "<b>Office bearers</b> wear a gold ring."), kind="look")}
-    {steps((3, "<b>Open join requests</b> when students are waiting."))}
-    {steps((4, "<b>Handover.</b> Name next term's office bearers and the date it takes effect. The outgoing "
-               "holders lose their permissions at that time."), kind="look")}
-    <p class="note">The Treasurer cannot assign roles. A student can be in <b>up to five clubs</b>.</p>
+    {caps((1, "<b>Role</b> · choose it per member"), cols=1)}
+    {caps((2, "<b>Gold ring</b> · an office bearer"), kind="look", cols=1)}
+    {caps((3, "<b>Open join requests</b>"), cols=1)}
+    {caps((4, "<b>Handover</b> · next term's office bearers and the date"), kind="look", cols=1)}
+    <p class="note">The Treasurer cannot assign roles. A student can be in up to five clubs.</p>
   </div>
 </div>
-
 <h2 class="sec">Join requests</h2>
-{fig("join", alt="Join requests waiting for the Music Club")}
-<div class="cols2">
-  {steps((1, "<b>Tick</b> the students you want to decide together, or"),
-         (2, "<b>Accept</b> one student."))}
-  {steps((3, "<b>Decline</b> one student."),
-         (4, "<b>Approve selected</b> accepts everyone you ticked."))}
-</div>
+{fig("join", crop=(0, 120, 1040, 200), alt="Join requests waiting for the Music Club")}
+{caps((1, "<b>Tick</b> several"), (2, "<b>Accept</b> one"), (3, "<b>Decline</b> one"),
+      (4, "<b>Approve selected</b>"), cols=4)}
 """, part=6)
 
 GLOSS = [
     ("An event's status", [
-        ('<b class="tag grey">Draft</b>', "Saved, not sent. Only your office bearers see it."),
-        ('<b class="tag blue">Awaiting approval</b>', "With an approver. You cannot edit it."),
-        ('<b class="tag amber">Returned for changes</b>', "Fix what the comment asks and send it again."),
-        ('<b class="tag red">Rejected</b>', "Final. Propose a new event to try again."),
-        ('<b class="tag green">Published</b> <b class="tag green">Live now</b>', "Approved; students can register. Live while it runs."),
+        ('<b class="tag grey">Draft</b>', "Saved, not sent."),
+        ('<b class="tag blue">Awaiting approval</b>', "With an approver. Locked."),
+        ('<b class="tag amber">Returned for changes</b>', "Fix it and send it again."),
+        ('<b class="tag red">Rejected</b>', "Final."),
+        ('<b class="tag green">Published</b> <b class="tag green">Live now</b>', "Approved; students register. Live while it runs."),
         ('<b class="tag grey">Reported</b>', "The post-event report is in."),
     ]),
     ("A budget's stage", [
-        ('<b class="tag blue">With the Cultural Society</b> <b class="tag blue">With the Dean</b>', "Where the proposal is waiting."),
-        ('<b class="tag green">Sanctioned</b>', "Approved. Record spend after the event."),
-        ('<b class="tag grey">Settled</b>', "Spend and receipts complete. Closed."),
+        ('<b class="tag blue">With the Cultural Society</b> <b class="tag blue">With the Dean</b>', "Where it is waiting."),
+        ('<b class="tag green">Sanctioned</b>', "Approved. Record spend afterwards."),
+        ('<b class="tag grey">Settled</b>', "Closed."),
     ]),
     ("Changes by approvers", [
-        ('<b class="tag violet">A</b>', "A change by the Cultural Society or the Dean."),
-        ('<b class="tag teal">M</b>', "A change by the Vice-Chancellor."),
+        ('<b class="tag violet">A</b>', "The Cultural Society or the Dean."),
+        ('<b class="tag teal">M</b>', "The Vice-Chancellor."),
     ]),
 ]
 gloss_html = "".join(f'<h2 class="sec">{g}</h2><dl class="gloss">'
                      + "".join(f"<dt>{t}</dt><dd>{d}</dd>" for t, d in rows) + "</dl>" for g, rows in GLOSS)
 page(f"""
 {title("Tags and statuses")}
-<p class="lead">The small coloured labels on cards and pages, and what they mean.</p>
+<p class="lead">The small coloured labels, and what they mean.</p>
 {gloss_html}
 """, part=6)
 
 page(f"""
 {title("Quick answers")}
 <dl class="qa">
-  <dt>I can't find Send for approval.</dt><dd>The budget has no lines yet. Add them, or declare the budget nil, then send.</dd>
-  <dt>Can I change the date after sending?</dt><dd><b>No.</b> Ask the Cultural Society (while it is with them) or the Dean to move it.</dd>
-  <dt>The venue or time changed and I did not do it.</dt><dd>An approver moved it. Open <b>Notifications</b> or the event page for who and why.</dd>
-  <dt>My budget is smaller than I asked.</dt><dd>The <b>Dean</b> lowered a line. The budget page shows which, struck through.</dd>
-  <dt>A student has no phone at the door.</dt><dd>Type their <b>PRN</b> into the scan station.</dd>
-  <dt>The network dropped at the door.</dt><dd>Keep scanning. Scans are saved on the device and sent when it is back.</dd>
+  <dt>I can't find Send for approval.</dt><dd>The budget has no lines. Add them, or declare it nil.</dd>
+  <dt>Can I change the date after sending?</dt><dd><b>No.</b> Ask the Cultural Society (while it is with them) or the Dean.</dd>
+  <dt>The venue or time changed.</dt><dd>An approver moved it. <b>Notifications</b> says who and why.</dd>
+  <dt>My budget is smaller than I asked.</dt><dd>The <b>Dean</b> lowered a line. The budget page shows which.</dd>
+  <dt>A student has no phone.</dt><dd>Type their <b>PRN</b> at the scan station.</dd>
+  <dt>The network dropped at the door.</dt><dd>Keep scanning. Scans are sent when it returns.</dd>
 </dl>
 <div class="feedback">
   <h2>Tell us what to improve</h2>
-  <p>This is a pilot. If a page is confusing or a step is missing, <b>note the page and what you expected</b>, and
-  pass it on to the Culturals team.</p>
+  <p>This is a pilot. <b>Note the page and what you expected</b>, and pass it on to the Culturals team.</p>
 </div>
 """, part=6)
+
 
 CSS = f"""
 @font-face {{ font-family: 'Jakarta'; src: url('fonts/plus-jakarta-sans.woff2') format('woff2'); font-weight: 200 800; }}
@@ -816,6 +677,54 @@ p + p {{ margin-top: 2mm; }}
 """
 
 CSS += """
+/* ---- 2026-11-15 pass: the pictures lead, each part has a colour, captions are short ---- */
+.page[data-part="1"] { --part: #1b5fe4; --part-soft: #e3ecff; }
+.page[data-part="2"] { --part: #0b7a5c; --part-soft: #dff3ec; }
+.page[data-part="3"] { --part: #6a2bd9; --part-soft: #efe7ff; }
+.page[data-part="4"] { --part: #b4266a; --part-soft: #fbe6ef; }
+.page[data-part="5"] { --part: #c2410c; --part-soft: #fdeadd; }
+.page[data-part="6"] { --part: #3d4a63; --part-soft: #e8ebf1; }
+.toc-part[data-part="1"] .toc-num { background: #1b5fe4; } .toc-part[data-part="2"] .toc-num { background: #0b7a5c; }
+.toc-part[data-part="3"] .toc-num { background: #6a2bd9; } .toc-part[data-part="4"] .toc-num { background: #b4266a; }
+.toc-part[data-part="5"] .toc-num { background: #c2410c; } .toc-part[data-part="6"] .toc-num { background: #3d4a63; }
+.band { position: absolute; left: 0; right: 0; top: 0; height: 2.6mm; background: var(--part, var(--navy)); }
+.page .tab { background: var(--part, var(--navy)); }
+.part-dot { display: inline-block; width: 2.2mm; height: 2.2mm; border-radius: 50%; background: var(--part, var(--navy));
+  margin-right: 1.6mm; vertical-align: .1mm; }
+footer span:last-child { color: var(--part, var(--navy)); }
+.for { border-color: var(--part, var(--line)); background: var(--part-soft, transparent); color: var(--ink); }
+.for b { color: var(--part, var(--navy)); }
+h1 { font-size: 25pt; }
+.lead { font-size: 11pt; margin-bottom: 4mm; max-width: none; }
+h2.sec { margin-top: 6mm; padding-top: 4mm; }
+h2 .chip { background: var(--part-soft, var(--blue-soft)); color: var(--part, var(--navy)); }
+/* pictures: full width by default, with a little more presence */
+.shot .clip { border-radius: 2.6mm; }
+.narrow { width: 82%; margin: 0 auto; }
+.inline-fig { display: grid; grid-template-columns: 34mm 1fr; gap: 6mm; align-items: center; margin-bottom: 3mm; }
+.inline-fig .steps { margin-top: 0; }
+.split.wide { grid-template-columns: 1.7fr 1fr; gap: 8mm; }
+.pair.even { grid-template-columns: 62mm 54mm 1fr; gap: 8mm; }
+.sec + .facts { border-top: 0; padding-top: 0; margin-top: 0; }
+.pair.even .shot { width: 100%; }
+.cols2.figs { margin-top: 5mm; align-items: start; }
+/* captions: short lines in columns under the picture they belong to */
+.steps.caps { gap: 1.8mm 6mm; margin-top: 3mm; font-size: 9.4pt; line-height: 1.35; }
+.steps.caps li { align-items: center; gap: 2.2mm; }
+.steps.caps.c2 { grid-template-columns: 1fr 1fr; } .steps.caps.c3 { grid-template-columns: repeat(3, 1fr); }
+.steps.caps.c4 { grid-template-columns: repeat(4, 1fr); } .steps.caps.c5 { grid-template-columns: repeat(5, auto); justify-content: start; }
+.steps.caps + .steps.caps { margin-top: 1.8mm; }
+.shot + .steps.caps { margin-top: 3mm; }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin-top: 5mm; padding-top: 4mm;
+  border-top: .6pt solid var(--line); font-size: 9.2pt; line-height: 1.4; color: var(--muted); }
+.facts:has(> p:nth-child(2):last-child) { grid-template-columns: 1fr 1fr; }
+.facts b { color: var(--ink); }
+.note { margin-top: 3.5mm; padding: 2.4mm 3.6mm; border-radius: 2mm; }
+.d.plain { background: var(--bg); } .d.plain h3 { color: var(--navy); }
+.d h3 { margin-bottom: .8mm; }
+.howto.first { margin: 0 0 2mm; }
+.gloss { grid-template-columns: 62mm 1fr; font-size: 9.4pt; }
+.gloss dt, .gloss dd { padding: 1.5mm 0; }
 /* The cover picture bleeds off the page, so it carries no markers: one at the edge would be cut in half. */
 .cover-shot .ring, .cover-shot .badge { display: none; }
 .tag.violet { background: #efe7ff; color: #4a1d9e; }

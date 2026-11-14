@@ -165,6 +165,54 @@ p + p { margin-top: 2mm; }
   background: linear-gradient(to bottom, rgba(11,31,77,0), var(--navy)); }
 .cover-foot .k { display: block; font-size: 7.5pt; color: #9fb0d6; font-weight: 600; margin-bottom: .6mm; }
 
+/* ---- 2026-11-15 pass: the pictures lead, each part has a colour, captions are short ---- */
+.page[data-part="1"] { --part: #1b5fe4; --part-soft: #e3ecff; }
+.page[data-part="2"] { --part: #0b7a5c; --part-soft: #dff3ec; }
+.page[data-part="3"] { --part: #6a2bd9; --part-soft: #efe7ff; }
+.page[data-part="4"] { --part: #b4266a; --part-soft: #fbe6ef; }
+.page[data-part="5"] { --part: #c2410c; --part-soft: #fdeadd; }
+.page[data-part="6"] { --part: #3d4a63; --part-soft: #e8ebf1; }
+.toc-part[data-part="1"] .toc-num { background: #1b5fe4; } .toc-part[data-part="2"] .toc-num { background: #0b7a5c; }
+.toc-part[data-part="3"] .toc-num { background: #6a2bd9; } .toc-part[data-part="4"] .toc-num { background: #b4266a; }
+.toc-part[data-part="5"] .toc-num { background: #c2410c; } .toc-part[data-part="6"] .toc-num { background: #3d4a63; }
+.band { position: absolute; left: 0; right: 0; top: 0; height: 2.6mm; background: var(--part, var(--navy)); }
+.page .tab { background: var(--part, var(--navy)); }
+.part-dot { display: inline-block; width: 2.2mm; height: 2.2mm; border-radius: 50%; background: var(--part, var(--navy));
+  margin-right: 1.6mm; vertical-align: .1mm; }
+footer span:last-child { color: var(--part, var(--navy)); }
+.for { border-color: var(--part, var(--line)); background: var(--part-soft, transparent); color: var(--ink); }
+.for b { color: var(--part, var(--navy)); }
+h1 { font-size: 25pt; }
+.lead { font-size: 11pt; margin-bottom: 4mm; max-width: none; }
+h2.sec { margin-top: 6mm; padding-top: 4mm; }
+h2 .chip { background: var(--part-soft, var(--blue-soft)); color: var(--part, var(--navy)); }
+/* pictures: full width by default, with a little more presence */
+.shot .clip { border-radius: 2.6mm; }
+.narrow { width: 82%; margin: 0 auto; }
+.inline-fig { display: grid; grid-template-columns: 34mm 1fr; gap: 6mm; align-items: center; margin-bottom: 3mm; }
+.inline-fig .steps { margin-top: 0; }
+.split.wide { grid-template-columns: 1.7fr 1fr; gap: 8mm; }
+.pair.even { grid-template-columns: 62mm 54mm 1fr; gap: 8mm; }
+.sec + .facts { border-top: 0; padding-top: 0; margin-top: 0; }
+.pair.even .shot { width: 100%; }
+.cols2.figs { margin-top: 5mm; align-items: start; }
+/* captions: short lines in columns under the picture they belong to */
+.steps.caps { gap: 1.8mm 6mm; margin-top: 3mm; font-size: 9.4pt; line-height: 1.35; }
+.steps.caps li { align-items: center; gap: 2.2mm; }
+.steps.caps.c2 { grid-template-columns: 1fr 1fr; } .steps.caps.c3 { grid-template-columns: repeat(3, 1fr); }
+.steps.caps.c4 { grid-template-columns: repeat(4, 1fr); } .steps.caps.c5 { grid-template-columns: repeat(5, auto); justify-content: start; }
+.steps.caps + .steps.caps { margin-top: 1.8mm; }
+.shot + .steps.caps { margin-top: 3mm; }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin-top: 5mm; padding-top: 4mm;
+  border-top: .6pt solid var(--line); font-size: 9.2pt; line-height: 1.4; color: var(--muted); }
+.facts:has(> p:nth-child(2):last-child) { grid-template-columns: 1fr 1fr; }
+.facts b { color: var(--ink); }
+.note { margin-top: 3.5mm; padding: 2.4mm 3.6mm; border-radius: 2mm; }
+.d.plain { background: var(--bg); } .d.plain h3 { color: var(--navy); }
+.d h3 { margin-bottom: .8mm; }
+.howto.first { margin: 0 0 2mm; }
+.gloss { grid-template-columns: 62mm 1fr; font-size: 9.4pt; }
+.gloss dt, .gloss dd { padding: 1.5mm 0; }
 /* The cover picture bleeds off the page, so it carries no markers: one at the edge would be cut in half. */
 .cover-shot .ring, .cover-shot .badge { display: none; }
 .tag.violet { background: #efe7ff; color: #4a1d9e; }
@@ -181,7 +229,7 @@ p + p { margin-top: 2mm; }
 <div class="webbar"><b>Culturals · Guide for club officials</b>
 <a href="Culturals-guide-for-club-officials.pdf">Download the PDF</a><a href="../">All guides</a>
 <span>Pilot · November 2026</span></div>
-<section class="page cover">
+<section class="page cover" data-part="0">
 <div class="cover-top">
   <div class="wordmark">Culturals</div>
   <div class="cover-kind">Clubs &amp; events at your college</div>
@@ -189,408 +237,255 @@ p + p { margin-top: 2mm; }
 <div class="cover-main">
   <h1>Guide for club officials</h1>
   <p class="cover-sub">For every club's <b>President</b>, <b>Vice-President</b>, <b>Secretary</b> and
-  <b>Treasurer</b>. Every page you use, step by step: proposing, budgets, approvals, the door and the report.</p>
+  <b>Treasurer</b>. Every screen you use, in pictures.</p>
 </div>
 <div class="cover-shot"><figure class="shot "><div class="frame" style="aspect-ratio:1020/830"><div class="clip"><img src="shots/events.png" alt="" style="width:125.4902%;left:-24.5098%;top:-7.2289%"></div><span class="ring" style="left:86.135%;top:7.470%;width:12.198%;height:6.024%"><b class="badge at-l">1</b></span><span class="ring" style="left:24.956%;top:94.458%;width:15.363%;height:5.060%"><b class="badge at-l">3</b></span><span class="ring" style="left:40.123%;top:64.458%;width:7.328%;height:5.060%"><b class="badge at-l">4</b></span></div></figure></div>
 <div class="cover-foot">
   <div><span class="k">Open the app</span><b>culturals-clubs-events.vercel.app</b></div>
   <div><span class="k">Edition</span><b>Pilot · November 2026</b></div>
 </div>
-</section><section class="page ">
+</section><section class="page " data-part="0">
 <h1 class="solo">Contents</h1>
-<div class="toc"><div class="toc-part"><div class="toc-num">1</div><div><h2>Getting started</h2><div class="toc-row"><span>Who does what</span><i></i><b>3</b></div><div class="toc-row"><span>Sign in and find your way</span><i></i><b>4</b></div></div></div><div class="toc-part"><div class="toc-num">2</div><div><h2>Proposing an event</h2><div class="toc-row"><span>Club events</span><i></i><b>5</b></div><div class="toc-row"><span>Propose a new event</span><i></i><b>6</b></div><div class="toc-row"><span>The budget and the proposal document</span><i></i><b>7</b></div></div></div><div class="toc-part"><div class="toc-num">3</div><div><h2>Approval and changes</h2><div class="toc-row"><span>Following your proposal</span><i></i><b>8</b></div><div class="toc-row"><span>Notifications</span><i></i><b>9</b></div><div class="toc-row"><span>When an approver changes something</span><i></i><b>10</b></div><div class="toc-row"><span>Returned for changes</span><i></i><b>11</b></div><div class="toc-row"><span>Rejected</span><i></i><b>12</b></div><div class="toc-row"><span>The calendar</span><i></i><b>13</b></div></div></div><div class="toc-part"><div class="toc-num">4</div><div><h2>Budget</h2><div class="toc-row"><span>Build the budget</span><i></i><b>14</b></div><div class="toc-row"><span>After approval: spend and receipts</span><i></i><b>15</b></div></div></div><div class="toc-part"><div class="toc-num">5</div><div><h2>Event day and after</h2><div class="toc-row"><span>Open the door</span><i></i><b>16</b></div><div class="toc-row"><span>Check people in</span><i></i><b>17</b></div><div class="toc-row"><span>The post-event report</span><i></i><b>18</b></div></div></div><div class="toc-part"><div class="toc-num">6</div><div><h2>Members and help</h2><div class="toc-row"><span>Members, roles and join requests</span><i></i><b>19</b></div><div class="toc-row"><span>Tags and statuses</span><i></i><b>20</b></div><div class="toc-row"><span>Quick answers</span><i></i><b>21</b></div></div></div></div>
-<div class="howto">
+<div class="howto first">
   <h2>How to read the pictures</h2>
   <div class="legend">
-    <div><span class="ring demo"><b class="badge at-l">1</b></span><p><b>Amber ring: click or type here.</b> The number matches the step next to the picture.</p></div>
-    <div><b class="pin static">1</b><p><b>Blue dot: look here.</b> It points out part of the page. Nothing to click. Pictures are from the pilot, with made-up names.</p></div>
+    <div><span class="ring demo"><b class="badge at-l">1</b></span><p><b>Amber ring: click or type here.</b> The number matches the caption under the picture.</p></div>
+    <div><b class="pin static">1</b><p><b>Blue dot: look here.</b> Nothing to click. Each part has its own colour on the page edge.</p></div>
   </div>
 </div>
-<footer><span>Culturals · Guide for club officials</span><span>2</span></footer></section><section class="page ">
+<div class="toc"><div class="toc-part" data-part="1"><div class="toc-num">1</div><div><h2>Getting started</h2><div class="toc-row"><span>Who does what</span><i></i><b>3</b></div><div class="toc-row"><span>Sign in and find your way</span><i></i><b>4</b></div></div></div><div class="toc-part" data-part="2"><div class="toc-num">2</div><div><h2>Proposing an event</h2><div class="toc-row"><span>Club events</span><i></i><b>5</b></div><div class="toc-row"><span>Propose a new event</span><i></i><b>6</b></div><div class="toc-row"><span>The budget and the proposal document</span><i></i><b>7</b></div></div></div><div class="toc-part" data-part="3"><div class="toc-num">3</div><div><h2>Approval and changes</h2><div class="toc-row"><span>Following your proposal</span><i></i><b>8</b></div><div class="toc-row"><span>Notifications</span><i></i><b>9</b></div><div class="toc-row"><span>When an approver changes something</span><i></i><b>10</b></div><div class="toc-row"><span>Returned for changes</span><i></i><b>11</b></div><div class="toc-row"><span>Rejected</span><i></i><b>12</b></div><div class="toc-row"><span>The calendar</span><i></i><b>13</b></div></div></div><div class="toc-part" data-part="4"><div class="toc-num">4</div><div><h2>Budget</h2><div class="toc-row"><span>Build the budget</span><i></i><b>14</b></div><div class="toc-row"><span>After approval: spend and receipts</span><i></i><b>15</b></div></div></div><div class="toc-part" data-part="5"><div class="toc-num">5</div><div><h2>Event day and after</h2><div class="toc-row"><span>Open the door</span><i></i><b>16</b></div><div class="toc-row"><span>Check people in</span><i></i><b>17</b></div><div class="toc-row"><span>The post-event report</span><i></i><b>18</b></div></div></div><div class="toc-part" data-part="6"><div class="toc-num">6</div><div><h2>Members and help</h2><div class="toc-row"><span>Members, roles and join requests</span><i></i><b>19</b></div><div class="toc-row"><span>Tags and statuses</span><i></i><b>20</b></div><div class="toc-row"><span>Quick answers</span><i></i><b>21</b></div></div></div></div>
+<footer><span>Culturals · Guide for club officials</span><span>2</span></footer></section><section class="page " data-part="1">
 <header class="title"><h1>Who does what</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">A club runs an event in four stages. <b>Each stage leaves a record</b>, so the semester
-report is built from the app and nobody collects it by hand.</p>
+<p class="lead">An event goes through five stages. <b>Each one leaves a record.</b></p>
 <div class="route">
-  <div class="stop"><b>Propose</b><span>event, proposal document, budget</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop strong"><b>Approval</b><span>Cultural Society, Dean, sometimes the Vice-Chancellor</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop"><b>Published</b><span>students register and get a pass</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop"><b>Event day</b><span>passes scanned at the door</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop end"><b>Reported</b><span>report in, bills attached, budget settled</span></div>
+  <div class="stop"><b>Propose</b><span>event, document, budget</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop strong"><b>Approval</b><span>Society, Dean, sometimes the VC</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop"><b>Published</b><span>students register</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop"><b>Event day</b><span>passes scanned</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop end"><b>Reported</b><span>report, bills, settled</span></div>
 </div>
 
 <h2 class="sec">What each office bearer can do</h2>
 <table class="who">
-  <thead><tr><th>Task</th><th>President</th><th>Vice-President</th><th>Secretary</th><th>Treasurer</th><th>See page</th></tr></thead>
+  <thead><tr><th>Task</th><th>President</th><th>Vice-President</th><th>Secretary</th><th>Treasurer</th><th>Page</th></tr></thead>
   <tbody>
-    <tr><td><b>Propose an event</b> <span class="muted">· and send it for approval</span></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>6</td></tr>
+    <tr><td><b>Propose an event</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>6</td></tr>
     <tr><td><b>Attach the proposal document</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>7</td></tr>
-    <tr><td><b>Build the budget</b> <span class="muted">· lines or an uploaded sheet</span></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>14</td></tr>
+    <tr><td><b>Build the budget</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>14</td></tr>
     <tr><td><b>Enter spend, attach bills, settle</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>15</td></tr>
-    <tr><td><b>Go live and close the event</b> <span class="muted">· the post-event report</span></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>18</td></tr>
     <tr><td><b>Scan passes at the door</b> <span class="muted">· core team too</span></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>16</td></tr>
-    <tr><td><b>See the calendar, book the Wednesday open block</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>13</td></tr>
+    <tr><td><b>Go live, send the post-event report</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>18</td></tr>
+    <tr><td><b>Calendar and the Wednesday open block</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>13</td></tr>
     <tr><td><b>Assign roles, accept join requests</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>19</td></tr>
   </tbody>
 </table>
-<div class="rules">
-  <p><b>Nobody in the club approves the club's own proposal</b>, and nobody in the club can move an event's
-  time or venue once it is sent. The approvers do that, and you are told when they do.</p>
-  <p><b>Plain members</b> see the club's events and roster. They never see budgets or the proposal document.</p>
-</div>
-<div class="tab" style="top:22mm;height:41mm"><b>1</b><span>Getting started</span></div><footer><span>Part 1 · Getting started</span><span>3</span></footer></section><section class="page ">
+<div class="facts"><p><b>Nobody approves their own club's proposal.</b> Approvers do, and you are told what they decide.</p><p><b>Nobody in the club moves a sent event.</b> Only the Cultural Society and the Dean can.</p><p><b>Plain members</b> see events and the roster, never budgets or the proposal.</p></div>
+<div class="band"></div><div class="tab" style="top:22mm;height:41mm"><b>1</b><span>Getting started</span></div><footer><span><b class="part-dot"></b>Part 1 · Getting started</span><span>3</span></footer></section><section class="page " data-part="1">
 <header class="title"><h1>Sign in and find your way</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">Use your <b>college email and password</b>. Office bearers do not need an authenticator code;
-only approvers do.</p>
-<div class="split menu-split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:432/493"><div class="clip"><img src="shots/signin.png" alt="The sign-in form" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:10.185%;top:28.195%;width:79.630%;height:10.142%"><b class="badge at-l">1</b></span><span class="ring" style="left:10.185%;top:44.016%;width:79.630%;height:10.142%"><b class="badge at-l">2</b></span><span class="ring" style="left:10.185%;top:62.880%;width:79.630%;height:11.765%"><b class="badge at-l">3</b></span></div></figure>
+<p class="lead">Your <b>college email and password</b>. No authenticator code: only approvers need one.</p>
+<div class="pair even">
   <div>
-    <ol class="steps click"><li><b class="badge inline">1</b><div>Type your <b>institutional email</b>.</div></li><li><b class="badge inline">2</b><div>Type your <b>password</b>.</div></li><li><b class="badge inline">3</b><div>Click <b>Sign in</b>.</div></li></ol>
-    <p class="note"><b>On the pilot:</b> every account's password is <b>culturals-demo</b>. The sign-in page lists
-    one pilot account per role.</p>
+    <figure class="shot "><div class="frame" style="aspect-ratio:432/493"><div class="clip"><img src="shots/signin.png" alt="The sign-in form" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:10.185%;top:28.195%;width:79.630%;height:10.142%"><b class="badge at-l">1</b></span><span class="ring" style="left:10.185%;top:44.016%;width:79.630%;height:10.142%"><b class="badge at-l">2</b></span><span class="ring" style="left:10.185%;top:62.880%;width:79.630%;height:11.765%"><b class="badge at-l">3</b></span></div></figure>
+    <ol class="steps caps c1 click"><li><b class="badge inline">1</b><div><b>Email</b></div></li><li><b class="badge inline">2</b><div><b>Password</b></div></li><li><b class="badge inline">3</b><div><b>Sign in</b></div></li></ol>
+    <p class="note">On the pilot every password is <b>culturals-demo</b>.</p>
+  </div>
+  <div>
+    <figure class="shot menu"><div class="frame" style="aspect-ratio:240/420"><div class="clip"><img src="shots/menu.png" alt="The club part of a President's menu" style="width:100.0000%;left:0.0000%;top:-88.0952%"></div><i class="leader side-l" style="top:8.571%;left:0;width:5.000%"></i><b class="pin side-l" style="top:8.571%;left:0">1</b><i class="leader side-l" style="top:19.524%;left:0;width:5.000%"></i><b class="pin side-l" style="top:19.524%;left:0">2</b><i class="leader side-l" style="top:30.476%;left:0;width:5.000%"></i><b class="pin side-l" style="top:30.476%;left:0">3</b><i class="leader side-l" style="top:41.429%;left:0;width:5.000%"></i><b class="pin side-l" style="top:41.429%;left:0">4</b><i class="leader side-l" style="top:52.381%;left:0;width:5.000%"></i><b class="pin side-l" style="top:52.381%;left:0">5</b><i class="leader side-l" style="top:72.381%;left:0;width:5.000%"></i><b class="pin side-l" style="top:72.381%;left:0">6</b><i class="leader side-l" style="top:92.381%;left:0;width:5.000%"></i><b class="pin side-l" style="top:92.381%;left:0">7</b></div></figure>
+  </div>
+  <div>
+    <h2 class="mini">Your menu</h2>
+    <ol class="steps caps c1 look"><li><b class="pin inline">1</b><div><b>Club events</b> · everything your club proposed</div></li><li><b class="pin inline">2</b><div><b>New event</b> · propose one</div></li><li><b class="pin inline">3</b><div><b>Budget</b> · not for the Secretary</div></li><li><b class="pin inline">4</b><div><b>Members &amp; roles</b> · the roster</div></li><li><b class="pin inline">5</b><div><b>Join requests</b> · President, Vice-President</div></li><li><b class="pin inline">6</b><div><b>Scan station</b> · the door</div></li><li><b class="pin inline">7</b><div><b>Calendar</b> · President, Vice-President</div></li></ol>
   </div>
 </div>
-
-<h2 class="sec">Your menu</h2>
-<div class="split menu-split">
-  <figure class="shot menu"><div class="frame" style="aspect-ratio:240/420"><div class="clip"><img src="shots/menu.png" alt="The club part of a President's menu" style="width:100.0000%;left:0.0000%;top:-88.0952%"></div><i class="leader side-l" style="top:8.571%;left:0;width:5.000%"></i><b class="pin side-l" style="top:8.571%;left:0">1</b><i class="leader side-l" style="top:19.524%;left:0;width:5.000%"></i><b class="pin side-l" style="top:19.524%;left:0">2</b><i class="leader side-l" style="top:30.476%;left:0;width:5.000%"></i><b class="pin side-l" style="top:30.476%;left:0">3</b><i class="leader side-l" style="top:41.429%;left:0;width:5.000%"></i><b class="pin side-l" style="top:41.429%;left:0">4</b><i class="leader side-l" style="top:52.381%;left:0;width:5.000%"></i><b class="pin side-l" style="top:52.381%;left:0">5</b><i class="leader side-l" style="top:72.381%;left:0;width:5.000%"></i><b class="pin side-l" style="top:72.381%;left:0">6</b><i class="leader side-l" style="top:92.381%;left:0;width:5.000%"></i><b class="pin side-l" style="top:92.381%;left:0">7</b></div></figure>
-  <div>
-    <p>The <b>Club</b> part of the menu is what this guide covers. This is a <b>President's</b> menu;
-    you see only the pages your role has.</p>
-    <ol class="steps look"><li><b class="pin inline">1</b><div><b>Club events</b>: every event your club has proposed. You will use this most.</div></li><li><b class="pin inline">2</b><div><b>New event</b>: propose one.</div></li><li><b class="pin inline">3</b><div><b>Budget</b>: every budget, from draft to settled. Not for the Secretary.</div></li><li><b class="pin inline">4</b><div><b>Members &amp; roles</b>: the roster. Presidents and Vice-Presidents assign roles.</div></li><li><b class="pin inline">5</b><div><b>Join requests</b>: students waiting to join. President and Vice-President.</div></li><li><b class="pin inline">6</b><div><b>Scan station</b>: the door on event day.</div></li><li><b class="pin inline">7</b><div><b>Calendar</b>: every venue booking. President and Vice-President.</div></li></ol>
-  </div>
-</div>
-<p class="note">The pages above <b>Club</b> (Feed, What's on, My passes, Profile QR, Clubs) are the student pages
-everyone has.</p>
-<div class="tab" style="top:22mm;height:41mm"><b>1</b><span>Getting started</span></div><footer><span>Part 1 · Getting started</span><span>4</span></footer></section><section class="page ">
+<p class="note">You see only the pages your role has. The pages above <b>Club</b> are the student pages everyone has.</p>
+<div class="band"></div><div class="tab" style="top:22mm;height:41mm"><b>1</b><span>Getting started</span></div><footer><span><b class="part-dot"></b>Part 1 · Getting started</span><span>4</span></footer></section><section class="page " data-part="2">
 <header class="title"><h1>Club events</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">Every event your club has proposed, newest first.</p>
-<div style="width:86%;margin:0 auto"><figure class="shot "><div class="frame" style="aspect-ratio:1020/840"><div class="clip"><img src="shots/events.png" alt="Club events for the Music Club" style="width:125.4902%;left:-24.5098%;top:-7.1429%"></div><span class="ring" style="left:86.135%;top:7.381%;width:12.198%;height:5.952%"><b class="badge at-l">1</b></span><span class="ring" style="left:24.956%;top:93.333%;width:15.363%;height:5.000%"><b class="badge at-l">3</b></span><span class="ring" style="left:40.123%;top:63.690%;width:7.328%;height:5.000%"><b class="badge at-l">4</b></span></div></figure></div>
-<div class="cols2">
-  <ol class="steps click"><li><b class="badge inline">1</b><div><b>New event</b> starts a proposal.</div></li><li><b class="badge inline">3</b><div><b>Send for approval</b> appears on a draft or a returned proposal once it has a budget.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">4</b><div><b>Open</b> shows the event's page: its approval trail, budget, proposal document and report.</div></li></ol>
-</div>
-<div class="cols3">
-  <div><h2 class="mini">The two labels on a card</h2><p>The first is the <b>event's status</b> (Draft, Awaiting approval,
-  Published…). The second is the <b>budget's stage</b> (With the Cultural Society, Sanctioned, Settled…).</p></div>
-  <div><h2 class="mini">The tabs</h2><p><b>Drafts</b> are not sent yet. <b>With approvers</b> are waiting for a decision.
-  <b>Upcoming</b> are approved. <b>Past</b> have run.</p></div>
-  <div><h2 class="mini">The bar</h2><p>How many students have registered, out of the capacity, and what was requested.</p></div>
-</div>
-
-<h2 class="sec">Wednesday open block <span class="chip">President · Vice-President</span></h2>
-<p>The card at the top of the page. Choose a <b>venue</b> for the 3–4 pm or the 4–5 pm hour and click <b>Book</b>:
-it is yours at once. <b>No proposal, no budget, no approval.</b> First come, first served, and <b>one slot per
-club each Wednesday</b>.</p>
-<div class="tab" style="top:65mm;height:41mm"><b>2</b><span>Proposing an event</span></div><footer><span>Part 2 · Proposing an event</span><span>5</span></footer></section><section class="page ">
+<p class="lead">Everything your club has proposed, newest first.</p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1020/840"><div class="clip"><img src="shots/events.png" alt="Club events for the Music Club" style="width:125.4902%;left:-24.5098%;top:-7.1429%"></div><span class="ring" style="left:86.135%;top:7.381%;width:12.198%;height:5.952%"><b class="badge at-l">1</b></span><span class="ring" style="left:24.956%;top:93.333%;width:15.363%;height:5.000%"><b class="badge at-l">3</b></span><span class="ring" style="left:40.123%;top:63.690%;width:7.328%;height:5.000%"><b class="badge at-l">4</b></span></div></figure>
+<ol class="steps caps c3 click"><li><b class="badge inline">1</b><div><b>New event</b> starts a proposal</div></li><li><b class="badge inline">3</b><div><b>Send for approval</b> on a draft or returned proposal</div></li><li><b class="badge inline">4</b><div><b>Open</b> the event's page</div></li></ol>
+<div class="facts"><p><b>Two labels on a card.</b> The event's status, then the budget's stage.</p><p><b>Tabs.</b> Drafts, With approvers, Upcoming, Past.</p><p><b>Wednesday open block.</b> The card on top: pick a venue, click Book. No proposal needed; one slot per club. President and Vice-President.</p></div>
+<div class="band"></div><div class="tab" style="top:65mm;height:41mm"><b>2</b><span>Proposing an event</span></div><footer><span><b class="part-dot"></b>Part 2 · Proposing an event</span><span>5</span></footer></section><section class="page " data-part="2">
 <header class="title"><h1>Propose a new event</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">One form. <b>Fill it top to bottom, attach the proposal, choose how the budget comes in,</b>
-then send it or save it as a draft.</p>
-<div class="split tall">
-  <figure class="shot "><div class="frame" style="aspect-ratio:1020/819"><div class="clip"><img src="shots/new-event.png" alt="The New event form, filled in" style="width:125.4902%;left:-24.5098%;top:-7.3260%"></div><span class="ring" style="left:3.725%;top:31.964%;width:57.647%;height:6.105%"><b class="badge at-l">1</b></span><span class="ring" style="left:32.843%;top:41.522%;width:28.529%;height:6.105%"><b class="badge at-l">2</b></span><span class="ring" style="left:3.725%;top:67.476%;width:18.676%;height:6.105%"><b class="badge at-l">3</b></span><span class="ring" style="left:3.725%;top:81.588%;width:28.529%;height:6.105%"><b class="badge at-l">4</b></span><span class="ring" style="left:66.078%;top:31.807%;width:30.196%;height:6.105%"><b class="badge at-t">5</b></span><span class="ring" style="left:66.078%;top:42.796%;width:30.196%;height:7.326%"><b class="badge at-r">6</b></span><span class="ring" style="left:66.078%;top:70.635%;width:30.196%;height:7.326%"><b class="badge at-r">7</b></span><span class="ring" style="left:66.078%;top:86.020%;width:30.196%;height:6.105%"><b class="badge at-r">8</b></span></div></figure>
-  <div>
-    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Title</b>, and the kind of event.</div></li><li><b class="badge inline">2</b><div><b>Venue.</b> Each option shows how many it seats.</div></li><li><b class="badge inline">3</b><div><b>Start date and hours.</b> Venues are booked in whole hours.</div></li><li><b class="badge inline">4</b><div><b>Capacity</b> fills in from the venue you chose. <b>Lower it</b> if you are admitting fewer.</div></li><li><b class="badge inline">5</b><div><b>Budget.</b> Pick a template, <b>Upload the budget sheet (CSV)</b>, or leave it for the Treasurer.</div></li><li><b class="badge inline">6</b><div><b>Budget sheet.</b> Appears when you choose to upload.</div></li><li><b class="badge inline">7</b><div><b>Proposal document.</b> A PDF or Word file, up to 10 MB.</div></li><li><b class="badge inline">8</b><div><b>Propose and send</b> sends it for approval. With no budget chosen the button reads <b>Save draft</b>.</div></li></ol>
-    <div class="aside"><h2 class="mini">If two events want the same hall</h2><p>A slot another club has <b>already
-    been approved for</b> is refused. A slot another club has only <b>asked for</b> is allowed, and the approvers
-    see the clash. One of the two will be moved.</p></div>
-  </div>
-</div>
-<div class="tab" style="top:65mm;height:41mm"><b>2</b><span>Proposing an event</span></div><footer><span>Part 2 · Proposing an event</span><span>6</span></footer></section><section class="page ">
+<p class="lead">One form, top to bottom. <b>Then send it, or save a draft.</b></p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1020/819"><div class="clip"><img src="shots/new-event.png" alt="The New event form, filled in" style="width:125.4902%;left:-24.5098%;top:-7.3260%"></div><span class="ring" style="left:3.725%;top:31.964%;width:57.647%;height:6.105%"><b class="badge at-l">1</b></span><span class="ring" style="left:32.843%;top:41.522%;width:28.529%;height:6.105%"><b class="badge at-l">2</b></span><span class="ring" style="left:3.725%;top:67.476%;width:18.676%;height:6.105%"><b class="badge at-l">3</b></span><span class="ring" style="left:3.725%;top:81.588%;width:28.529%;height:6.105%"><b class="badge at-l">4</b></span><span class="ring" style="left:66.078%;top:31.807%;width:30.196%;height:6.105%"><b class="badge at-l">5</b></span><span class="ring" style="left:66.078%;top:42.796%;width:30.196%;height:7.326%"><b class="badge at-r">6</b></span><span class="ring" style="left:66.078%;top:70.635%;width:30.196%;height:7.326%"><b class="badge at-r">7</b></span><span class="ring" style="left:66.078%;top:86.020%;width:30.196%;height:6.105%"><b class="badge at-r">8</b></span></div></figure>
+<ol class="steps caps c2 click"><li><b class="badge inline">1</b><div><b>Title</b></div></li><li><b class="badge inline">2</b><div><b>Venue</b> · shows the seats</div></li><li><b class="badge inline">3</b><div><b>Date and hours</b> · whole hours</div></li><li><b class="badge inline">4</b><div><b>Capacity</b> · filled from the venue; lower it if needed</div></li><li><b class="badge inline">5</b><div><b>Budget</b> · template, uploaded sheet, or leave to the Treasurer</div></li><li><b class="badge inline">6</b><div><b>Budget sheet</b> · a CSV</div></li><li><b class="badge inline">7</b><div><b>Proposal document</b> · PDF or Word, up to 10 MB</div></li><li><b class="badge inline">8</b><div><b>Propose and send</b> · reads <b>Save draft</b> with no budget</div></li></ol>
+<p class="note"><b>Two clubs, one hall?</b> A slot already approved for another club is refused. A slot only asked for is
+allowed; the approvers see the clash and move one.</p>
+<div class="band"></div><div class="tab" style="top:65mm;height:41mm"><b>2</b><span>Proposing an event</span></div><footer><span><b class="part-dot"></b>Part 2 · Proposing an event</span><span>6</span></footer></section><section class="page " data-part="2">
 <header class="title"><h1>The budget and the proposal document</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">A proposal is sent with <b>a document that explains it</b> and <b>a budget that prices it</b>.</p>
-
-<h2 class="mini">Three ways to give the budget</h2>
+<p class="lead">Every proposal carries <b>a document that explains it</b> and <b>a budget that prices it</b>.</p>
 <div class="decisions">
-  <div class="d ok"><h3>A template</h3><p>Choose <b>Performance, Workshop, Competition</b> or <b>Exhibition</b>. The lines are
-  priced from your expected attendance. Fastest.</p></div>
-  <div class="d ret"><h3>Upload the budget sheet</h3><p>A CSV with the columns <b>head, amount</b> (and optionally
-  <b>basis</b>). <b>Download the budget template</b> gives you the layout. President, Vice-President, Treasurer.</p></div>
-  <div class="d"><h3>The Treasurer enters it</h3><p>Choose <b>None</b>. The event is saved as a <b>draft</b> and the
-  Treasurer adds the lines on the Budget page (page 14).</p></div>
+  <div class="d ok"><h3>A template</h3><p>Performance, Workshop, Competition or Exhibition, priced from your expected attendance.</p></div>
+  <div class="d ret"><h3>Upload the budget sheet</h3><p>A CSV: <b>head, amount</b>. <b>Download the budget template</b> for the layout.</p></div>
+  <div class="d plain"><h3>The Treasurer enters it</h3><p>Choose <b>None</b>. Saved as a draft; priced on the Budget page.</p></div>
 </div>
 
-<h2 class="sec">Check the sheet before you send it</h2>
-<p>Click <b>Preview the sheet</b> to read your CSV as a table before anything is uploaded.</p>
+<h2 class="sec">Preview the sheet before sending</h2>
 <figure class="shot "><div class="frame" style="aspect-ratio:1280/230"><div class="clip"><img src="shots/sheet-preview.png" alt="Preview of a budget sheet" style="width:100.0000%;left:0.0000%;top:-243.4783%"></div><i class="leader side-l" style="top:67.391%;left:0;width:1.641%"></i><b class="pin side-l" style="top:67.391%;left:0">1</b></div></figure>
-<div class="cols2">
-  <ol class="steps look"><li><b class="pin inline">1</b><div>Each row becomes one budget line.</div></li></ol>
-  <p class="note"><b>Every row is checked.</b> If one row is wrong, nothing is imported, the event is kept as a
-  draft, and you are told which row to fix.</p>
-</div>
+<ol class="steps caps c1 look"><li><b class="pin inline">1</b><div><b>Each row is one budget line.</b> One wrong row and nothing is imported; you are told which.</div></li></ol>
 
 <h2 class="sec">The proposal document</h2>
-<div class="cols3">
-  <div><h2 class="mini">Who reads it</h2><p>Your club's office bearers, the <b>Cultural Society</b>, the <b>Dean</b> and the
-  <b>Vice-Chancellor</b>. <b>Students and plain members never see it.</b></p></div>
-  <div><h2 class="mini">Reading it in the app</h2><p>Click the file name on the event page. A <b>PDF</b> opens in the
-  page; a <b>Word .docx</b> shows as its text. An old <b>.doc</b> can only be downloaded.</p></div>
-  <div><h2 class="mini">Changing it</h2><p>Replace it while the event is a <b>draft</b> or <b>returned</b>. Once sent, it is
-  <b>locked</b>, so approvers read what you sent.</p></div>
-</div>
-<div class="tab" style="top:65mm;height:41mm"><b>2</b><span>Proposing an event</span></div><footer><span>Part 2 · Proposing an event</span><span>7</span></footer></section><section class="page ">
+<div class="facts"><p><b>Who reads it.</b> Your office bearers, the Cultural Society, the Dean, the Vice-Chancellor. Never students.</p><p><b>In the app.</b> Click the file name: a PDF opens in the page, a .docx shows as text.</p><p><b>Locked once sent.</b> Replace it only while the event is a draft or returned.</p></div>
+<div class="band"></div><div class="tab" style="top:65mm;height:41mm"><b>2</b><span>Proposing an event</span></div><footer><span><b class="part-dot"></b>Part 2 · Proposing an event</span><span>7</span></footer></section><section class="page " data-part="3">
 <header class="title"><h1>Following your proposal</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">Open the event from <b>Club events</b>. <b>The page tells you where the proposal is and what
-happened to it.</b></p>
+<p class="lead">Open the event from <b>Club events</b>. The page shows where it is.</p>
 <figure class="shot "><div class="frame" style="aspect-ratio:1020/740"><div class="clip"><img src="shots/event-top.png" alt="An event that is awaiting approval" style="width:125.4902%;left:-24.5098%;top:-8.1081%"></div><i class="leader side-l" style="top:12.432%;left:0;width:42.279%"></i><b class="pin side-l" style="top:12.432%;left:0">1</b><i class="leader side-l" style="top:40.743%;left:0;width:4.216%"></i><b class="pin side-l" style="top:40.743%;left:0">2</b><span class="ring" style="left:52.549%;top:53.446%;width:12.555%;height:5.676%"><b class="badge at-l">3</b></span><i class="leader side-l" style="top:73.176%;left:0;width:4.216%"></i><b class="pin side-l" style="top:73.176%;left:0">4</b></div></figure>
-<ol class="steps look"><li><b class="pin inline">1</b><div><b>Status.</b> <b>Awaiting approval</b> means an approver has it.</div></li><li><b class="pin inline">2</b><div><b>When and where.</b> If an approver moved it, the old value is struck through (page 10).</div></li><li><b class="pin inline">3</b><div><b>Open budget</b> shows every line and what was sanctioned.</div></li><li><b class="pin inline">4</b><div><b>Proposal document.</b> Click the file name to read it.</div></li></ol>
-
-<h2 class="sec">The approval route</h2>
+<ol class="steps caps c2 look"><li><b class="pin inline">1</b><div><b>Status</b> · an approver has it</div></li><li><b class="pin inline">2</b><div><b>When and where</b> · struck through if moved</div></li><li><b class="pin inline">3</b><div><b>Open budget</b> · every line</div></li><li><b class="pin inline">4</b><div><b>Proposal document</b> · click to read</div></li></ol>
+<h2 class="sec">The route</h2>
 <div class="route">
   <div class="stop"><b>Club</b><span>you send it</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop"><b>Cultural Society</b><span>its Secretary or Vice-Secretary</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop strong"><b>Dean</b><span>every event; may lower a budget line</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop"><b>Vice-Chancellor</b><span>only over <b>₹50,000</b> or part of a fest</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
-  <div class="stop end"><b>Published</b><span>students can register</span></div>
+  <div class="stop"><b>Cultural Society</b><span>Secretary or Vice-Secretary</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop strong"><b>Dean</b><span>every event</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop"><b>Vice-Chancellor</b><span>over <b>₹50,000</b> or a fest</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop end"><b>Published</b><span>students register</span></div>
 </div>
-<div class="rules">
-  <p><b>Each approver can approve, return for changes, or reject.</b> To return or reject they must write a
-  comment, and you see it.</p>
-  <p><b>While it is with an approver you cannot edit it.</b> That way they approve exactly what they read.</p>
-</div>
-<div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span>Part 3 · Approval and changes</span><span>8</span></footer></section><section class="page ">
+<p class="note">Each approver can <b>approve</b>, <b>return for changes</b> or <b>reject</b>. While they have it, you cannot edit it.</p>
+<div class="band"></div><div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span><b class="part-dot"></b>Part 3 · Approval and changes</span><span>8</span></footer></section><section class="page " data-part="3">
 <header class="title"><h1>Notifications</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">Every decision and every change an approver makes <b>reaches you twice: in the app, and by email</b>
-to your institutional address.</p>
-<div class="split menu-split">
+<p class="lead">Every decision and change reaches you <b>in the app and by email</b>.</p>
+<div class="inline-fig">
   <figure class="shot "><div class="frame" style="aspect-ratio:200/64"><div class="clip"><img src="shots/bell.png" alt="The bell in the top bar" style="width:260.0000%;left:-60.0000%;top:0.0000%"></div><span class="ring" style="left:24.156%;top:17.188%;width:21.000%;height:65.625%"><b class="badge at-l">1</b></span></div></figure>
-  <ol class="steps click"><li><b class="badge inline">1</b><div>The <b>bell</b> in the top bar shows how many you have not read. Click it.</div></li></ol>
+  <ol class="steps caps c1 click"><li><b class="badge inline">1</b><div>Click the <b>bell</b>. The number is what you have not read.</div></li></ol>
 </div>
 <figure class="shot "><div class="frame" style="aspect-ratio:1020/740"><div class="clip"><img src="shots/notifications.png" alt="The Notifications page" style="width:125.4902%;left:-24.5098%;top:-8.1081%"></div><i class="leader side-l" style="top:24.054%;left:0;width:2.157%"></i><b class="pin side-l" style="top:24.054%;left:0">1</b><i class="leader side-l" style="top:32.297%;left:0;width:2.157%"></i><b class="pin side-l" style="top:32.297%;left:0">2</b><i class="leader side-l" style="top:46.622%;left:0;width:2.157%"></i><b class="pin side-l" style="top:46.622%;left:0">3</b><i class="leader side-l" style="top:66.554%;left:0;width:2.157%"></i><b class="pin side-l" style="top:66.554%;left:0">4</b><i class="leader side-l" style="top:85.608%;left:0;width:2.157%"></i><b class="pin side-l" style="top:85.608%;left:0">5</b></div></figure>
-<ol class="steps look"><li><b class="pin inline">1</b><div><b>Colour key.</b> Violet <b>A</b> is a change by the Cultural Society or the Dean. Teal <b>M</b> is the Vice-Chancellor.</div></li><li><b class="pin inline">2</b><div><b>Filters.</b> <b>Decisions</b>, or only <b>Changes by approvers</b>.</div></li><li><b class="pin inline">3</b><div><b>Venue or time changed.</b> The new slot, the old one, the reason, and who moved it.</div></li><li><b class="pin inline">4</b><div><b>Rejected</b>, with the approver's comment.</div></li><li><b class="pin inline">5</b><div><b>Returned for changes</b>, with what to fix.</div></li></ol>
-<p class="note"><b>New</b> marks what you had not read. <b>Open it</b> on a notification takes you to the event.
-Decisions go to the President, Vice-President and Treasurer; a move also goes to the Secretary and to
-every student who registered.</p>
-<div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span>Part 3 · Approval and changes</span><span>9</span></footer></section><section class="page ">
+<ol class="steps caps c2 look"><li><b class="pin inline">1</b><div><b>Colour key</b> · violet <b>A</b>: Society or Dean; teal <b>M</b>: Vice-Chancellor</div></li><li><b class="pin inline">2</b><div><b>Filters</b> · decisions, or changes by approvers</div></li><li><b class="pin inline">3</b><div><b>Venue or time changed</b> · new slot, old slot, reason, who</div></li><li><b class="pin inline">4</b><div><b>Rejected</b> · with the reason</div></li><li><b class="pin inline">5</b><div><b>Returned for changes</b> · with what to fix</div></li></ol>
+<p class="note"><b>Open it</b> takes you to the event. Decisions go to the President, Vice-President and Treasurer.</p>
+<div class="band"></div><div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span><b class="part-dot"></b>Part 3 · Approval and changes</span><span>9</span></footer></section><section class="page " data-part="3">
 <header class="title"><h1>When an approver changes something</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">Approvers can change two things: <b>when and where</b> the event is, and <b>how much money</b> it
-gets. <b>The old value is struck through and the new one is in the approver's colour.</b></p>
-
+<p class="lead"><b>Old value struck through, new value in the approver's colour.</b></p>
 <h2 class="mini">A new venue or time <span class="chip">Cultural Society officers · Dean</span></h2>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:996/710"><div class="clip"><img src="shots/event-moved.png" alt="An event page after the Cultural Society moved it" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:5.493%;left:0;width:3.112%"></i><b class="pin side-l" style="top:5.493%;left:0">1</b><i class="leader side-l" style="top:76.972%;left:0;width:7.530%"></i><b class="pin side-l" style="top:76.972%;left:0">2</b><i class="leader side-l" style="top:94.155%;left:0;width:7.530%"></i><b class="pin side-l" style="top:94.155%;left:0">3</b></div></figure>
-  <div>
-    <ol class="steps look"><li><b class="pin inline">1</b><div><b>When and where</b> shows the old slot struck out and the new one beside it.</div></li><li><b class="pin inline">2</b><div><b>Changes by approvers</b> lists each change: what it was, what it is now.</div></li><li><b class="pin inline">3</b><div><b>The reason</b> the approver gave.</div></li></ol>
-    <p class="note">The Society's Secretary and Vice-Secretary can move an event <b>while it is with the
-    Society</b>. After that, only the <b>Dean</b> can. Students who registered are told too.</p>
-  </div>
-</div>
+<div class="narrow"><figure class="shot "><div class="frame" style="aspect-ratio:996/710"><div class="clip"><img src="shots/event-moved.png" alt="An event page after the Cultural Society moved it" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:5.493%;left:0;width:3.112%"></i><b class="pin side-l" style="top:5.493%;left:0">1</b><i class="leader side-l" style="top:76.972%;left:0;width:7.530%"></i><b class="pin side-l" style="top:76.972%;left:0">2</b><i class="leader side-l" style="top:94.155%;left:0;width:7.530%"></i><b class="pin side-l" style="top:94.155%;left:0">3</b></div></figure></div>
+<ol class="steps caps c3 look"><li><b class="pin inline">1</b><div><b>When and where</b> · old slot struck, new beside it</div></li><li><b class="pin inline">2</b><div><b>What changed</b> · was, is now</div></li><li><b class="pin inline">3</b><div><b>Why</b> · the approver's reason</div></li></ol>
 
 <h2 class="sec">A smaller budget <span class="chip">Dean</span></h2>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:996/368"><div class="clip"><img src="shots/approved-trail.png" alt="An approval trail where the Dean lowered the budget" style="width:100.0000%;left:0.0000%;top:-78.8043%"></div><i class="leader side-l" style="top:19.565%;left:0;width:3.112%"></i><b class="pin side-l" style="top:19.565%;left:0">1</b><i class="leader side-l" style="top:52.582%;left:0;width:7.530%"></i><b class="pin side-l" style="top:52.582%;left:0">2</b><i class="leader side-l" style="top:81.250%;left:0;width:3.112%"></i><b class="pin side-l" style="top:81.250%;left:0">3</b></div></figure>
-  <div>
-    <ol class="steps look"><li><b class="pin inline">1</b><div><b>Cultural Society</b> approved, with a comment.</div></li><li><b class="pin inline">2</b><div><b>The Dean lowered the total.</b> Struck figure: what you asked. Violet figure: what you have.</div></li><li><b class="pin inline">3</b><div><b>Vice-Chancellor</b> approved. Their mark is the teal <b>M</b>.</div></li></ol>
-    <p class="note">The Dean can <b>lower a line, never raise it</b>. You get a notification naming each line
-    that changed. The budget page shows the lines (page 15).</p>
-  </div>
-</div>
-<div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span>Part 3 · Approval and changes</span><span>10</span></footer></section><section class="page ">
+<figure class="shot "><div class="frame" style="aspect-ratio:996/368"><div class="clip"><img src="shots/approved-trail.png" alt="An approval trail where the Dean lowered the budget" style="width:100.0000%;left:0.0000%;top:-78.8043%"></div><i class="leader side-l" style="top:19.565%;left:0;width:3.112%"></i><b class="pin side-l" style="top:19.565%;left:0">1</b><i class="leader side-l" style="top:52.582%;left:0;width:7.530%"></i><b class="pin side-l" style="top:52.582%;left:0">2</b><i class="leader side-l" style="top:81.250%;left:0;width:3.112%"></i><b class="pin side-l" style="top:81.250%;left:0">3</b></div></figure>
+<ol class="steps caps c3 look"><li><b class="pin inline">1</b><div><b>Society</b> approved</div></li><li><b class="pin inline">2</b><div><b>Dean lowered the total</b> · struck: asked; violet: granted</div></li><li><b class="pin inline">3</b><div><b>Vice-Chancellor</b> approved · teal <b>M</b></div></li></ol>
+<p class="note">The Dean can <b>lower a line, never raise it</b>. A notification names each line that changed.</p>
+<div class="band"></div><div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span><b class="part-dot"></b>Part 3 · Approval and changes</span><span>10</span></footer></section><section class="page " data-part="3">
 <header class="title"><h1>Returned for changes</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">An approver wants something fixed. <b>The proposal is yours again: edit it and send it back.</b></p>
-<figure class="shot "><div class="frame" style="aspect-ratio:1020/740"><div class="clip"><img src="shots/returned-top.png" alt="A returned proposal" style="width:125.4902%;left:-24.5098%;top:-8.1081%"></div><i class="leader side-l" style="top:12.432%;left:0;width:45.498%"></i><b class="pin side-l" style="top:12.432%;left:0">1</b><span class="ring" style="left:52.549%;top:53.446%;width:12.555%;height:5.676%"><b class="badge at-l">3</b></span><span class="ring" style="left:3.725%;top:78.851%;width:92.549%;height:8.108%"><b class="badge at-l">4</b></span><span class="ring" style="left:81.402%;top:13.176%;width:16.932%;height:6.757%"><b class="badge at-l">5</b></span></div></figure>
-<div class="cols2">
-  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Returned for changes</b>: the status.</div></li><li><b class="badge inline">3</b><div><b>Open budget</b> to change the lines. Every field is open again.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">4</b><div><b>Replace</b> the proposal document if the comment asks for it.</div></li><li><b class="badge inline">5</b><div><b>Send for approval</b> when it is fixed.</div></li></ol>
-</div>
-
+<p class="lead">An approver wants something fixed. <b>Edit it and send it back.</b></p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1020/500"><div class="clip"><img src="shots/returned-top.png" alt="A returned proposal" style="width:125.4902%;left:-24.5098%;top:-12.0000%"></div><i class="leader side-l" style="top:18.400%;left:0;width:45.498%"></i><b class="pin side-l" style="top:18.400%;left:0">1</b><span class="ring" style="left:52.549%;top:79.100%;width:12.555%;height:8.400%"><b class="badge at-l">3</b></span><span class="ring" style="left:81.402%;top:19.500%;width:16.932%;height:10.000%"><b class="badge at-l">5</b></span></div></figure>
+<ol class="steps caps c2 click"><li><b class="badge inline">1</b><div><b>Returned for changes</b></div></li><li><b class="badge inline">3</b><div><b>Open budget</b> · every field is open again</div></li><li><b class="badge inline">4</b><div><b>Replace</b> the document if asked</div></li><li><b class="badge inline">5</b><div><b>Send for approval</b> when fixed</div></li></ol>
 <h2 class="sec">What they asked for</h2>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:996/366"><div class="clip"><img src="shots/returned-trail.png" alt="The approval trail of a returned proposal" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:88.661%;left:0;width:7.530%"></i><b class="pin side-l" style="top:88.661%;left:0">1</b></div></figure>
-  <div>
-    <ol class="steps look"><li><b class="pin inline">1</b><div><b>The approver's comment</b> is under their name in the <b>Approval trail</b>.</div></li></ol>
-    <p class="note"><b>When you send it again it starts at the first step</b>, so earlier approvers see the
-    changed version. The trail keeps the returned request and adds the new one below it.</p>
-  </div>
-</div>
-<div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span>Part 3 · Approval and changes</span><span>11</span></footer></section><section class="page ">
+<figure class="shot "><div class="frame" style="aspect-ratio:996/366"><div class="clip"><img src="shots/returned-trail.png" alt="The approval trail of a returned proposal" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:88.661%;left:0;width:7.530%"></i><b class="pin side-l" style="top:88.661%;left:0">1</b></div></figure>
+<ol class="steps caps c1 look"><li><b class="pin inline">1</b><div><b>The approver's comment</b>, under their name in the Approval trail.</div></li></ol>
+<p class="note">Sent again, it <b>starts at the first step</b>, so earlier approvers see the new version.</p>
+<div class="band"></div><div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span><b class="part-dot"></b>Part 3 · Approval and changes</span><span>11</span></footer></section><section class="page " data-part="3">
 <header class="title"><h1>Rejected</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead"><b>A rejection is final.</b> The proposal cannot be edited or sent again. To try again, propose a
-new event.</p>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:996/531"><div class="clip"><img src="shots/rejected.png" alt="A proposal rejected by the Cultural Society" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:61.111%;left:0;width:7.530%"></i><b class="pin side-l" style="top:61.111%;left:0">1</b><span class="ring" style="left:52.610%;top:85.687%;width:12.197%;height:9.416%"><b class="badge at-l">2</b></span></div></figure>
-  <div>
-    <ol class="steps look"><li><b class="pin inline">1</b><div><b>Why.</b> The approver's comment is required, and it is shown here.</div></li></ol>
-    <ol class="steps click"><li><b class="badge inline">2</b><div><b>Delete</b> removes the rejected proposal from your list. Optional.</div></li></ol>
-    <p class="note">The event's status and budget both read <b>Rejected</b>. The venue slot is released at
-    once, so another club can book it.</p>
-  </div>
-</div>
+<p class="lead"><b>Final.</b> It cannot be edited or sent again. To try again, propose a new event.</p>
+<figure class="shot "><div class="frame" style="aspect-ratio:996/531"><div class="clip"><img src="shots/rejected.png" alt="A proposal rejected by the Cultural Society" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:61.111%;left:0;width:7.530%"></i><b class="pin side-l" style="top:61.111%;left:0">1</b><span class="ring" style="left:52.610%;top:85.687%;width:12.197%;height:9.416%"><b class="badge at-l">2</b></span></div></figure>
+<ol class="steps caps c2 look"><li><b class="pin inline">1</b><div><b>Why</b> · the comment is required</div></li></ol>
+<ol class="steps caps c2 click"><li><b class="badge inline">2</b><div><b>Delete</b> removes it from your list. Optional.</div></li></ol>
 
 <h2 class="sec">Rejected at a later step</h2>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:996/339"><div class="clip"><img src="shots/vc-rejected-trail.png" alt="A proposal the Dean trimmed and the Vice-Chancellor rejected" style="width:100.0000%;left:0.0000%;top:-85.5457%"></div><i class="leader side-l" style="top:48.525%;left:0;width:7.530%"></i><b class="pin side-l" style="top:48.525%;left:0">1</b><i class="leader side-l" style="top:87.758%;left:0;width:7.530%"></i><b class="pin side-l" style="top:87.758%;left:0">2</b></div></figure>
-  <div>
-    <p>Any approver on the route can reject. Here the Cultural Society and the Dean approved, and the
-    <b>Vice-Chancellor</b> rejected.</p>
-    <ol class="steps look"><li><b class="pin inline">1</b><div>The Dean's change to the budget still shows, in violet.</div></li><li><b class="pin inline">2</b><div>The Vice-Chancellor's reason.</div></li></ol>
-  </div>
-</div>
-<div class="rules">
-  <p><b>Returned or rejected?</b> Returned means "fix this and send it again". Rejected means "no".</p>
-</div>
-<div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span>Part 3 · Approval and changes</span><span>12</span></footer></section><section class="page ">
+<figure class="shot "><div class="frame" style="aspect-ratio:996/339"><div class="clip"><img src="shots/vc-rejected-trail.png" alt="A proposal the Dean trimmed and the Vice-Chancellor rejected" style="width:100.0000%;left:0.0000%;top:-85.5457%"></div><i class="leader side-l" style="top:48.525%;left:0;width:7.530%"></i><b class="pin side-l" style="top:48.525%;left:0">1</b><i class="leader side-l" style="top:87.758%;left:0;width:7.530%"></i><b class="pin side-l" style="top:87.758%;left:0">2</b></div></figure>
+<ol class="steps caps c2 look"><li><b class="pin inline">1</b><div><b>The Dean's cut</b> still shows, in violet</div></li><li><b class="pin inline">2</b><div><b>The Vice-Chancellor's reason</b></div></li></ol>
+<p class="note"><b>Returned</b> means "fix this and send it again". <b>Rejected</b> means "no". The venue slot is released.</p>
+<div class="band"></div><div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span><b class="part-dot"></b>Part 3 · Approval and changes</span><span>12</span></footer></section><section class="page " data-part="3">
 <header class="title"><h1>The calendar</h1><span class="for">For <b>Presidents and Vice-Presidents</b></span></header>
-<p class="lead">Every venue booking in the college, <b>so you can pick a free slot before you propose.</b></p>
+<p class="lead">Every venue booking, <b>so you can pick a free slot before you propose.</b></p>
 <figure class="shot "><div class="frame" style="aspect-ratio:1020/760"><div class="clip"><img src="shots/calendar.png" alt="The semester event calendar" style="width:125.4902%;left:-24.5098%;top:-7.8947%"></div><i class="leader side-l" style="top:16.579%;left:0;width:3.824%"></i><b class="pin side-l" style="top:16.579%;left:0">1</b><span class="ring" style="left:52.013%;top:71.447%;width:13.251%;height:5.526%"><b class="badge at-b">2</b></span><span class="ring" style="left:80.392%;top:71.447%;width:17.941%;height:5.526%"><b class="badge at-b">3</b></span><i class="leader side-l" style="top:82.237%;left:0;width:2.157%"></i><b class="pin side-l" style="top:82.237%;left:0">4</b></div></figure>
-<div class="cols2">
-  <div>
-  <ol class="steps look"><li><b class="pin inline">1</b><div><b>Upcoming events</b>: every booking from today on, marked <b>Approved</b> or <b>Awaiting approval</b>. Click one to open its day.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">2</b><div><b>Previous / Next month</b> and <b>week</b> move the calendar.</div></li><li><b class="badge inline">3</b><div><b>Go to date</b> jumps to any day.</div></li></ol>
-  </div>
-  <ol class="steps look"><li><b class="pin inline">4</b><div><b>The week.</b> Each day says <b>Free</b> or how many events. Click a day to see it hour by hour, one column per venue.</div></li></ol>
-</div>
-<div class="cols2">
-  <div class="aside"><h2 class="mini">What you see of other clubs</h2><p>An approved event shows its name. Another
-  club's event that is <b>not approved yet</b> shows only as <b>Requested</b>: the slot is taken, the idea stays
-  private.</p></div>
-  <p class="note"><b>You cannot move a booking.</b> Only the Dean, and the Cultural Society's officers while a
-  proposal is with them, can.</p>
-</div>
-<div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span>Part 3 · Approval and changes</span><span>13</span></footer></section><section class="page ">
+<ol class="steps caps c1 look"><li><b class="pin inline">1</b><div><b>Upcoming events</b> · approved or awaiting approval; click one to open its day</div></li></ol>
+<ol class="steps caps c2 click"><li><b class="badge inline">2</b><div><b>Month and week</b> buttons</div></li><li><b class="badge inline">3</b><div><b>Go to date</b></div></li></ol>
+<ol class="steps caps c1 look"><li><b class="pin inline">4</b><div><b>The week</b> · Free, or how many events; click a day for its hours</div></li></ol>
+<div class="facts"><p><b>Other clubs.</b> Approved events show their name. One not approved yet shows only as Requested.</p><p><b>Read only.</b> You cannot move a booking. The Dean can, and the Society's officers while a proposal is with them.</p></div>
+<div class="band"></div><div class="tab" style="top:108mm;height:41mm"><b>3</b><span>Approval and changes</span></div><footer><span><b class="part-dot"></b>Part 3 · Approval and changes</span><span>13</span></footer></section><section class="page " data-part="4">
 <header class="title"><h1>Build the budget</h1><span class="for">For <b>Treasurer · President · Vice-President</b></span></header>
-<p class="lead">Open <b>Budget</b>, then the event. <b>You can change the budget while the event is a draft or
-has been returned.</b></p>
+<p class="lead"><b>Budget</b>, then the event. Editable while it is a draft or returned.</p>
 <figure class="shot "><div class="frame" style="aspect-ratio:1020/820"><div class="clip"><img src="shots/budget-edit.png" alt="A budget that can be edited" style="width:125.4902%;left:-24.5098%;top:-7.3171%"></div><span class="ring" style="left:48.978%;top:37.866%;width:9.885%;height:5.122%"><b class="badge at-l">1</b></span><span class="ring" style="left:80.501%;top:49.146%;width:8.153%;height:5.122%"><b class="badge at-l">2</b></span><span class="ring" style="left:3.333%;top:72.988%;width:66.040%;height:6.098%"><b class="badge at-l">3</b></span><span class="ring" style="left:3.333%;top:84.573%;width:60.018%;height:7.317%"><b class="badge at-l">4</b></span><span class="ring" style="left:3.333%;top:90.671%;width:12.071%;height:3.171%"><b class="badge at-b">5</b></span><span class="ring" style="left:81.304%;top:37.866%;width:15.363%;height:5.122%"><b class="badge at-l">6</b></span></div></figure>
-<div class="cols2">
-  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Edit all</b> turns every line into text boxes. Change several, save once.</div></li><li><b class="badge inline">2</b><div><b>Edit</b> or <b>Remove</b> one line.</div></li><li><b class="badge inline">3</b><div><b>Add an entry</b>: a head (what it is for) and an amount.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">4</b><div><b>Upload a CSV</b> to add many lines at once. Choose whether it <b>replaces</b> the existing lines or is <b>added</b> to them.</div></li><li><b class="badge inline">5</b><div><b>Download template</b> for the CSV layout.</div></li><li><b class="badge inline">6</b><div><b>Send for approval</b> when the lines are right.</div></li></ol>
-</div>
-<div class="cols3">
-  <div><h2 class="mini">The three figures</h2><p><b>Requested</b> is what the club asks. <b>Sanctioned</b> is what the
-  approvers allowed. <b>Spent</b> is what you record after the event.</p></div>
-  <div><h2 class="mini">The envelope</h2><p>Your club's budget for the year, if the Dean has set one, with how much
-  is already sanctioned and settled.</p></div>
-  <div><h2 class="mini">An event that costs nothing</h2><p>With no priced lines, <b>declare the budget nil</b> and give
-  the reason. It can then be sent without lines.</p></div>
-</div>
-<p class="note"><b>Over ₹50,000</b>, or part of a fest, the proposal also goes to the Vice-Chancellor. The page
-tells you before you send it.</p>
-<div class="tab" style="top:151mm;height:41mm"><b>4</b><span>Budget</span></div><footer><span>Part 4 · Budget</span><span>14</span></footer></section><section class="page ">
+<ol class="steps caps c3 click"><li><b class="badge inline">1</b><div><b>Edit all</b> · every line as text boxes, one Save</div></li><li><b class="badge inline">2</b><div><b>Edit</b> or <b>Remove</b> one line</div></li><li><b class="badge inline">3</b><div><b>Add an entry</b> · a head and an amount</div></li><li><b class="badge inline">4</b><div><b>Upload a CSV</b> · replace or add to the lines</div></li><li><b class="badge inline">5</b><div><b>Download template</b></div></li><li><b class="badge inline">6</b><div><b>Send for approval</b></div></li></ol>
+<div class="facts"><p><b>Requested, Sanctioned, Spent.</b> What you ask, what was allowed, what you record afterwards.</p><p><b>Costs nothing?</b> Declare the budget nil, with a reason.</p><p><b>Over ₹50,000</b> or part of a fest: it also goes to the Vice-Chancellor.</p></div>
+<div class="band"></div><div class="tab" style="top:151mm;height:41mm"><b>4</b><span>Budget</span></div><footer><span><b class="part-dot"></b>Part 4 · Budget</span><span>14</span></footer></section><section class="page " data-part="4">
 <header class="title"><h1>After approval: spend and receipts</h1><span class="for">For <b>Treasurer · President · Vice-President</b></span></header>
-<p class="lead">Once approved the budget is <b>Sanctioned</b>. The lines are fixed; <b>after the event you record
-what was actually spent.</b></p>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:1036/755.5"><div class="clip"><img src="shots/budget-sanctioned.png" alt="A sanctioned budget where the Dean lowered two lines" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:26.142%;left:0;width:20.753%"></i><b class="pin side-l" style="top:26.142%;left:0">1</b><i class="leader side-r" style="top:69.689%;right:0;width:7.386%"></i><b class="pin side-r" style="top:69.689%;left:100%">2</b></div></figure>
-  <div>
-    <ol class="steps look"><li><b class="pin inline">1</b><div><b>Sanctioned</b> is the money you may spend.</div></li><li><b class="pin inline">2</b><div><b>A line the Dean lowered</b> shows what you asked struck through, the new figure, and a violet <b>A</b>.</div></li></ol>
-    <p>Lines left alone are sanctioned as requested.</p>
-  </div>
-</div>
-
+<p class="lead">Sanctioned lines are fixed. <b>After the event, record what was spent.</b></p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1036/610"><div class="clip"><img src="shots/budget-sanctioned.png" alt="A sanctioned budget where the Dean lowered two lines" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:32.377%;left:0;width:20.753%"></i><b class="pin side-l" style="top:32.377%;left:0">1</b><i class="leader side-r" style="top:86.311%;right:0;width:7.386%"></i><b class="pin side-r" style="top:86.311%;left:100%">2</b></div></figure>
+<ol class="steps caps c2 look"><li><b class="pin inline">1</b><div><b>Sanctioned</b> · what you may spend</div></li><li><b class="pin inline">2</b><div><b>A line the Dean lowered</b> · asked struck through, new figure, violet <b>A</b></div></li></ol>
 <h2 class="sec">Record the spend</h2>
 <figure class="shot "><div class="frame" style="aspect-ratio:1002/292"><div class="clip"><img src="shots/budget-spend.png" alt="Entering spend and attaching a bill for one line" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:2.495%;top:45.205%;width:14.970%;height:17.123%"><b class="badge at-l">1</b></span><span class="ring" style="left:17.265%;top:45.205%;width:71.928%;height:17.123%"><b class="badge at-l">2</b></span><span class="ring" style="left:88.994%;top:45.205%;width:8.511%;height:17.123%"><b class="badge at-l">3</b></span><span class="ring" style="left:2.495%;top:70.548%;width:85.457%;height:20.548%"><b class="badge at-l">4</b></span><span class="ring" style="left:87.753%;top:72.260%;width:9.752%;height:17.123%"><b class="badge at-l">5</b></span></div></figure>
-<div class="cols2">
-  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Spent</b>: what the line actually cost.</div></li><li><b class="badge inline">2</b><div><b>Note</b>: anything worth recording. Required if the line went over.</div></li><li><b class="badge inline">3</b><div><b>Save</b>.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">4</b><div><b>Choose the bill</b> (PDF or a photo).</div></li><li><b class="badge inline">5</b><div><b>Attach</b>. It appears under the line; click it to open.</div></li></ol>
-</div>
-<div class="rules">
-  <p><b>A receipt is required for any line above ₹5,000.</b> A line that went over what was sanctioned is marked
-  <b>Over sanctioned</b> and needs a reason.</p>
-  <p><b>Settle budget</b>, at the bottom, closes it. If something is missing, the page lists exactly which
-  lines need a receipt or a reason. A settled budget cannot be changed.</p>
-</div>
-<div class="tab" style="top:151mm;height:41mm"><b>4</b><span>Budget</span></div><footer><span>Part 4 · Budget</span><span>15</span></footer></section><section class="page ">
+<ol class="steps caps c5 click"><li><b class="badge inline">1</b><div><b>Spent</b></div></li><li><b class="badge inline">2</b><div><b>Note</b> · required if over</div></li><li><b class="badge inline">3</b><div><b>Save</b></div></li><li><b class="badge inline">4</b><div><b>Choose the bill</b></div></li><li><b class="badge inline">5</b><div><b>Attach</b></div></li></ol>
+<div class="facts"><p><b>Receipts.</b> Required for any line above ₹5,000.</p><p><b>Over sanctioned.</b> Needs a reason in the note.</p><p><b>Settle budget.</b> At the bottom. It lists what is missing; once settled it is closed.</p></div>
+<div class="band"></div><div class="tab" style="top:151mm;height:41mm"><b>4</b><span>Budget</span></div><footer><span><b class="part-dot"></b>Part 4 · Budget</span><span>15</span></footer></section><section class="page " data-part="5">
 <header class="title"><h1>Open the door</h1><span class="for">For <b>President · Vice-President · Secretary · core team</b></span></header>
-<p class="lead">On the day, the event page of a <b>published</b> event has two buttons.</p>
-<figure class="shot "><div class="frame" style="aspect-ratio:1040/190"><div class="clip"><img src="shots/go-live.png" alt="Go live and Scan station on a published event" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:72.727%;top:51.316%;width:11.774%;height:26.316%"><b class="badge at-l">1</b></span><span class="ring" style="left:84.309%;top:51.316%;width:13.095%;height:26.316%"><b class="badge at-t">2</b></span></div></figure>
-<div class="cols2">
-  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Go live</b> when the event starts. Students see it as <b>Live now</b>.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">2</b><div><b>Scan station</b> opens the door page on this device.</div></li></ol>
-</div>
-
+<p class="lead">On the day, a published event has two buttons.</p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1040/190"><div class="clip"><img src="shots/go-live.png" alt="Go live and Scan station on a published event" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:72.727%;top:51.316%;width:11.774%;height:26.316%"><b class="badge at-l">1</b></span><span class="ring" style="left:84.309%;top:51.316%;width:13.095%;height:26.316%"><b class="badge at-b">2</b></span></div></figure>
+<ol class="steps caps c2 click"><li><b class="badge inline">1</b><div><b>Go live</b> when it starts</div></li><li><b class="badge inline">2</b><div><b>Scan station</b> opens the door page</div></li></ol>
 <h2 class="sec">The scan station</h2>
-<div class="split tall">
+<div class="split wide">
   <figure class="shot "><div class="frame" style="aspect-ratio:1020/1050"><div class="clip"><img src="shots/scan.png" alt="The scan station" style="width:101.9608%;left:-0.9804%;top:0.0000%"></div><span class="ring" style="left:1.667%;top:15.619%;width:28.676%;height:4.762%"><b class="badge at-l">1</b></span><span class="ring" style="left:40.314%;top:38.571%;width:14.116%;height:4.000%"><b class="badge at-l">2</b></span><span class="ring" style="left:3.725%;top:84.609%;width:37.684%;height:4.762%"><b class="badge at-l">3</b></span><span class="ring" style="left:3.725%;top:92.037%;width:32.679%;height:4.762%"><b class="badge at-l">4</b></span><i class="leader side-r" style="top:29.143%;right:0;width:11.310%"></i><b class="pin side-r" style="top:29.143%;left:100%">5</b><i class="leader side-r" style="top:72.571%;right:0;width:4.216%"></i><b class="pin side-r" style="top:72.571%;left:100%">6</b></div></figure>
   <div>
-    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Event at this door.</b> Check it is the right one.</div></li><li><b class="badge inline">2</b><div><b>Start camera</b>, then hold each student's <b>pass</b> or <b>profile QR</b> up to it.</div></li><li><b class="badge inline">3</b><div><b>No camera?</b> Type or paste the code under the QR and click <b>Check code</b>.</div></li><li><b class="badge inline">4</b><div><b>No phone?</b> Type the <b>PRN</b> from their ID card and click <b>Check in by PRN</b>.</div></li></ol>
-    <ol class="steps look"><li><b class="pin inline">5</b><div><b>At the door</b>: checked in, registered, capacity.</div></li><li><b class="pin inline">6</b><div><b>Recent scans</b>: the last few, with their result.</div></li></ol>
-    <p class="note">Use a phone or a laptop. Several people can scan at once on their own devices.</p>
+    <ol class="steps caps c1 click"><li><b class="badge inline">1</b><div><b>Event at this door</b></div></li><li><b class="badge inline">2</b><div><b>Start camera</b>, hold up the pass or profile QR</div></li><li><b class="badge inline">3</b><div><b>No camera?</b> Type the code</div></li><li><b class="badge inline">4</b><div><b>No phone?</b> Type the PRN</div></li></ol>
+    <ol class="steps caps c1 look"><li><b class="pin inline">5</b><div><b>At the door</b> · the count</div></li><li><b class="pin inline">6</b><div><b>Recent scans</b></div></li></ol>
+    <p class="note">Any phone or laptop. Several people can scan at once.</p>
   </div>
 </div>
-<div class="tab" style="top:194mm;height:41mm"><b>5</b><span>Event day and after</span></div><footer><span>Part 5 · Event day and after</span><span>16</span></footer></section><section class="page ">
+<div class="band"></div><div class="tab" style="top:194mm;height:41mm"><b>5</b><span>Event day and after</span></div><footer><span><b class="part-dot"></b>Part 5 · Event day and after</span><span>16</span></footer></section><section class="page " data-part="5">
 <header class="title"><h1>Check people in</h1><span class="for">For <b>whoever is at the door</b></span></header>
-<p class="lead">Every scan gets an answer in under a second. <b>Green: let them in. Amber: look again. Red: do not
-admit on this code.</b></p>
+<p class="lead"><b>Green: let them in. Amber: look again. Red: not on this code.</b></p>
 <figure class="shot "><div class="frame" style="aspect-ratio:1020/145"><div class="clip"><img src="shots/scan-verdict.png" alt="A student checked in by PRN" style="width:125.4902%;left:-24.5098%;top:-219.3103%"></div><i class="leader side-l" style="top:35.172%;left:0;width:10.784%"></i><b class="pin side-l" style="top:35.172%;left:0">1</b></div></figure>
-<ol class="steps look"><li><b class="pin inline">1</b><div><b>The verdict</b> names the student, so you can check the face against the ID card.</div></li></ol>
+<ol class="steps caps c1 look"><li><b class="pin inline">1</b><div><b>The verdict</b> names the student: check the face against the ID card.</div></li></ol>
 <dl class="gloss">
-  <dt><b class="tag green">Checked in</b></dt><dd>A registered student. Let them in.</dd>
-  <dt><b class="tag green">Registered and checked in</b></dt><dd>A walk-in who was not registered. They are now, and they are in.</dd>
-  <dt><b class="tag amber">Already checked in</b></dt><dd>This pass was used before; it says when. A pass works once.</dd>
-  <dt><b class="tag red">Wrong event</b></dt><dd>A pass for another event. Ask for their <b>profile QR</b> instead.</dd>
-  <dt><b class="tag red">Pass was replaced</b></dt><dd>An old copy. Ask them to open the current pass.</dd>
-  <dt><b class="tag red">Event at capacity</b></dt><dd>A walk-in, but every place is taken.</dd>
-  <dt><b class="tag red">Code not recognised</b></dt><dd>Not a Culturals code, or mistyped. Scan again or use the PRN.</dd>
-  <dt><b class="tag amber">Saved offline</b></dt><dd>No connection. The scan is kept on this device and sent when the network returns.</dd>
+  <dt><b class="tag green">Checked in</b></dt><dd>Registered. Let them in.</dd>
+  <dt><b class="tag green">Registered and checked in</b></dt><dd>A walk-in. Now registered, and in.</dd>
+  <dt><b class="tag amber">Already checked in</b></dt><dd>Used before; it says when. A pass works once.</dd>
+  <dt><b class="tag red">Wrong event</b></dt><dd>Ask for their <b>profile QR</b> instead.</dd>
+  <dt><b class="tag red">Pass was replaced</b></dt><dd>An old copy. Ask for the current pass.</dd>
+  <dt><b class="tag red">Event at capacity</b></dt><dd>A walk-in, and every place is taken.</dd>
+  <dt><b class="tag red">Code not recognised</b></dt><dd>Scan again, or use the PRN.</dd>
+  <dt><b class="tag amber">Saved offline</b></dt><dd>No network. Kept on the device, sent when it returns.</dd>
 </dl>
-
 <h2 class="sec">Who is in, who is not</h2>
-<div class="split">
-  <figure class="shot "><div class="frame" style="aspect-ratio:1020/420"><div class="clip"><img src="shots/scan-attendees.png" alt="The attendee list at the door" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:3.725%;top:24.048%;width:67.112%;height:11.905%"><b class="badge at-l">1</b></span></div></figure>
-  <div>
-    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Find by name or PRN</b> to check one person.</div></li></ol>
-    <p>The filter shows <b>All</b>, only those <b>Checked in</b>, or those <b>Not yet</b> here. The counts on the
-    event page come from these scans; <b>nobody types attendance in.</b></p>
-  </div>
-</div>
-<div class="tab" style="top:194mm;height:41mm"><b>5</b><span>Event day and after</span></div><footer><span>Part 5 · Event day and after</span><span>17</span></footer></section><section class="page ">
+<figure class="shot "><div class="frame" style="aspect-ratio:1020/420"><div class="clip"><img src="shots/scan-attendees.png" alt="The attendee list at the door" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:3.725%;top:24.048%;width:67.112%;height:11.905%"><b class="badge at-l">1</b></span></div></figure>
+<ol class="steps caps c1 click"><li><b class="badge inline">1</b><div><b>Find by name or PRN.</b> Filter to Checked in or Not yet. Nobody types attendance in.</div></li></ol>
+<div class="band"></div><div class="tab" style="top:194mm;height:41mm"><b>5</b><span>Event day and after</span></div><footer><span><b class="part-dot"></b>Part 5 · Event day and after</span><span>17</span></footer></section><section class="page " data-part="5">
 <header class="title"><h1>The post-event report</h1><span class="for">For <b>President · Vice-President · Secretary</b></span></header>
-<p class="lead">Once the event is live, its page has a <b>Post-event report</b>. <b>Fill it in after the event; it is
-what the semester report is built from.</b></p>
+<p class="lead">On the event's page once it is live. <b>The semester report is built from it.</b></p>
 <figure class="shot "><div class="frame" style="aspect-ratio:996/608"><div class="clip"><img src="shots/report-top.png" alt="The top of the post-event report" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:13.158%;left:0;width:3.112%"></i><b class="pin side-l" style="top:13.158%;left:0">1</b><i class="leader side-l" style="top:23.355%;left:0;width:3.112%"></i><b class="pin side-l" style="top:23.355%;left:0">2</b><span class="ring" style="left:2.610%;top:60.855%;width:94.779%;height:9.868%"><b class="badge at-l">3</b></span><span class="ring" style="left:2.610%;top:86.020%;width:56.281%;height:8.224%"><b class="badge at-l">4</b></span></div></figure>
-<div class="cols2">
-  <ol class="steps look"><li><b class="pin inline">1</b><div><b>Checklist.</b> What is still needed before you can submit.</div></li><li><b class="pin inline">2</b><div><b>Attendance</b> is already filled in from the door.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">3</b><div><b>Photos.</b> At least one is required. Mark the best as a highlight.</div></li><li><b class="badge inline">4</b><div><b>Social media posts.</b> Paste the link to each post. Optional.</div></li></ol>
-</div>
-<div class="cols2">
+<ol class="steps caps c2 look"><li><b class="pin inline">1</b><div><b>Checklist</b> · what is still needed</div></li><li><b class="pin inline">2</b><div><b>Attendance</b> · from the door</div></li></ol>
+<ol class="steps caps c2 click"><li><b class="badge inline">3</b><div><b>Photos</b> · at least one</div></li><li><b class="badge inline">4</b><div><b>Post links</b> · optional</div></li></ol>
+<div class="cols2 figs">
   <div>
     <figure class="shot "><div class="frame" style="aspect-ratio:996/330"><div class="clip"><img src="shots/report-bills.png" alt="Bills and spend in the report" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:4.317%;top:42.424%;width:15.060%;height:15.152%"><b class="badge at-l">1</b></span><span class="ring" style="left:4.317%;top:64.848%;width:81.755%;height:18.182%"><b class="badge at-l">2</b></span></div></figure>
-    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Spent</b> on each line.</div></li><li><b class="badge inline">2</b><div><b>The bill</b> for it.</div></li></ol>
-    <p class="muted small">Bills do not hold up the report. The budget cannot be settled without them.</p>
+    <ol class="steps caps c2 click"><li><b class="badge inline">1</b><div><b>Spent</b></div></li><li><b class="badge inline">2</b><div><b>The bill</b></div></li></ol>
   </div>
   <div>
     <figure class="shot "><div class="frame" style="aspect-ratio:996/326"><div class="clip"><img src="shots/report-submit.png" alt="Outcomes and Submit report" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:2.610%;top:19.939%;width:94.779%;height:27.914%"><b class="badge at-l">1</b></span><span class="ring" style="left:2.610%;top:54.601%;width:94.779%;height:21.472%"><b class="badge at-l">2</b></span><span class="ring" style="left:2.610%;top:76.687%;width:14.757%;height:15.337%"><b class="badge at-l">3</b></span></div></figure>
-    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Outcomes</b> (required): what happened, who came, what it achieved.</div></li><li><b class="badge inline">2</b><div><b>Learnings</b>: what to keep or change.</div></li><li><b class="badge inline">3</b><div><b>Submit report.</b> The event becomes <b>Reported</b>.</div></li></ol>
+    <ol class="steps caps c3 click"><li><b class="badge inline">1</b><div><b>Outcomes</b> · required</div></li><li><b class="badge inline">2</b><div><b>Learnings</b></div></li><li><b class="badge inline">3</b><div><b>Submit</b></div></li></ol>
   </div>
 </div>
-<p class="note"><b>A student in a photo can ask for it to be taken down.</b> You see the request on the photo and
-can remove it there.</p>
-<div class="tab" style="top:194mm;height:41mm"><b>5</b><span>Event day and after</span></div><footer><span>Part 5 · Event day and after</span><span>18</span></footer></section><section class="page ">
+<p class="note">Bills do not hold up the report; the budget cannot settle without them. A student in a photo can ask
+for it to be taken down.</p>
+<div class="band"></div><div class="tab" style="top:194mm;height:41mm"><b>5</b><span>Event day and after</span></div><footer><span><b class="part-dot"></b>Part 5 · Event day and after</span><span>18</span></footer></section><section class="page " data-part="6">
 <header class="title"><h1>Members, roles and join requests</h1><span class="for">For <b>Presidents and Vice-Presidents</b></span></header>
-<p class="lead">The roster is <b>Members &amp; roles</b>. <b>Every change of role is recorded with who made it.</b></p>
-<div class="split tall">
-  <figure class="shot "><div class="frame" style="aspect-ratio:1030/1000"><div class="clip"><img src="shots/roster.png" alt="The Music Club roster" style="width:124.2718%;left:-24.2718%;top:-6.0000%"></div><span class="ring" style="left:41.610%;top:23.850%;width:15.672%;height:4.200%"><b class="badge at-l">1</b></span><i class="leader side-l" style="top:79.950%;left:0;width:7.670%"></i><b class="pin side-l" style="top:79.950%;left:0">2</b><span class="ring" style="left:71.717%;top:17.400%;width:13.167%;height:2.800%"><b class="badge at-t">3</b></span><i class="leader side-r" style="top:26.700%;right:0;width:0.000%"></i><b class="pin side-r" style="top:26.700%;left:100%">4</b></div></figure>
+<p class="lead"><b>Members &amp; roles</b> is the roster. Every change is recorded.</p>
+<div class="split wide">
+  <figure class="shot "><div class="frame" style="aspect-ratio:1030/1000"><div class="clip"><img src="shots/roster.png" alt="The Music Club roster" style="width:124.2718%;left:-24.2718%;top:-6.0000%"></div><span class="ring" style="left:41.610%;top:23.850%;width:15.672%;height:4.200%"><b class="badge at-l">1</b></span><i class="leader side-l" style="top:79.950%;left:0;width:7.670%"></i><b class="pin side-l" style="top:79.950%;left:0">2</b><span class="ring" style="left:71.717%;top:17.400%;width:13.167%;height:2.800%"><b class="badge at-b">3</b></span><i class="leader side-r" style="top:26.700%;right:0;width:0.000%"></i><b class="pin side-r" style="top:26.700%;left:100%">4</b></div></figure>
   <div>
-    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Role.</b> Choose a member's role: Member, Core team, Secretary, Treasurer, Vice-President, President.</div></li></ol>
-    <ol class="steps look"><li><b class="pin inline">2</b><div><b>Office bearers</b> wear a gold ring.</div></li></ol>
-    <ol class="steps click"><li><b class="badge inline">3</b><div><b>Open join requests</b> when students are waiting.</div></li></ol>
-    <ol class="steps look"><li><b class="pin inline">4</b><div><b>Handover.</b> Name next term's office bearers and the date it takes effect. The outgoing holders lose their permissions at that time.</div></li></ol>
-    <p class="note">The Treasurer cannot assign roles. A student can be in <b>up to five clubs</b>.</p>
+    <ol class="steps caps c1 click"><li><b class="badge inline">1</b><div><b>Role</b> · choose it per member</div></li></ol>
+    <ol class="steps caps c1 look"><li><b class="pin inline">2</b><div><b>Gold ring</b> · an office bearer</div></li></ol>
+    <ol class="steps caps c1 click"><li><b class="badge inline">3</b><div><b>Open join requests</b></div></li></ol>
+    <ol class="steps caps c1 look"><li><b class="pin inline">4</b><div><b>Handover</b> · next term's office bearers and the date</div></li></ol>
+    <p class="note">The Treasurer cannot assign roles. A student can be in up to five clubs.</p>
   </div>
 </div>
-
 <h2 class="sec">Join requests</h2>
-<figure class="shot "><div class="frame" style="aspect-ratio:1040/400"><div class="clip"><img src="shots/join.png" alt="Join requests waiting for the Music Club" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:4.615%;top:60.000%;width:2.212%;height:5.750%"><b class="badge at-l">1</b></span><span class="ring" style="left:76.938%;top:57.625%;width:10.219%;height:10.500%"><b class="badge at-l">2</b></span><span class="ring" style="left:86.965%;top:57.625%;width:8.419%;height:10.500%"><b class="badge at-t">3</b></span><span class="ring" style="left:59.663%;top:41.750%;width:19.283%;height:10.500%"><b class="badge at-l">4</b></span></div></figure>
-<div class="cols2">
-  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Tick</b> the students you want to decide together, or</div></li><li><b class="badge inline">2</b><div><b>Accept</b> one student.</div></li></ol>
-  <ol class="steps click"><li><b class="badge inline">3</b><div><b>Decline</b> one student.</div></li><li><b class="badge inline">4</b><div><b>Approve selected</b> accepts everyone you ticked.</div></li></ol>
-</div>
-<div class="tab" style="top:237mm;height:41mm"><b>6</b><span>Members and help</span></div><footer><span>Part 6 · Members and help</span><span>19</span></footer></section><section class="page ">
+<figure class="shot "><div class="frame" style="aspect-ratio:1040/200"><div class="clip"><img src="shots/join.png" alt="Join requests waiting for the Music Club" style="width:100.0000%;left:0.0000%;top:-60.0000%"></div><span class="ring" style="left:4.615%;top:60.000%;width:2.212%;height:11.500%"><b class="badge at-l">1</b></span><span class="ring" style="left:76.938%;top:55.250%;width:10.219%;height:21.000%"><b class="badge at-l">2</b></span><span class="ring" style="left:86.965%;top:55.250%;width:8.419%;height:21.000%"><b class="badge at-r">3</b></span><span class="ring" style="left:59.663%;top:23.500%;width:19.283%;height:21.000%"><b class="badge at-l">4</b></span></div></figure>
+<ol class="steps caps c4 click"><li><b class="badge inline">1</b><div><b>Tick</b> several</div></li><li><b class="badge inline">2</b><div><b>Accept</b> one</div></li><li><b class="badge inline">3</b><div><b>Decline</b> one</div></li><li><b class="badge inline">4</b><div><b>Approve selected</b></div></li></ol>
+<div class="band"></div><div class="tab" style="top:237mm;height:41mm"><b>6</b><span>Members and help</span></div><footer><span><b class="part-dot"></b>Part 6 · Members and help</span><span>19</span></footer></section><section class="page " data-part="6">
 <header class="title"><h1>Tags and statuses</h1><span class="for">For <b>all office bearers</b></span></header>
-<p class="lead">The small coloured labels on cards and pages, and what they mean.</p>
-<h2 class="sec">An event's status</h2><dl class="gloss"><dt><b class="tag grey">Draft</b></dt><dd>Saved, not sent. Only your office bearers see it.</dd><dt><b class="tag blue">Awaiting approval</b></dt><dd>With an approver. You cannot edit it.</dd><dt><b class="tag amber">Returned for changes</b></dt><dd>Fix what the comment asks and send it again.</dd><dt><b class="tag red">Rejected</b></dt><dd>Final. Propose a new event to try again.</dd><dt><b class="tag green">Published</b> <b class="tag green">Live now</b></dt><dd>Approved; students can register. Live while it runs.</dd><dt><b class="tag grey">Reported</b></dt><dd>The post-event report is in.</dd></dl><h2 class="sec">A budget's stage</h2><dl class="gloss"><dt><b class="tag blue">With the Cultural Society</b> <b class="tag blue">With the Dean</b></dt><dd>Where the proposal is waiting.</dd><dt><b class="tag green">Sanctioned</b></dt><dd>Approved. Record spend after the event.</dd><dt><b class="tag grey">Settled</b></dt><dd>Spend and receipts complete. Closed.</dd></dl><h2 class="sec">Changes by approvers</h2><dl class="gloss"><dt><b class="tag violet">A</b></dt><dd>A change by the Cultural Society or the Dean.</dd><dt><b class="tag teal">M</b></dt><dd>A change by the Vice-Chancellor.</dd></dl>
-<div class="tab" style="top:237mm;height:41mm"><b>6</b><span>Members and help</span></div><footer><span>Part 6 · Members and help</span><span>20</span></footer></section><section class="page ">
+<p class="lead">The small coloured labels, and what they mean.</p>
+<h2 class="sec">An event's status</h2><dl class="gloss"><dt><b class="tag grey">Draft</b></dt><dd>Saved, not sent.</dd><dt><b class="tag blue">Awaiting approval</b></dt><dd>With an approver. Locked.</dd><dt><b class="tag amber">Returned for changes</b></dt><dd>Fix it and send it again.</dd><dt><b class="tag red">Rejected</b></dt><dd>Final.</dd><dt><b class="tag green">Published</b> <b class="tag green">Live now</b></dt><dd>Approved; students register. Live while it runs.</dd><dt><b class="tag grey">Reported</b></dt><dd>The post-event report is in.</dd></dl><h2 class="sec">A budget's stage</h2><dl class="gloss"><dt><b class="tag blue">With the Cultural Society</b> <b class="tag blue">With the Dean</b></dt><dd>Where it is waiting.</dd><dt><b class="tag green">Sanctioned</b></dt><dd>Approved. Record spend afterwards.</dd><dt><b class="tag grey">Settled</b></dt><dd>Closed.</dd></dl><h2 class="sec">Changes by approvers</h2><dl class="gloss"><dt><b class="tag violet">A</b></dt><dd>The Cultural Society or the Dean.</dd><dt><b class="tag teal">M</b></dt><dd>The Vice-Chancellor.</dd></dl>
+<div class="band"></div><div class="tab" style="top:237mm;height:41mm"><b>6</b><span>Members and help</span></div><footer><span><b class="part-dot"></b>Part 6 · Members and help</span><span>20</span></footer></section><section class="page " data-part="6">
 <header class="title"><h1>Quick answers</h1><span class="for">For <b>all office bearers</b></span></header>
 <dl class="qa">
-  <dt>I can't find Send for approval.</dt><dd>The budget has no lines yet. Add them, or declare the budget nil, then send.</dd>
-  <dt>Can I change the date after sending?</dt><dd><b>No.</b> Ask the Cultural Society (while it is with them) or the Dean to move it.</dd>
-  <dt>The venue or time changed and I did not do it.</dt><dd>An approver moved it. Open <b>Notifications</b> or the event page for who and why.</dd>
-  <dt>My budget is smaller than I asked.</dt><dd>The <b>Dean</b> lowered a line. The budget page shows which, struck through.</dd>
-  <dt>A student has no phone at the door.</dt><dd>Type their <b>PRN</b> into the scan station.</dd>
-  <dt>The network dropped at the door.</dt><dd>Keep scanning. Scans are saved on the device and sent when it is back.</dd>
+  <dt>I can't find Send for approval.</dt><dd>The budget has no lines. Add them, or declare it nil.</dd>
+  <dt>Can I change the date after sending?</dt><dd><b>No.</b> Ask the Cultural Society (while it is with them) or the Dean.</dd>
+  <dt>The venue or time changed.</dt><dd>An approver moved it. <b>Notifications</b> says who and why.</dd>
+  <dt>My budget is smaller than I asked.</dt><dd>The <b>Dean</b> lowered a line. The budget page shows which.</dd>
+  <dt>A student has no phone.</dt><dd>Type their <b>PRN</b> at the scan station.</dd>
+  <dt>The network dropped at the door.</dt><dd>Keep scanning. Scans are sent when it returns.</dd>
 </dl>
 <div class="feedback">
   <h2>Tell us what to improve</h2>
-  <p>This is a pilot. If a page is confusing or a step is missing, <b>note the page and what you expected</b>, and
-  pass it on to the Culturals team.</p>
+  <p>This is a pilot. <b>Note the page and what you expected</b>, and pass it on to the Culturals team.</p>
 </div>
-<div class="tab" style="top:237mm;height:41mm"><b>6</b><span>Members and help</span></div><footer><span>Part 6 · Members and help</span><span>21</span></footer></section></body></html>
+<div class="band"></div><div class="tab" style="top:237mm;height:41mm"><b>6</b><span>Members and help</span></div><footer><span><b class="part-dot"></b>Part 6 · Members and help</span><span>21</span></footer></section></body></html>
