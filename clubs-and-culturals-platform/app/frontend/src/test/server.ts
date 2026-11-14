@@ -104,6 +104,7 @@ const baseEvent = (over: Partial<EventOut>): EventOut => ({
   budget: null,
   my_registration: null,
   proposal_document: null,
+  moves: [],
   submitted_at: null,
   closed_at: null,
   ...over,
@@ -198,6 +199,12 @@ const ROLE_BY_EMAIL: Record<string, string[]> = {
 export const handlers = [
   // AR-03: no venues in the default open block, so club pages render it empty.
   http.get(`${B}/open-block`, () => HttpResponse.json({ date: '2026-11-11', slots: [] })),
+  // The bell in the top bar is on every signed-in screen.
+  http.get(`${B}/governance/notifications/unread-count`, () => HttpResponse.json({ unread: 0 })),
+  http.get(`${B}/governance/notifications`, () =>
+    HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+  ),
+  http.post(`${B}/governance/notifications/mark-read`, () => HttpResponse.json({ marked: 0 })),
   // Demo server: the pilot accounts the sign-in page lists.
   http.get(`${B}/module/auth/demo/personas`, () =>
     HttpResponse.json({

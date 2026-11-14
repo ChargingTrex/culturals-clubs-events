@@ -7,6 +7,12 @@ approve them.
 > **New to Culturals?** Read the **[quick guide](quick-guide.md)** first. It covers proposing and
 > approving events in a few minutes, with pictures. The chapters below have the full detail.
 
+> **Club President, Vice-President, Secretary or Treasurer?** The
+> **[illustrated guide for club officials](officers/)** walks through every screen you use, with
+> numbered pictures: proposing, budgets, notifications, what a returned or rejected proposal looks
+> like, the door and the post-event report. It is also a
+> [PDF](officers/Culturals-guide-for-club-officials.pdf).
+
 Start with **[Getting started](getting-started.md)**, then open the chapter for your role.
 For a two-page summary of what the platform does and why, read the
 **[overview for the Vice-Chancellor](overview-for-vc.md)**.
@@ -19,7 +25,7 @@ authenticator code, such as `123456`).
 | I am… | Chapter |
 |---|---|
 | A student | [Student guide](student.md) |
-| A club president, secretary or member | [Club officers guide](club-officers.md) |
+| A club president, secretary or member | [Illustrated guide for club officials](officers/) · [Club officers guide](club-officers.md) |
 | A club treasurer | [Treasurer guide](treasurer.md) |
 | Running the door at an event | [Organiser & scan station guide](organiser.md) |
 | The Cultural Society secretary | [Cultural Society guide](cultural-society.md) |

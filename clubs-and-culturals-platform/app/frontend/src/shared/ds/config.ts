@@ -94,6 +94,8 @@ export const ROLE_POSITION: Record<string, Position> = {
   vice_chancellor: 'vice-chancellor',
   dean: 'dean',
   cultural_society: 'cultural-society',
+  cultural_society_secretary: 'cultural-society',
+  cultural_society_vice_secretary: 'cultural-society',
   admin: 'admin',
   club_president: 'president',
   club_vice_president: 'vice-president',

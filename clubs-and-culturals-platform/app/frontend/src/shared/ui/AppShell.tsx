@@ -10,6 +10,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { Loading } from './Empty';
 import { Nav, SignOutButton } from './Nav';
 import { ProblemView } from './ProblemView';
+import { NotificationsBell } from './NotificationsBell';
 import { ThemeToggle } from './ThemeToggle';
 import { transition, usePageTransitions } from './transitions';
 
@@ -113,6 +114,7 @@ export function AppShell() {
           footer={
             <>
               {who}
+              <NotificationsBell />
               <ThemeToggle />
             </>
           }
@@ -125,6 +127,7 @@ export function AppShell() {
           <div className="cc-bar-row cc-vt-appbar">
             <strong className="title-md text-navy">Culturals</strong>
             <div className="ml-auto flex min-w-0 items-center gap-2">
+              <NotificationsBell />
               <ThemeToggle />
               {who}
             </div>
@@ -145,6 +148,7 @@ export function AppShell() {
               {capabilities?.is_student ? <EventSearch /> : null}
             </div>
             <div className="flex min-w-0 shrink-0 items-center gap-3">
+              <NotificationsBell />
               <ThemeToggle />
               <div className="flex max-w-[280px] min-w-0 items-center gap-3">{who}</div>
             </div>

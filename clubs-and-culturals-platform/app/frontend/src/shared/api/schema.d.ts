@@ -2402,6 +2402,7 @@ export interface components {
             readonly budget: components["schemas"]["BudgetSummary"] | null;
             readonly my_registration: components["schemas"]["MyRegistration"] | null;
             readonly proposal_document: components["schemas"]["ProposalDocument"] | null;
+            readonly moves: components["schemas"]["EventMove"][];
             /** Format: date-time */
             readonly submitted_at: string | null;
             /** Format: date-time */
@@ -2481,6 +2482,7 @@ export interface components {
             readonly budget: components["schemas"]["BudgetSummary"] | null;
             readonly my_registration: components["schemas"]["MyRegistration"] | null;
             readonly proposal_document: components["schemas"]["ProposalDocument"] | null;
+            readonly moves: components["schemas"]["EventMove"][];
             /** Format: date-time */
             readonly submitted_at: string | null;
             /** Format: date-time */
@@ -2498,6 +2500,26 @@ export interface components {
          * @enum {string}
          */
         EventKindEnum: "performance" | "workshop" | "competition" | "exhibition" | "talk" | "open_block";
+        /** @description A move of the booking by the Dean or a Cultural Society officer, as the event page shows it. */
+        EventMove: {
+            /** Format: uuid */
+            id: string;
+            from_venue_name: string;
+            to_venue_name: string;
+            /** Format: date-time */
+            from_starts_at: string | null;
+            /** Format: date-time */
+            from_ends_at: string | null;
+            /** Format: date-time */
+            to_starts_at: string | null;
+            /** Format: date-time */
+            to_ends_at: string | null;
+            reason: string;
+            actor_label: string;
+            actor_role: string;
+            /** Format: date-time */
+            created_at: string;
+        };
         EventOrganiser: {
             /** Format: uuid */
             readonly id: string;
@@ -2803,6 +2825,8 @@ export interface components {
             body?: string;
             kind: string;
             link?: string;
+            actor_label?: string;
+            actor_role?: string;
             /** Format: date-time */
             read_at?: string | null;
             /** Format: date-time */
@@ -3116,6 +3140,7 @@ export interface components {
             readonly budget?: components["schemas"]["BudgetSummary"] | null;
             readonly my_registration?: components["schemas"]["MyRegistration"] | null;
             readonly proposal_document?: components["schemas"]["ProposalDocument"] | null;
+            readonly moves?: components["schemas"]["EventMove"][];
             /** Format: date-time */
             readonly submitted_at?: string | null;
             /** Format: date-time */
@@ -3655,8 +3680,17 @@ export interface components {
             /** Format: uuid */
             to_venue: string;
             readonly to_venue_name: string;
+            /** Format: date-time */
+            from_starts_at?: string | null;
+            /** Format: date-time */
+            from_ends_at?: string | null;
+            /** Format: date-time */
+            to_starts_at?: string | null;
+            /** Format: date-time */
+            to_ends_at?: string | null;
             reason: string;
             actor_label: string;
+            actor_role?: string;
             /** Format: date-time */
             readonly created_at: string;
         };

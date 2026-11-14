@@ -14,3 +14,28 @@ class SeedDemoTests(TestCase):
         reported = Event.objects.filter(status=EventStatus.REPORTED)
         self.assertGreaterEqual(reported.count(), 1)
         self.assertTrue(all(e.photos.exists() for e in reported))
+
+    def test_the_seed_holds_two_events_showing_what_approvers_change(self):
+        from governance.models import Notification
+
+        call_command("seed_demo", stdout=StringIO())
+        concert = Event.objects.get(title="Founders’ Day Concert")
+        self.assertEqual(concert.status, EventStatus.PUBLISHED)
+        move = concert.reassignments.get()
+        self.assertEqual((move.from_venue.name, move.to_venue.name, move.actor_role),
+                         ("Main Auditorium", "Open Air Theatre", "cultural_society_secretary"))
+        steps = list(concert.approval_requests.get().steps.order_by("created_at")
+                     .values_list("stage", "decision", "actor_role"))
+        self.assertEqual(steps, [("cultural_society", "approve", "cultural_society_secretary"),
+                                 ("dean", "approve", "dean"), ("vc", "approve", "vice_chancellor")])
+        self.assertLess(concert.budget.total_sanctioned, concert.budget.total_requested)
+
+        lasers = Event.objects.get(title="Laser Light Night")
+        self.assertEqual(lasers.status, EventStatus.REJECTED)
+        last = lasers.approval_requests.get().steps.order_by("created_at").last()
+        self.assertEqual((last.stage, last.decision), ("vc", "reject"))
+
+        kinds = set(Notification.objects.filter(subject__contains="Founders’ Day Concert")
+                    .values_list("kind", flat=True))
+        self.assertLessEqual({"event.venue_changed", "approval.sanction_changed",
+                              "approval.advanced", "approval.approved"}, kinds)

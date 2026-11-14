@@ -60,7 +60,7 @@ class NotificationSender(ABC):
     """In-app and email only. No SMS, no WhatsApp, ever (AGENT_PROMPT §2)."""
 
     @abstractmethod
-    def send(self, *, recipient, subject, body, kind, link=None): ...
+    def send(self, *, recipient, subject, body, kind, link=None, actor_label="", actor_role=""): ...
 
 
 class FileStore(ABC):

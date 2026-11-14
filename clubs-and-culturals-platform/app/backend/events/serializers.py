@@ -95,6 +95,22 @@ class ProposalPreviewSerializer(serializers.Serializer):
     truncated = serializers.BooleanField()
 
 
+class EventMoveSerializer(serializers.Serializer):
+    """A move of the booking by the Dean or a Cultural Society officer, as the event page shows it."""
+
+    id = serializers.UUIDField()
+    from_venue_name = serializers.CharField(source="from_venue.name")
+    to_venue_name = serializers.CharField(source="to_venue.name")
+    from_starts_at = serializers.DateTimeField(allow_null=True)
+    from_ends_at = serializers.DateTimeField(allow_null=True)
+    to_starts_at = serializers.DateTimeField(allow_null=True)
+    to_ends_at = serializers.DateTimeField(allow_null=True)
+    reason = serializers.CharField()
+    actor_label = serializers.CharField()
+    actor_role = serializers.CharField(allow_blank=True)
+    created_at = serializers.DateTimeField()
+
+
 class ProposalDocumentUploadSerializer(serializers.Serializer):
     file = serializers.FileField(help_text="PDF or Word document, up to 10 MB.")
 
@@ -113,6 +129,7 @@ class EventSerializer(serializers.ModelSerializer):
     budget = serializers.SerializerMethodField()
     my_registration = serializers.SerializerMethodField()
     proposal_document = serializers.SerializerMethodField()
+    moves = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -120,7 +137,7 @@ class EventSerializer(serializers.ModelSerializer):
                   "venue", "venue_name", "starts_at", "ends_at", "capacity",
                   "expected_attendance", "status", "status_label", "photo_count",
                   "social_links", "highlight_photo_url", "registered", "attended", "budget",
-                  "my_registration", "proposal_document", "submitted_at", "closed_at")
+                  "my_registration", "proposal_document", "moves", "submitted_at", "closed_at")
         read_only_fields = ("id", "status", "photo_count", "social_links", "submitted_at",
                             "closed_at")
 
@@ -132,6 +149,12 @@ class EventSerializer(serializers.ModelSerializer):
         if starts and ends and ends <= starts:
             raise serializers.ValidationError({"ends_at": "The end time must be after the start time."})
         return attrs
+
+    @extend_schema_field(EventMoveSerializer(many=True))
+    def get_moves(self, event):
+        """Every time an approver moved the booking, oldest first: what it was, what it became, and why."""
+        rows = sorted(event.reassignments.all(), key=lambda r: r.created_at)
+        return EventMoveSerializer(rows, many=True).data
 
     @extend_schema_field(ProposalDocumentSerializer(allow_null=True))
     def get_proposal_document(self, event):
@@ -314,7 +337,8 @@ class VenueReassignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = VenueReassignment
         fields = ("id", "event", "from_venue", "from_venue_name", "to_venue",
-                  "to_venue_name", "reason", "actor_label", "created_at")
+                  "to_venue_name", "from_starts_at", "from_ends_at", "to_starts_at", "to_ends_at",
+                  "reason", "actor_label", "actor_role", "created_at")
 
 
 class ReassignRequestSerializer(serializers.Serializer):

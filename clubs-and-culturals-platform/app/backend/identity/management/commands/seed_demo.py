@@ -454,6 +454,59 @@ class Command(BaseCommand):
                 event.status = EventStatus.LIVE
                 event.save(update_fields=["status"])
 
+        # ---- two events that show what approvers change ----------------
+        # One went all the way: the Cultural Society moved it, the Dean trimmed two
+        # heads, the Vice-Chancellor approved with a note. The other was trimmed by
+        # the Dean and then rejected by the Vice-Chancellor. Both are Music Club's and
+        # over the escalation threshold, so each has all three gates on its trail.
+        from events.services import notify_venue_change, reassign_venue
+
+        def reviewed(title, offset, start_h, end_h, venue_name):
+            venue = venues[venue_name]
+            event = Event.objects.create(
+                title=title, club=clubs["Music Club"], venue=venue, starts_at=at(offset, start_h),
+                ends_at=at(offset, end_h), capacity=venue.capacity, expected_attendance=650,
+                status=EventStatus.DRAFT, kind=Event.Kind.PERFORMANCE,
+            )
+            seed_from_template(event, BudgetTemplate.objects.get(name="Performance"))
+            officer = club_officers["Music Club"]["president"]
+            return event, governance.submit(event, actor=ctx_for(officer.user), actor_user=officer.user)
+
+        def dean_trims(event, approval, cuts, comment):
+            lines = {line.head: line for line in event.budget.lines.all()}
+            governance.decide(
+                approval, ctx=dean_ctx, decision=Decision.APPROVE, comment=comment,
+                sanctioned_lines={str(lines[head].id): lines[head].amount_requested * Decimal(share)
+                                  for head, share in cuts.items() if head in lines})
+            approval.refresh_from_db()
+
+        concert, approval = reviewed("Founders’ Day Concert", 34, 17, 20, "Main Auditorium")
+        was_venue, was_start = concert.venue.name, concert.starts_at
+        move_reason = "The Main Auditorium is booked for convocation rehearsals that evening."
+        reassign_venue(concert, to_venue=venues["Open Air Theatre"], reason=move_reason,
+                       actor=society_ctx, starts_at=at(34, 18), ends_at=at(34, 21))
+        concert.refresh_from_db()
+        notify_venue_change(concert, from_name=was_venue, reason=move_reason,
+                            from_starts_at=was_start, actor=society_ctx)
+        governance.decide(approval, ctx=society_ctx, decision=Decision.APPROVE,
+                          comment="Moved outdoors and an hour later; otherwise in order.")
+        approval.refresh_from_db()
+        dean_trims(concert, approval, {"Sound & lighting": "0.85", "Publicity": "0.5"},
+                   "Sound trimmed to the campus vendor’s rate; publicity halved, use the notice boards.")
+        if approval.state == ApprovalState.PENDING:
+            governance.decide(approval, ctx=vc_ctx, decision=Decision.APPROVE,
+                              comment="Approved. Invite the alumni office.")
+
+        lasers, approval = reviewed("Laser Light Night", 40, 19, 22, "Open Air Theatre")
+        governance.decide(approval, ctx=society_ctx, decision=Decision.APPROVE)
+        approval.refresh_from_db()
+        dean_trims(lasers, approval, {"Stage & decoration": "0.8"},
+                   "Decoration trimmed. Forwarding with a concern about the laser rig.")
+        if approval.state == ApprovalState.PENDING:
+            governance.decide(approval, ctx=vc_ctx, decision=Decision.REJECT,
+                              comment="The laser rig has no safety clearance and the insurer will not "
+                                      "cover it. Not approved.")
+
         # ---- attendance, with deliberate overlap ----------------------
         attendance_plan = {
             "Unplugged Evening": (46, 38), "Dance Showcase": (58, 49),

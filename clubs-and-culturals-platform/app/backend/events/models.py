@@ -164,6 +164,15 @@ class VenueReassignment(UUIDModel):
     reason = models.CharField(max_length=280)
     actor_sub = models.UUIDField()
     actor_label = models.CharField(max_length=80)
+    # The role the mover acted in (dean, cultural_society_secretary, …): the event
+    # page marks the change in that role's edit colour.
+    actor_role = models.CharField(max_length=40, blank=True)
+    # The slot before and after, so a change of time is shown as old → new and
+    # not only as the new time. Null on rows written before these columns.
+    from_starts_at = models.DateTimeField(null=True, blank=True)
+    from_ends_at = models.DateTimeField(null=True, blank=True)
+    to_starts_at = models.DateTimeField(null=True, blank=True)
+    to_ends_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)

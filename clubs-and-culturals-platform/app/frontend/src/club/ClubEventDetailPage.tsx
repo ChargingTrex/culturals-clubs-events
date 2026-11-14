@@ -5,13 +5,15 @@ import type { ApiError } from '../shared/api/client';
 import { api } from '../shared/api/endpoints';
 import type { EventOut, Page } from '../shared/api/types';
 import { useCapabilities } from '../shared/auth/useCapabilities';
-import { STAGE_ROLE, flowSteps } from '../shared/approvals';
+import { STAGE_ROLE, editRoleOf, flowSteps, sanctionChange } from '../shared/approvals';
 import {
   ApprovalFlow,
   BudgetSummary,
   Button,
   Card,
   ClubIcon,
+  EditLegend,
+  EditMark,
   FileDrop,
   Icon,
   RevisionTimeline,
@@ -79,7 +81,8 @@ function ApprovalTrail({ eventId }: { eventId: string }) {
           </div>
           {req.steps.length > 0 ? (
             <RevisionTimeline
-              items={req.steps.map((st) => {
+              items={req.steps.map((st, i) => {
+                const change = sanctionChange(req.steps, i, req.amount_requested);
                 const d = DECISION[st.decision] ?? { label: st.decision, tone: 'plain' as const };
                 return {
                   role: STAGE_ROLE[st.stage],
@@ -89,11 +92,14 @@ function ApprovalTrail({ eventId }: { eventId: string }) {
                     (st.on_behalf_of_label ? ` for ${st.on_behalf_of_label}` : ''),
                   at: fmtDate(st.created_at),
                   tags: <Pill tone={d.tone}>{d.label}</Pill>,
-                  action:
-                    st.stage_label +
-                    (Number(st.amount_sanctioned) > 0
-                      ? ` · sanctioned ${inr(st.amount_sanctioned)}`
-                      : ''),
+                  action: st.stage_label,
+                  // A gate that sanctions less than was asked has changed the budget:
+                  // shown as old → new in that approver's edit colour.
+                  ...(change.from != null
+                    ? { field: 'Budget', from: inr(change.from), to: inr(change.to) }
+                    : change.to != null
+                      ? { action: `${st.stage_label} · sanctioned ${inr(change.to)}` }
+                      : {}),
                   comment: st.comment || undefined,
                 };
               })}
@@ -159,6 +165,10 @@ function ClashPanel({ eventId }: { eventId: string }) {
   );
 }
 
+/** "4 Dec 2026, 06:00 pm–08:00 pm", or a dash for a slot the record does not hold. */
+const slot = (starts: string | null | undefined, ends: string | null | undefined): string =>
+  starts && ends ? `${fmtDate(starts)}, ${fmtTime(starts)}–${fmtTime(ends)}` : '—';
+
 /** AR-10: the proposal write-up. Replaceable while the proposal is a draft or returned. */
 function ProposalDocumentPanel({ event, canEdit }: { event: EventOut; canEdit: boolean }) {
   const queryClient = useQueryClient();
@@ -188,7 +198,8 @@ function ProposalDocumentPanel({ event, canEdit }: { event: EventOut; canEdit: b
           </button>
           <span className="caption text-ink-muted">
             {Math.max(1, Math.round(doc.byte_size / 1024))} KB
-            {doc.uploaded_by_label ? ` · ${doc.uploaded_by_label}` : ''} · {fmtDate(doc.uploaded_at)}
+            {doc.uploaded_by_label ? ` · ${doc.uploaded_by_label}` : ''} ·{' '}
+            {fmtDate(doc.uploaded_at)}
           </span>
         </p>
       ) : (
@@ -201,7 +212,7 @@ function ProposalDocumentPanel({ event, canEdit }: { event: EventOut; canEdit: b
           </label>
           <FileDrop
             id="proposal-doc"
-                        accept=".pdf,.doc,.docx"
+            accept=".pdf,.doc,.docx"
             disabled={attach.isPending}
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -212,7 +223,9 @@ function ProposalDocumentPanel({ event, canEdit }: { event: EventOut; canEdit: b
         </div>
       ) : null}
       {attach.error ? <ProblemView error={attach.error} /> : null}
-      {doc && previewing ? <ProposalPreview doc={doc} onClose={() => setPreviewing(false)} /> : null}
+      {doc && previewing ? (
+        <ProposalPreview doc={doc} onClose={() => setPreviewing(false)} />
+      ) : null}
     </section>
   );
 }
@@ -251,6 +264,12 @@ export function ClubEventDetailPage() {
   const e = event.data;
   const operate = capabilities?.clubs_can_operate_events.includes(e.club) ?? false;
   const propose = capabilities?.clubs_can_propose.includes(e.club) ?? false;
+  // What approvers changed about the booking (AR-12). The latest change of each kind marks the card.
+  const moves = e.moves ?? [];
+  const venueMove = [...moves].reverse().find((m) => m.from_venue_name !== m.to_venue_name);
+  const timeMove = [...moves]
+    .reverse()
+    .find((m) => m.from_starts_at != null && m.from_starts_at !== m.to_starts_at);
   const deletable = ['draft', 'returned', 'rejected'].includes(e.status);
 
   return (
@@ -303,13 +322,35 @@ export function ClubEventDetailPage() {
 
       <div className="grid gap-3.5 md:grid-cols-2 lg:gap-5">
         <Card title="When and where">
-          <p className="flex items-center gap-2">
+          <p className="flex flex-wrap items-center gap-2">
             <Icon name="clock" size={18} className="text-ink-muted" />
-            {fmtDate(e.starts_at)}, {fmtTime(e.starts_at)}–{fmtTime(e.ends_at)}
+            {timeMove ? (
+              <EditMark
+                role={editRoleOf(timeMove.actor_role)}
+                kind="replaced"
+                by={timeMove.actor_label}
+                from={slot(timeMove.from_starts_at, timeMove.from_ends_at)}
+              >
+                {slot(e.starts_at, e.ends_at)}
+              </EditMark>
+            ) : (
+              slot(e.starts_at, e.ends_at)
+            )}
           </p>
-          <p className="mt-1 flex items-center gap-2 text-ink-muted">
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-ink-muted">
             <Icon name="pin" size={18} />
-            {e.venue_name}
+            {venueMove ? (
+              <EditMark
+                role={editRoleOf(venueMove.actor_role)}
+                kind="replaced"
+                by={venueMove.actor_label}
+                from={venueMove.from_venue_name}
+              >
+                {e.venue_name}
+              </EditMark>
+            ) : (
+              e.venue_name
+            )}
           </p>
           {e.description ? <p className="mt-3 text-body-lg">{e.description}</p> : null}
         </Card>
@@ -347,7 +388,57 @@ export function ClubEventDetailPage() {
       </div>
 
       {propose || e.proposal_document ? (
-        <ProposalDocumentPanel event={e} canEdit={propose && (e.status === 'draft' || e.status === 'returned')} />
+        <ProposalDocumentPanel
+          event={e}
+          canEdit={propose && (e.status === 'draft' || e.status === 'returned')}
+        />
+      ) : null}
+
+      {moves.length > 0 ? (
+        <section className="cc-card mt-5 p-5" aria-label="Changes by approvers">
+          <h3 className="title-md">Changes by approvers</h3>
+          <p className="mt-1 mb-3 text-body-md text-ink-muted">
+            An approver moved this booking. The old value is struck through and the new one is in
+            that approver&rsquo;s colour.
+          </p>
+          <EditLegend compact className="mb-4" />
+          <RevisionTimeline
+            items={moves.flatMap((m) => {
+              const base = {
+                role: editRoleOf(m.actor_role),
+                name: m.actor_label,
+                roleLabel: m.actor_role ? roleLabel(m.actor_role) : 'Approver',
+                at: fmtDate(m.created_at),
+              };
+              const venue = m.from_venue_name !== m.to_venue_name;
+              const time = m.from_starts_at != null && m.from_starts_at !== m.to_starts_at;
+              return [
+                ...(venue
+                  ? [
+                      {
+                        ...base,
+                        field: 'Venue',
+                        from: m.from_venue_name,
+                        to: m.to_venue_name,
+                        comment: time ? undefined : m.reason,
+                      },
+                    ]
+                  : []),
+                ...(time
+                  ? [
+                      {
+                        ...base,
+                        field: 'Time',
+                        from: slot(m.from_starts_at, m.from_ends_at),
+                        to: slot(m.to_starts_at, m.to_ends_at),
+                        comment: m.reason,
+                      },
+                    ]
+                  : []),
+              ];
+            })}
+          />
+        </section>
       ) : null}
 
       <section className="cc-card mt-5 p-5" aria-label="Approval trail">

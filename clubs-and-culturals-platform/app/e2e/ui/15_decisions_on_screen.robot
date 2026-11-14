@@ -59,7 +59,9 @@ The Treasurer sees it published with the Dean's figure
     Sign In As    ${TREASURER_EMAIL}
     Open Club Event    ${cut}[event]    ${CUT_TITLE}
     Status Pill Should Read    Published
-    Wait For Text    sanctioned ₹11,000
+    # The Dean's cut is drawn as old → new on the Dean's step, in the Admin edit colour.
+    Wait For Elements State    section[aria-label="Approval trail"] >> ins.cc-edit--admin:has-text("₹11,000")    visible
+    Wait For Elements State    section[aria-label="Approval trail"] >> del.cc-edit--admin    visible
     Snapshot    15-treasurer-published
 
 The Vice-Chancellor has no sanction inputs, needs a reason, and rejects

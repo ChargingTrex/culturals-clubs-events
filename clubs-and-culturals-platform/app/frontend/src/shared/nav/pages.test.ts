@@ -84,3 +84,18 @@ describe('role-scoped page offers', () => {
     expect(titles).toContain('Society approvals');
   });
 });
+
+describe('sanctionChange', () => {
+  it('credits a cut to the gate that made it, not to the gate that carried it on', async () => {
+    const { sanctionChange } = await import('../approvals');
+    const steps = [
+      { amount_sanctioned: null }, // Cultural Society: no money yet
+      { amount_sanctioned: '63080.00' }, // Dean: cut
+      { amount_sanctioned: '63080.00' }, // Vice-Chancellor: carried on
+    ];
+    expect(sanctionChange(steps, 0, '65880.00')).toEqual({});
+    expect(sanctionChange(steps, 1, '65880.00')).toEqual({ from: 65880, to: 63080 });
+    expect(sanctionChange(steps, 2, '65880.00')).toEqual({ to: 63080 });
+    expect(sanctionChange([{ amount_sanctioned: '500.00' }], 0, '500.00')).toEqual({ to: 500 });
+  });
+});

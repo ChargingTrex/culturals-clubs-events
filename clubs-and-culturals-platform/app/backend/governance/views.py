@@ -426,7 +426,8 @@ class DelegationViewSet(viewsets.GenericViewSet):
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
-        fields = ("id", "subject", "body", "kind", "link", "read_at", "created_at")
+        fields = ("id", "subject", "body", "kind", "link", "actor_label", "actor_role",
+                  "read_at", "created_at")
 
 
 @extend_schema_view(list=extend_schema(parameters=[
