@@ -364,6 +364,7 @@ and are not in the PRD. Others were in the PRD but could not be used from the ap
 | AR-07 | A 1–2 page guide for the VC: how to use the platform and the benefits | VC, Anil sir | Written: `docs/user-guide/overview-for-vc.md` |
 | AR-09 | Cultural Society Secretary and Vice-Secretary: they approve for the Society, move a proposal's time or venue while it is with them, and manage the Society's members (added 2026-11-14) | Society officers, Dean | Built: roles `cultural_society_secretary` and `cultural_society_vice_secretary`, **Society members** page (`/staff/society`), `tests/test_society.py`. See §13 |
 | AR-10 | Proposal document uploaded with a new event; the budget either uploaded as a sheet (CSV, from the template) or entered by the Treasurer (added 2026-11-14) | Club officers, Treasurer, approvers | Built: `POST /events/{id}/proposal-document`, New event form, event page, approval page (`tests/test_proposal_document.py`). See §15 |
+| AR-12 | Notifications page; approver changes shown in the edit colours; two seeded examples; illustrated guide for club officials (added 2026-11-15) | Club officers | Built: `/notifications` behind the bell; notices carry who made them; a Dean's cut sends its own notice; a move stores old and new slot and is marked on the event page; `seed_demo` adds Founders' Day Concert and Laser Light Night; guide at `docs/user-guide/officers/` |
 | AR-08 | Hosted link, details and the guide sent to Anil sir to forward to the VC | Anil sir | Email drafted (`EMAIL_TO_ANIL_SIR.md`). Waiting on the redeploy and a sign-in check on the hosted site, then the project lead sends it |
 
 Tests on 2026-11-08: backend 469 passed (5 skipped), frontend 90 passed, plus the typecheck and the production build.
@@ -548,6 +549,9 @@ It has two or three screenshots. Benefits to cover:
 | 2026-11-14 | Officers keep the Society's member list; only the Dean or an administrator appoints or removes an officer, and there is one of each |
 | 2026-11-14 | On upgrade, a database with no Secretary gets one: the longest-standing Society account (`identity/migrations/0003`), so waiting proposals are not stranded |
 | 2026-11-14 | The uploaded budget CSV is not kept. It becomes the budget lines, which is what approvers read; the original sheet is not needed (decided by the project lead) |
+| 2026-11-15 | Notifications have a page, reached from a bell in the top bar, not a menu entry, so every role's page list is unchanged |
+| 2026-11-15 | A change by an approver is drawn in the design system's edit colours everywhere: violet "A" for the Cultural Society and the Dean, teal "M" for the Vice-Chancellor |
+| 2026-11-15 | A reduced sanction is credited to the gate that made it; a later gate that only carries the figure on shows no change |
 | 2026-11-08 | The Dean's move reuses the venue reassign: its record and notification now carry the old and new time as well |
 
 ## 21. Still to decide (Student Life Office)

@@ -8,6 +8,11 @@ approval, run them on the day and manage who holds which role. Budgets are cover
 
 The examples use the Music Club: Meera (President), Rohan (Secretary) and Sneha (a member).
 
+> **Prefer pictures?** The [illustrated guide for club officials](officers/) covers the same ground
+> screen by screen, and adds what is new since this chapter was written: the **proposal document**
+> and **budget sheet** on New event, the **Notifications** page behind the bell in the top bar, how a
+> **venue or time change** by an approver is shown, the **calendar** and the **post-event report**.
+
 ## What you see after signing in
 
 Every club role keeps the **Student** pages (Feed, What's on, My passes, Profile QR, Clubs). Below

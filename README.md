@@ -4,6 +4,15 @@ Two systems are specified here. They are built separately, by different teams, o
 different timelines, and each has its own PRD, decision log and development plan.
 A small set of documents is binding on both.
 
+## Try it and read the guides
+
+| | |
+|---|---|
+| **Live demo** | [culturals-clubs-events.vercel.app](https://culturals-clubs-events.vercel.app) — one pilot account per role is listed on the sign-in page (password `culturals-demo`; staff accept any 6-digit code) |
+| **User guide** (GitHub Pages) | [chargingtrex.github.io/culturals-clubs-events/user-guide/](https://chargingtrex.github.io/culturals-clubs-events/user-guide/) — a chapter for every role, and a quick guide |
+| **Guide for club officials** | [user-guide/officers/](https://chargingtrex.github.io/culturals-clubs-events/user-guide/officers/) — every screen a President, Vice-President, Secretary and Treasurer uses, with numbered pictures ([PDF](https://chargingtrex.github.io/culturals-clubs-events/user-guide/officers/Culturals-guide-for-club-officials.pdf)) |
+| **Guide for approvers** | [`docs/approver-guide/Culturals-guide-for-approvers.pdf`](docs/approver-guide/Culturals-guide-for-approvers.pdf) — Cultural Society, Dean and Management |
+
 ## Start here
 
 **[MASTER_SPEC.md](MASTER_SPEC.md)** — the consolidated reference: every role and what

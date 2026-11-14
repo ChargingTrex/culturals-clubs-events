@@ -98,11 +98,17 @@ img{{display:block;max-width:100%;height:auto;margin:20px auto;border:1px solid 
 """
 
 shutil.copytree(SRC / "img", OUT / "img", dirs_exist_ok=True)
+# The illustrated guide for club officials is built ahead of time (officers/source/build.py) into
+# officers/index.html with its pictures, font and PDF; it is published as it is, without its sources.
+shutil.copytree(SRC / "officers", OUT / "officers", dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("source"))
+print("copied officers/")
 (OUT / SIMPLE[1]).write_text(SIMPLE_PAGE.format(body=render((SRC / SIMPLE[0]).read_text(encoding="utf-8"))),
                              encoding="utf-8")
 print("wrote", SIMPLE[1])
 for md, label in CHAPTERS:
-    nav = '<a href="quick-guide.html">Quick guide</a>' + "".join(
+    nav = ('<a href="quick-guide.html">Quick guide</a>'
+           '<a href="officers/">Club officials (illustrated)</a>') + "".join(
         f'<a href="{out_name(m)}"{" class=on aria-current=page" if m == md else ""}>{l}</a>'
         for m, l in CHAPTERS)
     body = render((SRC / md).read_text(encoding="utf-8"))
