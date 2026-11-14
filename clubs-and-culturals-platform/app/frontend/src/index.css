@@ -94,6 +94,220 @@
   textarea.field {
     @apply h-auto py-2;
   }
+  .field {
+    accent-color: var(--primary);
+    transition:
+      border-color var(--dur-sm) var(--ease-standard),
+      background-color var(--dur-sm) var(--ease-standard),
+      box-shadow var(--dur-sm) var(--ease-standard);
+  }
+  .field:hover:not(:disabled, :focus-visible) {
+    border-color: var(--ink-muted);
+  }
+  .field:disabled {
+    cursor: not-allowed;
+    border-color: var(--line);
+    background: var(--surface-sunken);
+    color: var(--ink-muted);
+  }
+
+  /* Dropdowns: the system's field with a drawn caret. The closed control looks
+     the same in every browser; the open list is the platform's own, except on
+     desktop Chromium where it is drawn too (below). */
+  select.field {
+    --caret: var(--ink-muted);
+    --caret-arm: 5px;
+    appearance: none;
+    cursor: pointer;
+    padding-right: calc(var(--space-3) * 2 + var(--caret-arm) * 2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background-image:
+      linear-gradient(
+        45deg,
+        transparent calc(50% - 1.1px),
+        var(--caret) calc(50% - 0.7px) calc(50% + 0.7px),
+        transparent calc(50% + 1.1px)
+      ),
+      linear-gradient(
+        -45deg,
+        transparent calc(50% - 1.1px),
+        var(--caret) calc(50% - 0.7px) calc(50% + 0.7px),
+        transparent calc(50% + 1.1px)
+      );
+    background-repeat: no-repeat;
+    background-size: var(--caret-arm) var(--caret-arm);
+    background-position:
+      right calc(var(--space-3) + var(--caret-arm)) center,
+      right var(--space-3) center;
+  }
+  select.field:not(:disabled):hover {
+    background-color: var(--surface-sunken);
+  }
+  select.field:disabled {
+    --caret: var(--line-strong);
+  }
+
+  @supports (appearance: base-select) {
+    @media (hover: hover) and (pointer: fine) {
+      select.field,
+      select.field::picker(select) {
+        appearance: base-select;
+      }
+      select.field {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding-right: var(--space-3);
+        background-image: none;
+      }
+      select.field::picker-icon {
+        content: '';
+        flex: none;
+        width: var(--icon-md);
+        height: var(--icon-md);
+        margin-left: auto;
+        background: var(--caret);
+        mask: var(--glyph-chevron-down) center / contain no-repeat;
+        transition: rotate var(--dur-md) var(--ease-standard);
+      }
+      select.field:open {
+        border-color: var(--primary);
+      }
+      select.field:open::picker-icon {
+        rotate: 180deg;
+      }
+      select.field::picker(select) {
+        box-sizing: border-box;
+        max-height: min(22rem, 55vh);
+        margin-block: var(--space-1);
+        padding: var(--space-1);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: var(--surface-raised);
+        box-shadow: var(--elevation-3);
+        color: var(--ink);
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: var(--line-strong) transparent;
+        transform-origin: top center;
+        opacity: 0;
+        scale: 0.98;
+        translate: 0 calc(var(--space-1) * -1);
+        transition:
+          opacity var(--dur-sm) var(--ease-accelerate),
+          scale var(--dur-sm) var(--ease-accelerate),
+          translate var(--dur-sm) var(--ease-accelerate),
+          overlay var(--dur-sm) allow-discrete,
+          display var(--dur-sm) allow-discrete;
+      }
+      select.field:open::picker(select) {
+        opacity: 1;
+        scale: 1;
+        translate: 0 0;
+        transition-duration: var(--dur-md);
+        transition-timing-function: var(--ease-emphasized-decelerate);
+      }
+      @starting-style {
+        select.field:open::picker(select) {
+          opacity: 0;
+          scale: 0.98;
+          translate: 0 calc(var(--space-1) * -1);
+        }
+      }
+      select.field option {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-height: var(--control-md);
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-sm);
+        color: var(--ink);
+        white-space: normal;
+        cursor: pointer;
+      }
+      select.field option:is(:hover, :focus-visible) {
+        background: var(--surface-sunken);
+        outline: none;
+      }
+      select.field option:checked {
+        color: var(--primary);
+        font-weight: var(--type-label-md-weight);
+      }
+      select.field option:disabled {
+        color: var(--ink-subtle);
+        cursor: not-allowed;
+        opacity: var(--disabled);
+      }
+      select.field option::checkmark {
+        content: '';
+        order: 1;
+        flex: none;
+        width: var(--icon-sm);
+        height: var(--icon-sm);
+        margin-left: auto;
+        background: currentColor;
+        mask: var(--glyph-check) center / contain no-repeat;
+      }
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    select.field::picker-icon {
+      transition: none;
+    }
+    select.field::picker(select),
+    select.field:open::picker(select) {
+      scale: 1;
+      translate: 0 0;
+    }
+  }
+
+  /* Dates: the same box, tabular digits, and the calendar button as an icon. */
+  input.field:is([type='date'], [type='datetime-local'], [type='time'], [type='month']) {
+    appearance: none;
+    font-variant-numeric: tabular-nums;
+  }
+  input.field::-webkit-datetime-edit {
+    padding: 0;
+  }
+  input.field::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+  input.field::-webkit-datetime-edit-text {
+    color: var(--ink-subtle);
+  }
+  input.field:is(
+      ::-webkit-datetime-edit-day-field,
+      ::-webkit-datetime-edit-month-field,
+      ::-webkit-datetime-edit-year-field,
+      ::-webkit-datetime-edit-hour-field,
+      ::-webkit-datetime-edit-minute-field,
+      ::-webkit-datetime-edit-ampm-field
+    ) {
+    padding: 1px;
+    border-radius: var(--radius-xs);
+  }
+  input.field::-webkit-calendar-picker-indicator {
+    box-sizing: content-box;
+    width: var(--icon-md);
+    height: var(--icon-md);
+    margin: 0 calc(var(--space-2) * -1) 0 var(--space-2);
+    padding: var(--space-1);
+    border-radius: var(--radius-xs);
+    background: var(--ink-muted);
+    mask: var(--glyph-calendar) center / var(--icon-md) no-repeat;
+    cursor: pointer;
+    opacity: 1;
+    transition: background-color var(--dur-sm) var(--ease-standard);
+  }
+  input.field::-webkit-calendar-picker-indicator:hover {
+    background: var(--primary);
+  }
+  input.field:disabled::-webkit-calendar-picker-indicator {
+    cursor: not-allowed;
+    opacity: var(--disabled);
+  }
   .label {
     @apply mb-1.5 block text-label-md font-(--type-label-md-weight) text-ink-muted;
   }

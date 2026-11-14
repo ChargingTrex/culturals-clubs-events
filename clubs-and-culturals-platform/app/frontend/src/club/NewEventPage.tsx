@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, Icon, Switch } from '../shared/ds';
+import { Button, FileDrop, Icon, Switch } from '../shared/ds';
 import type { ApiError } from '../shared/api/client';
 import type { Page } from '../shared/api/types';
 import { inr } from '../shared/format';
@@ -503,11 +503,9 @@ export function NewEventPage() {
               <label className="label" htmlFor="ne-sheet">
                 Budget sheet (CSV: head, amount, basis optional)
               </label>
-              <input
+              <FileDrop
                 id="ne-sheet"
-                type="file"
-                accept=".csv,text/csv"
-                className="field"
+                                accept=".csv,text/csv"
                 onChange={(e) => setSheet(e.target.files?.[0] ?? null)}
               />
               <span className="mt-1 flex flex-wrap gap-x-4">
@@ -550,11 +548,9 @@ export function NewEventPage() {
           <label className="label mt-4" htmlFor="ne-proposal">
             Proposal document (PDF or Word, up to 10 MB)
           </label>
-          <input
+          <FileDrop
             id="ne-proposal"
-            type="file"
-            accept={PROPOSAL_TYPES}
-            className="field"
+                        accept={PROPOSAL_TYPES}
             onChange={(e) => setProposal(e.target.files?.[0] ?? null)}
           />
           {proposalTooBig ? (

@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   ClubIcon,
+  FileDrop,
   Icon,
   RevisionTimeline,
   Stat,
@@ -198,11 +199,9 @@ function ProposalDocumentPanel({ event, canEdit }: { event: EventOut; canEdit: b
           <label className="label" htmlFor="proposal-doc">
             {doc ? 'Replace it' : 'Attach it'} (PDF or Word, up to 10 MB)
           </label>
-          <input
+          <FileDrop
             id="proposal-doc"
-            type="file"
-            accept=".pdf,.doc,.docx"
-            className="field"
+                        accept=".pdf,.doc,.docx"
             disabled={attach.isPending}
             onChange={(e) => {
               const file = e.target.files?.[0];

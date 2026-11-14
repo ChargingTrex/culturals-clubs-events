@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import { useCapabilities } from '../shared/auth/useCapabilities';
-import { BudgetSummary, Button, EditTag, Icon, Stat, buttonClass, cx } from '../shared/ds';
+import { BudgetSummary, Button, EditTag, FileDrop, Icon, Stat, buttonClass, cx } from '../shared/ds';
 import { fmtDate, inr } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
@@ -327,11 +327,9 @@ function CsvImportForm({ budget }: { budget: Budget }) {
         <label className="label" htmlFor="line-csv">
           Or upload a CSV (columns head, amount, basis optional)
         </label>
-        <input
+        <FileDrop
           id="line-csv"
-          type="file"
-          accept=".csv,text/csv"
-          className="field"
+                    accept=".csv,text/csv"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
         <span className="flex flex-wrap gap-x-4">
@@ -462,12 +460,11 @@ function ReceiptUpload({ budget, line }: { budget: Budget; line: BudgetLine }) {
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-2">
-        <input
+        <FileDrop
           key={inputKey}
           aria-label={`Receipt for ${line.head}`}
-          type="file"
-          accept="application/pdf,image/*"
-          className="text-body-md"
+                    accept="application/pdf,image/*"
+          className="min-w-0 flex-1"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
         <button

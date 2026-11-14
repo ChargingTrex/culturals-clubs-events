@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
 import type { EventOut } from '../shared/api/types';
-import { Button, Icon, Stat } from '../shared/ds';
+import { Button, FileDrop, Icon, Stat } from '../shared/ds';
 import { fmtDate } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill } from '../shared/ui/Pill';
@@ -163,12 +163,10 @@ export function PostEventReport({ event, canSpend }: { event: EventOut; canSpend
           <label className="label" htmlFor="report-photos">
             Add photos (JPG, PNG, WebP or HEIC). Star two or three as highlights for the semester report.
           </label>
-          <input
+          <FileDrop
             id="report-photos"
-            type="file"
-            multiple
+                        multiple
             accept="image/jpeg,image/png,image/webp,image/heic"
-            className="field"
             disabled={upload.isPending}
             onChange={(e) => {
               const files = [...(e.target.files ?? [])];
@@ -224,11 +222,9 @@ export function PostEventReport({ event, canSpend }: { event: EventOut; canSpend
             </label>
             <label className="grid gap-1 text-label-md">
               Screenshot (optional)
-              <input
+              <FileDrop
                 key={shotKey}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
-                className="field"
+                                accept="image/jpeg,image/png,image/webp,image/heic"
                 onChange={(e) => setShot(e.target.files?.[0] ?? null)}
               />
             </label>
