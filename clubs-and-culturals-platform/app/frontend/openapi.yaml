@@ -4847,6 +4847,11 @@ components:
           - $ref: '#/components/schemas/ProposalDocument'
           nullable: true
           readOnly: true
+        moves:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventMove'
+          readOnly: true
         submitted_at:
           type: string
           format: date-time
@@ -4868,6 +4873,7 @@ components:
       - expected_attendance
       - highlight_photo_url
       - id
+      - moves
       - my_registration
       - photo_count
       - proposal_document
@@ -5054,6 +5060,11 @@ components:
           - $ref: '#/components/schemas/ProposalDocument'
           nullable: true
           readOnly: true
+        moves:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventMove'
+          readOnly: true
         submitted_at:
           type: string
           format: date-time
@@ -5086,6 +5097,7 @@ components:
       - expected_attendance
       - highlight_photo_url
       - id
+      - moves
       - my_registration
       - photo_count
       - proposal_document
@@ -5115,6 +5127,55 @@ components:
         * `exhibition` - Exhibition
         * `talk` - Talk
         * `open_block` - Wednesday open block
+    EventMove:
+      type: object
+      description: A move of the booking by the Dean or a Cultural Society officer,
+        as the event page shows it.
+      properties:
+        id:
+          type: string
+          format: uuid
+        from_venue_name:
+          type: string
+        to_venue_name:
+          type: string
+        from_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        from_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        to_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        to_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        reason:
+          type: string
+        actor_label:
+          type: string
+        actor_role:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - actor_label
+      - actor_role
+      - created_at
+      - from_ends_at
+      - from_starts_at
+      - from_venue_name
+      - id
+      - reason
+      - to_ends_at
+      - to_starts_at
+      - to_venue_name
     EventOrganiser:
       type: object
       properties:
@@ -5844,6 +5905,12 @@ components:
         link:
           type: string
           maxLength: 300
+        actor_label:
+          type: string
+          maxLength: 160
+        actor_role:
+          type: string
+          maxLength: 40
         read_at:
           type: string
           format: date-time
@@ -6486,6 +6553,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/ProposalDocument'
           nullable: true
+          readOnly: true
+        moves:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventMove'
           readOnly: true
         submitted_at:
           type: string
@@ -7710,12 +7782,31 @@ components:
         to_venue_name:
           type: string
           readOnly: true
+        from_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        from_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        to_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        to_ends_at:
+          type: string
+          format: date-time
+          nullable: true
         reason:
           type: string
           maxLength: 280
         actor_label:
           type: string
           maxLength: 80
+        actor_role:
+          type: string
+          maxLength: 40
         created_at:
           type: string
           format: date-time

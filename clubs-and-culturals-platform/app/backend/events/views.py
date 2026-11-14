@@ -97,6 +97,7 @@ class EventViewSet(EventEvidenceMixin, viewsets.ModelViewSet):
         base = (Event.objects
                 .select_related("club", "venue", "budget")
                 .prefetch_related("budget__lines", "photos", "social_posts", "proposal_documents",
+                                  "reassignments__from_venue", "reassignments__to_venue",
                                   Prefetch("registrations",
                                            queryset=Registration.objects.filter(
                                                cancelled_at__isnull=True))))
@@ -389,7 +390,7 @@ class EventViewSet(EventEvidenceMixin, viewsets.ModelViewSet):
                        starts_at=v.get("starts_at"), ends_at=v.get("ends_at"))
         event.refresh_from_db()
         notify_venue_change(event, from_name=from_name, reason=v["reason"],
-                            from_starts_at=from_starts)
+                            from_starts_at=from_starts, actor=ctx)
         audit_sink().record(actor=ctx, action="event.venue_reassigned", target=event,
                             before={"venue": from_name, "starts_at": from_starts.isoformat(),
                                     "ends_at": from_ends.isoformat()},

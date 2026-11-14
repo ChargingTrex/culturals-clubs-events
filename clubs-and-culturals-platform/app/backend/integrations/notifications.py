@@ -13,11 +13,12 @@ class LocalNotificationSender(NotificationSender):
     building a second channel at all.
     """
 
-    def send(self, *, recipient, subject, body, kind, link=None):
+    def send(self, *, recipient, subject, body, kind, link=None, actor_label="", actor_role=""):
         from governance.models import Notification
 
         note = Notification.objects.create(
-            user=recipient, subject=subject, body=body, kind=kind, link=link or ""
+            user=recipient, subject=subject, body=body, kind=kind, link=link or "",
+            actor_label=(actor_label or "")[:160], actor_role=actor_role or "",
         )
         # §3.3: system mail goes to the institutional address while the account
         # is active; personal_email is a fallback for alumni, never for login.
@@ -33,7 +34,7 @@ class PlatformNotificationSender(NotificationSender):
     def __init__(self, base_url=None):
         self.base_url = base_url
 
-    def send(self, *, recipient, subject, body, kind, link=None):
+    def send(self, *, recipient, subject, body, kind, link=None, actor_label="", actor_role=""):
         raise NotImplementedError(
             "PlatformNotificationSender requires /api/v1/core/notifications."
         )

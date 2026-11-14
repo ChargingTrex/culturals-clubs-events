@@ -281,6 +281,11 @@ class Notification(UUIDModel):
     kind = models.CharField(max_length=40)
     link = models.CharField(max_length=300, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    # Who caused it, when a person did (an approver's decision or change). The
+    # role drives the edit colour the reader sees: violet for the Society and the
+    # Dean, teal for the Vice-Chancellor. Blank for system notices.
+    actor_label = models.CharField(max_length=160, blank=True)
+    actor_role = models.CharField(max_length=40, blank=True)
 
     class Meta:
         ordering = ("-created_at",)

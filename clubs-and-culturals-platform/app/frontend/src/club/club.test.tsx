@@ -671,6 +671,48 @@ describe('F-04 club screens', () => {
     expect(within(dialog).getByRole('button', { name: 'Download' })).toBeInTheDocument();
   });
 
+  it('shows what an approver moved, struck through and in the approver’s colour (AR-12)', async () => {
+    state.events.push(
+      draftEvent({
+        status: 'submitted',
+        status_label: 'Awaiting approval',
+        venue_name: 'Amphitheatre',
+        starts_at: '2026-11-30T12:30:00Z',
+        ends_at: '2026-11-30T14:30:00Z',
+        moves: [
+          {
+            id: 'm-1',
+            from_venue_name: 'Music Room',
+            to_venue_name: 'Amphitheatre',
+            from_starts_at: '2026-11-30T11:30:00Z',
+            from_ends_at: '2026-11-30T13:30:00Z',
+            to_starts_at: '2026-11-30T12:30:00Z',
+            to_ends_at: '2026-11-30T14:30:00Z',
+            reason: 'The Music Room is needed for an exam.',
+            actor_label: 'Nivedita Raman',
+            actor_role: 'cultural_society_secretary',
+            created_at: '2026-11-14T10:00:00Z',
+          },
+        ],
+      }),
+    );
+    server.use(approvalsEmpty);
+    renderAt('/club/events/e-draft', { roles: ['student', 'club_president:club-lens'] });
+    const changes = await screen.findByRole('region', { name: 'Changes by approvers' });
+    // Venue and time each get a row: old struck through, new in Admin violet, with the reason.
+    const was = within(changes).getByText('Music Room');
+    expect(was.tagName).toBe('DEL');
+    expect(was).toHaveClass('cc-edit--admin');
+    expect(within(changes).getByText('Amphitheatre').tagName).toBe('INS');
+    expect(within(changes).getByText('“The Music Room is needed for an exam.”')).toBeInTheDocument();
+    expect(within(changes).getAllByText('Nivedita Raman').length).toBeGreaterThan(0);
+    expect(within(changes).getByRole('note', { name: 'Edit colour key' })).toBeInTheDocument();
+    // The "When and where" card carries the same marks beside the current venue.
+    const struck = screen.getAllByText('Music Room');
+    expect(struck).toHaveLength(2);
+    for (const el of struck) expect(el.tagName).toBe('DEL');
+  });
+
   it('lists the club’s own events with a send button on drafts', async () => {
     state.events.push(draftEvent());
     renderAt('/club/events', { roles: ['student', 'club_secretary:club-lens'] });

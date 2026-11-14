@@ -25,6 +25,10 @@ export const STAGE_ROLE: Record<ApprovalStage, EditRole> = {
   vc: 'management',
 };
 
+/** The edit colour a backend role writes in: the Vice-Chancellor is Management (teal), every other approver Admin (violet). */
+export const editRoleOf = (role: string | undefined | null): EditRole =>
+  role === 'vice_chancellor' ? 'management' : 'admin';
+
 export function flowSteps(a: ApprovalRequest): FlowStep[] {
   const route = (a.stages as ApprovalStage[] | undefined) ?? [];
   const steps: FlowStep[] = [{ label: 'Club', who: a.club, status: 'done', state: 'Submitted' }];

@@ -16,6 +16,7 @@ import { ProfilePage } from './student/ProfilePage';
 import { SignInPage } from './student/SignInPage';
 import * as organiser from './organiser/screens';
 import * as club from './club/screens';
+import { NotificationsPage } from './shared/ui/NotificationsPage';
 import * as staff from './staff/screens';
 
 function page(path: string): PageDef {
@@ -64,6 +65,7 @@ export function AppRoutes() {
           />
         ))}
         <Route path="/events/:id" element={<EventDetailPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         {EXTRA.map(([path, element]) => (
           <Route key={path} path={path} element={element} />
         ))}

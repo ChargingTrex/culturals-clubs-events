@@ -252,3 +252,66 @@ class SocietyRosterTests(SocietyBase):
 
     def test_removing_someone_outside_the_society_is_a_404(self):
         self.assertEqual(self.remove("sec@college.edu", self.dean).status_code, 404)
+
+
+class ChangeAttributionTests(SocietyBase):
+    """AR-12: a change by an approver is recorded with who made it and what it replaced."""
+
+    def notices(self, email, kind):
+        return list(Notification.objects.filter(user__email=email, kind=kind).order_by("created_at"))
+
+    def test_a_move_is_stored_with_both_slots_and_the_movers_role_and_shown_on_the_event(self):
+        self.assertEqual(self.move("sec@college.edu", to_venue=str(self.other_hall.id),
+                                   **self.later()).status_code, 200)
+        self.login("pres@college.edu")
+        moves = self.client.get(f"/api/v1/events/{self.event.id}").data["moves"]
+        self.assertEqual(len(moves), 1)
+        move = moves[0]
+        self.assertEqual((move["from_venue_name"], move["to_venue_name"]),
+                         ("Seminar Hall A", "Seminar Hall B"))
+        self.assertEqual(move["actor_role"], R.SOCIETY_SECRETARY)
+        self.assertEqual(move["actor_label"], "Secretary")
+        row = self.event.reassignments.get()
+        self.assertEqual(row.from_starts_at, self.start)
+        self.assertEqual(row.to_starts_at, self.start + timedelta(hours=2))
+        self.assertIsNotNone(move["from_starts_at"])
+        told = self.notices("pres@college.edu", "event.venue_changed")[-1]
+        self.assertEqual((told.actor_label, told.actor_role), ("Secretary", R.SOCIETY_SECRETARY))
+
+    def test_the_deans_move_is_recorded_as_the_deans(self):
+        self.decide("sec@college.edu")
+        self.assertEqual(self.move("dean@college.edu", **self.later()).status_code, 200)
+        self.assertEqual(self.event.reassignments.get().actor_role, R.DEAN)
+
+    def test_a_decision_notice_names_who_decided(self):
+        self.decide("vice@college.edu", "approve")
+        told = self.notices("pres@college.edu", "approval.advanced")[-1]
+        self.assertEqual((told.actor_label, told.actor_role),
+                         ("Vice-Secretary", R.SOCIETY_VICE_SECRETARY))
+
+    def test_the_dean_cutting_a_head_tells_the_club_which_and_by_how_much(self):
+        self.decide("sec@college.edu")
+        line = self.event.budget.lines.get()
+        self.login("dean@college.edu")
+        response = self.client.post(
+            f"/api/v1/governance/approvals/{self.approval.id}/decide",
+            {"decision": "approve", "sanctioned": {str(line.id): "8000"}}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        told = self.notices("pres@college.edu", "approval.sanction_changed")
+        self.assertEqual(len(told), 1)
+        self.assertEqual(told[0].body, "Head 1: ₹10,000 → ₹8,000")
+        self.assertEqual(told[0].actor_role, R.DEAN)
+
+    def test_no_budget_notice_when_the_dean_sanctions_everything_asked(self):
+        self.decide("sec@college.edu")
+        self.decide("dean@college.edu")
+        self.assertEqual(self.notices("pres@college.edu", "approval.sanction_changed"), [])
+
+    def test_the_notification_list_carries_the_actor(self):
+        self.login("sec@college.edu")
+        self.client.post(f"/api/v1/governance/approvals/{self.approval.id}/decide",
+                         {"decision": "return", "comment": "Add the vendor quote."}, format="json")
+        self.login("pres@college.edu")
+        rows = self.client.get("/api/v1/governance/notifications").data["results"]
+        returned = next(r for r in rows if r["kind"] == "approval.returned")
+        self.assertEqual(returned["actor_role"], R.SOCIETY_SECRETARY)

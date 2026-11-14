@@ -104,6 +104,7 @@ const baseEvent = (over: Partial<EventOut>): EventOut => ({
   budget: null,
   my_registration: null,
   proposal_document: null,
+  moves: [],
   submitted_at: null,
   closed_at: null,
   ...over,

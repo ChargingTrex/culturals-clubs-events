@@ -175,7 +175,7 @@ def _notify_stage_holders(request, event):
         )
 
 
-def _notify_club(event, subject, body, kind):
+def _notify_club(event, subject, body, kind, *, actor_label="", actor_role=""):
     """
     Notify the club's office bearers, not the whole membership.
 
@@ -192,7 +192,8 @@ def _notify_club(event, subject, body, kind):
         user = membership.student.user
         if isinstance(user, User):
             notifier().send(recipient=user, subject=subject, body=body, kind=kind,
-                            link=f"/club/events/{event.id}")
+                            link=f"/club/events/{event.id}",
+                            actor_label=actor_label, actor_role=actor_role)
 
 
 # --------------------------------------------------------------------------
@@ -569,6 +570,9 @@ def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
         on_behalf_of_label=delegation.principal_user.display_name if delegation else "",
     )
 
+    who = {"actor_label": ctx.display_name, "actor_role": step.actor_role}
+    if decision == Decision.APPROVE and stage == ApprovalStage.DEAN:
+        _notify_sanction_changes(event, budget, **who)
     if decision == Decision.RETURN:
         request.state = ApprovalState.RETURNED
         request.resolved_at = timezone.now()
@@ -576,7 +580,7 @@ def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
         if budget:
             budget.stage = BudgetStage.RETURNED
         _notify_club(event, f"“{event.title}” was returned for changes",
-                     f"{ApprovalStage(stage).label}: {comment}", "approval.returned")
+                     f"{ApprovalStage(stage).label}: {comment}", "approval.returned", **who)
     elif decision == Decision.REJECT:
         request.state = ApprovalState.REJECTED
         request.resolved_at = timezone.now()
@@ -584,7 +588,7 @@ def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
         if budget:
             budget.stage = BudgetStage.REJECTED
         _notify_club(event, f"“{event.title}” was rejected",
-                     f"{ApprovalStage(stage).label}: {comment}", "approval.rejected")
+                     f"{ApprovalStage(stage).label}: {comment}", "approval.rejected", **who)
     else:
         remaining = request.remaining_stages()
         if remaining:
@@ -596,8 +600,9 @@ def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
             _notify_stage_holders(request, event)
             _notify_club(
                 event, f"“{event.title}” cleared the {ApprovalStage(stage).label}",
-                f"It is now with the {ApprovalStage(remaining[0]).label}.",
-                "approval.advanced")
+                f"It is now with the {ApprovalStage(remaining[0]).label}."
+                + (f" Comment: {comment.strip()}" if comment.strip() else ""),
+                "approval.advanced", **who)
         else:
             # Last gate cleared. An approved event is published in the same
             # transaction: an "approved but not published" limbo is a state
@@ -609,8 +614,9 @@ def _decide(request, *, ctx, decision, comment, sanctioned_lines, actor_user):
             if budget:
                 budget.stage = BudgetStage.SANCTIONED
             _notify_club(event, f"“{event.title}” is approved and published",
-                         "Registration is open and the event is on the calendar.",
-                         "approval.approved")
+                         "Registration is open and the event is on the calendar."
+                         + (f" Comment: {comment.strip()}" if comment.strip() else ""),
+                         "approval.approved", **who)
 
     request.save()
     event.save(update_fields=["status", "updated_at"])
@@ -650,6 +656,25 @@ def _assert_slot_still_free(event):
             detail=(f"“{event.title}” now overlaps a confirmed booking in "
                     f"{event.venue.name}: {exc.detail_text} Move one of them first."),
         ) from exc
+
+
+def _notify_sanction_changes(event, budget, **who):
+    """
+    Tell the club which heads the Dean sanctioned below the request, head by head.
+
+    The approval notice says only that the proposal moved on; a Treasurer who
+    asked for ₹12,000 and has ₹10,800 needs to hear that as its own fact.
+    """
+    if budget is None:
+        return
+    cut = [line for line in budget.lines.order_by("position")  # a fresh read: the cuts were just written
+           if line.amount_sanctioned is not None and line.amount_sanctioned < line.amount_requested]
+    if not cut:
+        return
+    body = "; ".join(f"{line.head}: ₹{line.amount_requested:,.0f} → ₹{line.amount_sanctioned:,.0f}"
+                     for line in cut)
+    _notify_club(event, f"The Dean changed the budget for “{event.title}”", body,
+                 "approval.sanction_changed", **who)
 
 
 def _apply_sanctions(budget, sanctioned_lines):

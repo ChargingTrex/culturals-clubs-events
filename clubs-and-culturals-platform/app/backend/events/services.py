@@ -176,17 +176,28 @@ def reassign_venue(event, *, to_venue, reason, actor, starts_at=None, ends_at=No
                     "another venue."),
             errors=[{"field": "to_venue", "code": "CONTESTED", "message": other.title}],
         )
-    from_venue_id = locked.venue_id
+    from_venue_id, was_starts, was_ends = locked.venue_id, locked.starts_at, locked.ends_at
     locked.venue, locked.starts_at, locked.ends_at = to_venue, starts_at, ends_at
     locked.save(update_fields=["venue", "starts_at", "ends_at", "updated_at"])
     VenueReassignment.objects.create(
         event=locked, from_venue_id=from_venue_id, to_venue=to_venue, reason=reason,
-        actor_sub=actor.sub, actor_label=actor.display_name,
+        actor_sub=actor.sub, actor_label=actor.display_name, actor_role=mover_role(actor),
+        from_starts_at=was_starts, from_ends_at=was_ends, to_starts_at=starts_at, to_ends_at=ends_at,
     )
     return locked
 
 
-def notify_venue_change(event, *, from_name, reason, from_starts_at=None):
+def mover_role(actor):
+    """The role a move is made in: the Dean's, else the Society officer's."""
+    from common import roles as R
+
+    for role in (R.DEAN, R.SOCIETY_SECRETARY, R.SOCIETY_VICE_SECRETARY):
+        if actor.has_any(role):
+            return role
+    return ""
+
+
+def notify_venue_change(event, *, from_name, reason, from_starts_at=None, actor=None):
     """
     Tell everyone who would otherwise go to the wrong hall.
 
@@ -226,7 +237,9 @@ def notify_venue_change(event, *, from_name, reason, from_starts_at=None):
 
     for user, link in recipients.values():
         notifier().send(recipient=user, subject=subject, body=body,
-                        kind="event.venue_changed", link=link)
+                        kind="event.venue_changed", link=link,
+                        actor_label=getattr(actor, "display_name", "") or "",
+                        actor_role=mover_role(actor) if actor is not None else "")
     return len(recipients)
 
 
