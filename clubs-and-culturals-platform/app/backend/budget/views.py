@@ -369,6 +369,9 @@ class BudgetViewSet(viewsets.GenericViewSet):
         if "variance_note" in data.validated_data:
             line.variance_note = data.validated_data["variance_note"]
         line.save(update_fields=["amount_spent", "variance_note", "updated_at"])
+        # Read again: `budget` carries the lines prefetched before this write, and answering
+        # from them returned the line one save behind (no "over sanctioned" until a reload).
+        budget = self._get(pk)
         return Response(BudgetSerializer(budget, context={"request": request}).data)
 
     @extend_schema(request={"multipart/form-data": ReceiptUploadSerializer},
