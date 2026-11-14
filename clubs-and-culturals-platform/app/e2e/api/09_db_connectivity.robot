@@ -28,9 +28,9 @@ The seed filled every core table
     END
     ${clubs}=    Count Rows    clubs_club
     Should Be Equal As Integers    ${clubs}    23
-    # The suites' own events all start with E2E; the seed's fourteen are what is counted.
+    # The suites' own events all start with E2E; the seed's fifteen are what is counted.
     ${events}=    Count Rows    events_event    title not like 'E2E %'
-    Should Be Equal As Integers    ${events}    14
+    Should Be Equal As Integers    ${events}    15
 
 A proposal is stored as an event with a budget, and its lines keep their order
     [Tags]    smoke
@@ -65,7 +65,7 @@ Each decision writes a step; the last one publishes and tells the club
     Should Be Equal    ${r.json()}[request][state]    approved
     ${steps}=    Stored Steps    ${p}[approval]
     Length Should Be    ${steps}    2
-    Step Should Be    ${steps}[0]    cultural_society    approve    cultural_society
+    Step Should Be    ${steps}[0]    cultural_society    approve    cultural_society_secretary
     Step Should Be    ${steps}[1]    dean    approve    dean
     Event Status Should Be    ${p}[event]    published
     Line Should Be    ${p}[lines][Sound]    5000    5000

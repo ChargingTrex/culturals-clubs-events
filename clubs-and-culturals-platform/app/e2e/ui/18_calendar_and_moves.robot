@@ -24,7 +24,7 @@ A president sees their own booking by name, another club's request only as Reque
     Sign In As    ${PRESIDENT_EMAIL}
     Wait For Heading    Feed
     Click Link    Calendar
-    Wait For Heading    Calendar
+    Wait For Heading    Semester event calendar
     Open Calendar Day    ${pending_day}
     Wait For Elements State    [data-testid="slot"][data-venue="Music Room"][data-hour="10"] >> [data-testid="slot-booking"]:has-text("${MUSIC_TITLE}")    visible
     ${other}=    Get Text    [data-testid="slot"][data-venue="Seminar Hall B"][data-hour="10"] >> [data-testid="slot-booking"]
@@ -38,7 +38,7 @@ The Dean moves a booking an hour later from the calendar, and the club and its s
     Sign In As    ${DEAN_EMAIL}    ${MFA_CODE}
     Wait For Heading    Dean approvals
     Click Link    Calendar
-    Wait For Heading    Calendar
+    Wait For Heading    Semester event calendar
     Open Calendar Day    ${move_day}
     Wait For Elements State    [data-testid="slot"][data-venue="Music Room"][data-hour="10"] >> [data-testid="slot-booking"]:has-text("${MOVE_TITLE}")    visible
     Click    role=button[name="Move ${MOVE_TITLE}"]
@@ -63,7 +63,7 @@ A move into an hour another club holds is refused on screen
     Sign In As    ${DEAN_EMAIL}    ${MFA_CODE}
     Wait For Heading    Dean approvals
     Click Link    Calendar
-    Wait For Heading    Calendar
+    Wait For Heading    Semester event calendar
     Open Calendar Day    ${move_day}
     Click    role=button[name="Move ${MOVE_TITLE}"]
     Wait For Elements State    form[aria-label="Move ${MOVE_TITLE}"]    visible
@@ -90,7 +90,7 @@ The Photography Club president books the Wednesday open block and the calendar s
     Should Be Equal    ${rows}[0][status]    published
     ${block}=    Open Block    ${lens}
     Click Link    Calendar
-    Wait For Heading    Calendar
+    Wait For Heading    Semester event calendar
     Open Calendar Day    ${block.json()}[date]
     Wait For Elements State    [data-testid="slot"][data-venue="${rows}[0][venue]"][data-hour="15"][data-open-block="true"] >> [data-testid="slot-booking"]:has-text("open block")    visible
     Snapshot    18-open-block-booked

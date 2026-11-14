@@ -181,3 +181,29 @@ Club-less Student
     [Arguments]    ${n}=0
     ${rows}=    Query    select u.email from identity_student s join identity_user u on u.id = s.user_id where not exists (select 1 from clubs_membership m where m.student_id = s.id and m.ended_at is null) and not exists (select 1 from clubs_joinrequest j where j.student_id = s.id and j.state = 'pending') and u.email not in (?, ?, ?, ?, ?, ?) order by s.prn    ${STUDENT_EMAIL}    ${STUDENT_2_EMAIL}    ${STUDENT_3_EMAIL}    ${DOOR_STUDENT_EMAIL}    ${SYNC_STUDENT_EMAIL}    ${UI_DOOR_STUDENT_EMAIL}
     RETURN    ${rows}[${n}][email]
+
+# ---- added with api/18–19 and ui/23–24 ----
+Stored Global Roles
+    [Documentation]    The person's global roles as stored (a list).
+    [Arguments]    ${email}
+    ${raw}=    Scalar    select global_roles from identity_user where email = ?    ${email}
+    ${roles}=    Evaluate    json.loads($raw)    modules=json
+    RETURN    ${roles}
+
+User Id Of
+    [Documentation]    The user's id with dashes, as the API writes it.
+    [Arguments]    ${email}
+    ${raw}=    Scalar    select id from identity_user where email = ?    ${email}
+    ${id}=    Evaluate    str(uuid.UUID($raw))    modules=uuid
+    RETURN    ${id}
+
+Stored Proposal Documents
+    [Documentation]    Every version attached to the event, oldest first; the last is the current one.
+    [Arguments]    ${event_id}
+    ${rows}=    Query    select file_name, content_type, byte_size, sha256, uploaded_by_label from events_eventproposaldocument where event_id = replace(?, '-', '') order by created_at    ${event_id}
+    RETURN    ${rows}
+
+Stored Approval
+    [Arguments]    ${approval_id}
+    ${r}=    Row    select state, current_stage from governance_approvalrequest where id = replace(?, '-', '')    ${approval_id}
+    RETURN    ${r}

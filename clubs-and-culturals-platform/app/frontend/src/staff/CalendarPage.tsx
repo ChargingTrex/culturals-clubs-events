@@ -9,7 +9,7 @@
  * and Vice-Secretary. Club Presidents and VPs never move anything.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ApiError } from '../shared/api/client';
 import { Button, Chip, Icon, cx } from '../shared/ds';
 import { fmtDate, fmtTime } from '../shared/format';
@@ -26,7 +26,7 @@ const DEFAULT_LAST_HOUR = 22;
 const OPEN_BLOCK_WEEKDAY = 3; // JS getDay(): 0 = Sunday
 const OPEN_BLOCK_HOURS = new Set([15, 16]);
 
-/** How far ahead the "Awaiting approval" list looks. */
+/** How far ahead the "Upcoming events" list looks. */
 const PENDING_LOOKAHEAD_DAYS = 120;
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -34,6 +34,16 @@ const pad = (n: number) => String(n).padStart(2, '0');
 function addDays(day: string, n: number): string {
   const d = new Date(`${day}T12:00`);
   d.setDate(d.getDate() + n);
+  return dayKey(d.toISOString());
+}
+
+/** The same day of the month `n` months on, or that month's last day when it is shorter. */
+function addMonths(day: string, n: number): string {
+  const d = new Date(`${day}T12:00`);
+  const date = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  d.setDate(Math.min(date, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
   return dayKey(d.toISOString());
 }
 
@@ -109,7 +119,12 @@ function MoveForm({
       <h3 className="sm:col-span-5">Move “{b.title}”</h3>
       <label className="grid gap-1 text-label-md">
         Day
-        <input type="date" className="field" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input
+          type="date"
+          className="field"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
       </label>
       <label className="grid gap-1 text-label-md">
         From
@@ -124,11 +139,13 @@ function MoveForm({
       <label className="grid gap-1 text-label-md">
         To
         <select className="field" value={end} onChange={(e) => setEnd(Number(e.target.value))}>
-          {HOURS.slice(1).concat(24).map((h) => (
-            <option key={h} value={h}>
-              {pad(h % 24)}:00
-            </option>
-          ))}
+          {HOURS.slice(1)
+            .concat(24)
+            .map((h) => (
+              <option key={h} value={h}>
+                {pad(h % 24)}:00
+              </option>
+            ))}
         </select>
       </label>
       <label className="grid gap-1 text-label-md sm:col-span-2">
@@ -213,6 +230,13 @@ export function CalendarPage() {
   const today = dayKey(new Date().toISOString());
   const [day, setDay] = useState(today);
   const [moving, setMoving] = useState<CalendarBooking | null>(null);
+  const calendarRef = useRef<HTMLElement>(null);
+  /** From the events list: open the day, and bring the calendar (which sits below the list) into view. */
+  const showDay = (next: string) => {
+    setDay(next);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    calendarRef.current?.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  };
   const from = weekStart(day);
   const to = addDays(from, 6);
   const calendar = useQuery<VenueCalendar, ApiError>({
@@ -221,12 +245,14 @@ export function CalendarPage() {
   });
 
   // The grid shows one week, so a request three weeks out would be invisible here.
-  // This looks ahead and lists every booking still awaiting approval, with a jump to its day.
+  // This looks ahead and lists every booking from today on, approved or still awaiting approval,
+  // with a jump to its day, so the page holds everything the Venues page lists.
   const ahead = useQuery<VenueCalendar, ApiError>({
     queryKey: STAFF_KEYS.calendarWeek(`pending-from-${today}`),
     queryFn: () => staffApi.calendarWeek(today, addDays(today, PENDING_LOOKAHEAD_DAYS)),
   });
-  const awaiting = (ahead.data?.bookings ?? []).filter((b) => !b.confirmed);
+  const upcoming = ahead.data?.bookings ?? [];
+  const awaitingCount = upcoming.filter((b) => !b.confirmed).length;
 
   const data = calendar.data;
   const bookings = data?.bookings ?? [];
@@ -244,58 +270,51 @@ export function CalendarPage() {
 
   return (
     <>
-      <div className="mb-5">
-        <h1>Calendar</h1>
-        <p className="mt-1.5 max-w-[62ch] text-ink-muted">
-          Every venue in one-hour slots. Two bookings in the same slot of one venue are a clash;
-          only the Dean can move a booking, and the Cultural Society&rsquo;s Secretary and
-          Vice-Secretary can while a proposal is still with them. The club is told of every move.
-        </p>
-      </div>
+      <h1 className="mb-5">Semester event calendar</h1>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="tonal" onClick={() => setDay(addDays(day, -7))}>
-          Previous week
-        </Button>
-        <Button size="sm" variant="tonal" onClick={() => setDay(today)}>
-          Today
-        </Button>
-        <Button size="sm" variant="tonal" onClick={() => setDay(addDays(day, 7))}>
-          Next week
-        </Button>
-      </div>
-
-      {awaiting.length > 0 ? (
+      {upcoming.length > 0 ? (
         <section
           className="mb-5 rounded-lg border border-line bg-surface p-4"
-          aria-label="Awaiting approval"
+          aria-label="Upcoming events"
         >
           <h3 className="flex items-center gap-2">
-            <Icon name="clock" /> {awaiting.length} booking{awaiting.length === 1 ? '' : 's'}{' '}
-            awaiting approval
+            <Icon name="calendar" /> {upcoming.length} upcoming event
+            {upcoming.length === 1 ? '' : 's'}
+            {awaitingCount > 0 ? ` · ${awaitingCount} awaiting approval` : ''}
           </h3>
           <p className="mt-1 text-body-md text-ink-muted">
-            Requested but not yet approved, from today on. Pick one to open its day.
+            Every booking from today on, approved or still awaiting approval. Pick one to open its
+            day in the calendar below.
           </p>
-          <ul className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0">
-            {awaiting.map((b) => (
+          <ul className="m-0 mt-3 flex max-h-[18.5rem] list-none flex-col gap-1.5 overflow-auto p-0 pr-1">
+            {upcoming.map((b) => (
               <li key={b.id}>
                 <button
                   type="button"
                   aria-label={`Show ${b.title} on ${fmtDate(b.starts_at)}`}
                   aria-pressed={dayKey(b.starts_at) === day}
-                  onClick={() => setDay(dayKey(b.starts_at))}
+                  onClick={() => showDay(dayKey(b.starts_at))}
                   className={cx(
-                    'flex min-h-11 w-full flex-wrap items-center gap-x-3 gap-y-0.5 rounded-md border px-3 py-2 text-left',
+                    'grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-md border px-3 py-2 text-left sm:flex',
+                    'transition-colors duration-(--dur-sm) ease-(--ease-standard) hover:border-primary',
                     dayKey(b.starts_at) === day ? 'border-primary bg-primary-soft' : 'border-line',
                   )}
                 >
                   <strong>{b.title}</strong>
-                  <span className="text-body-md text-ink-muted">
+                  <span className="order-last col-span-2 min-w-0 text-body-md text-ink-muted sm:order-none sm:flex-1">
                     {b.club ? `${b.club} · ` : ''}
                     {b.venue_name} · {fmtDate(b.starts_at)}, {fmtTime(b.starts_at)}–
                     {fmtTime(b.ends_at)}
                   </span>
+                  {b.confirmed ? (
+                    <Chip tone="approved" icon="check">
+                      Approved
+                    </Chip>
+                  ) : (
+                    <Chip tone="in-review" icon="clock">
+                      Awaiting approval
+                    </Chip>
+                  )}
                 </button>
               </li>
             ))}
@@ -303,157 +322,225 @@ export function CalendarPage() {
         </section>
       ) : null}
 
-      {calendar.isPending ? (
-        <Loading />
-      ) : calendar.error ? (
-        <ProblemView error={calendar.error} />
-      ) : (
-        <>
-          <div className="mb-5 grid grid-cols-7 gap-1.5" role="group" aria-label="Week">
-            {week.map((d) => {
-              const dayGrid = slotsFor(bookings, d);
-              const count = bookings.filter((b) => hoursOn(b, d).length > 0).length;
-              const clash = hasClash(dayGrid);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={d === day}
-                  aria-label={`${fmtDate(`${d}T12:00`)}: ${count} booking${count === 1 ? '' : 's'}${clash ? ', clash' : ''}`}
-                  onClick={() => setDay(d)}
-                  className={cx(
-                    'flex min-h-11 flex-col items-center rounded-md border px-1 py-2 text-caption',
-                    d === day ? 'border-primary bg-primary-soft' : 'border-line bg-surface',
-                  )}
-                >
-                  <span className="text-ink-muted">
-                    {new Date(`${d}T12:00`).toLocaleDateString('en-IN', { weekday: 'short' })}
-                  </span>
-                  <strong>{new Date(`${d}T12:00`).getDate()}</strong>
-                  <span className="flex items-center gap-1 text-ink-muted">
-                    {count}
-                    {clash ? (
-                      <span
-                        aria-hidden="true"
-                        className="inline-block size-2 rounded-full bg-danger"
-                      />
-                    ) : null}
-                  </span>
-                </button>
-              );
+      <section ref={calendarRef} aria-label="Calendar" className="scroll-mt-4">
+        <div className="mb-3">
+          <h2 aria-live="polite" data-testid="calendar-month">
+            {new Date(`${day}T12:00`).toLocaleDateString('en-IN', {
+              month: 'long',
+              year: 'numeric',
             })}
-          </div>
+          </h2>
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="tonal"
+            icon="chevron-left"
+            onClick={() => setDay(addMonths(day, -1))}
+          >
+            Previous month
+          </Button>
+          <Button
+            size="sm"
+            variant="outlined"
+            icon="chevron-left"
+            onClick={() => setDay(addDays(day, -7))}
+          >
+            Previous week
+          </Button>
+          <Button size="sm" variant="outlined" onClick={() => setDay(today)}>
+            Today
+          </Button>
+          <Button
+            size="sm"
+            variant="outlined"
+            iconRight="chevron-right"
+            onClick={() => setDay(addDays(day, 7))}
+          >
+            Next week
+          </Button>
+          <Button
+            size="sm"
+            variant="tonal"
+            iconRight="chevron-right"
+            onClick={() => setDay(addMonths(day, 1))}
+          >
+            Next month
+          </Button>
+          <label className="flex items-center gap-2 text-label-md sm:ml-auto">
+            Go to date
+            <input
+              type="date"
+              className="field h-(--control-sm) w-auto py-0"
+              value={day}
+              onChange={(e) => e.target.value && setDay(e.target.value)}
+            />
+          </label>
+        </div>
 
-          <h2 className="mb-3">{fmtDate(`${day}T12:00`)}</h2>
-
-          {moving ? (
-            <MoveForm key={moving.id} b={moving} venues={venues} onDone={() => setMoving(null)} />
-          ) : null}
-
-          {dayPairs.length > 0 ? (
-            <section
-              className="mb-5 rounded-lg border border-danger bg-danger-soft p-4 sm:p-5"
-              role="alert"
-              aria-label="Clashes this day"
-            >
-              <h3 className="flex items-center gap-2 text-danger">
-                <Icon name="alert" /> {dayPairs.length} clash{dayPairs.length === 1 ? '' : 'es'}
-              </h3>
-              <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
-                {dayPairs.map((pair, i) => (
-                  <ClashPair
-                    key={`${pair.venue}-${i}`}
-                    venue={pair.venue}
-                    venueId=""
-                    events={pair.events}
-                    canMove={false}
-                    form={() => null}
-                  />
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {venues.length === 0 ? (
-            <Empty>No venues yet.</Empty>
-          ) : (
-            <div className="max-w-full overflow-x-auto rounded-lg border border-line">
-              <table className="w-full min-w-max border-collapse text-left">
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      className="sticky left-0 bg-surface-sunken px-3 py-2 text-label-md"
-                    >
-                      Hour
-                    </th>
-                    {venues.map((v) => (
-                      <th
-                        key={v.id}
-                        scope="col"
-                        className="min-w-40 bg-surface-sunken px-3 py-2 text-label-md"
-                      >
-                        {v.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((hour) => (
-                    <tr key={hour} className="border-t border-line">
-                      <th
-                        scope="row"
-                        className="sticky left-0 bg-surface px-3 py-2 align-top mono-sm"
-                      >
-                        {pad(hour)}:00
-                      </th>
-                      {venues.map((v) => {
-                        const list = grid.get(v.id)?.get(hour) ?? [];
-                        const clash = list.length > 1;
-                        const openBlock = isOpenBlockDay && OPEN_BLOCK_HOURS.has(hour);
-                        return (
-                          <td
-                            key={v.id}
-                            data-testid="slot"
-                            data-venue={v.name}
-                            data-hour={hour}
-                            data-clash={clash}
-                            data-open-block={openBlock}
-                            className={cx(
-                              'px-2 py-1.5 align-top',
-                              clash ? 'bg-danger-soft' : openBlock && 'bg-primary-soft/50',
-                            )}
-                          >
-                            {openBlock && list.length === 0 ? (
-                              <span className="caption text-ink-muted">Open block</span>
-                            ) : null}
-                            {clash ? (
-                              <Chip tone="rejected" icon="alert" className="mb-1">
-                                Clash
-                              </Chip>
-                            ) : null}
-                            <div className="flex flex-col gap-1">
-                              {list.map((b) => (
-                                <BookingChip
-                                  key={b.id}
-                                  b={b}
-                                  hour={hour}
-                                  day={day}
-                                  onMove={b.can_move ? setMoving : undefined}
-                                />
-                              ))}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {calendar.isPending ? (
+          <Loading />
+        ) : calendar.error ? (
+          <ProblemView error={calendar.error} />
+        ) : (
+          <>
+            <div className="mb-5 grid grid-cols-7 gap-1.5" role="group" aria-label="Week">
+              {week.map((d) => {
+                const dayGrid = slotsFor(bookings, d);
+                const count = bookings.filter((b) => hoursOn(b, d).length > 0).length;
+                const clash = hasClash(dayGrid);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={d === day}
+                    aria-label={`${fmtDate(`${d}T12:00`)}: ${count} booking${count === 1 ? '' : 's'}${clash ? ', clash' : ''}`}
+                    onClick={() => setDay(d)}
+                    className={cx(
+                      'flex min-h-11 flex-col items-center rounded-md border px-1 py-2 text-caption',
+                      'transition-colors duration-(--dur-sm) ease-(--ease-standard) hover:border-primary',
+                      d === day ? 'border-primary bg-primary-soft' : 'border-line bg-surface',
+                      d === today && d !== day && 'font-semibold',
+                    )}
+                  >
+                    <span className="text-ink-muted">
+                      {new Date(`${d}T12:00`).toLocaleDateString('en-IN', { weekday: 'short' })}
+                    </span>
+                    <strong>{new Date(`${d}T12:00`).getDate()}</strong>
+                    <span className="flex items-center gap-1 text-ink-muted">
+                      <span className="sm:hidden">{count === 0 ? '–' : count}</span>
+                      <span className="hidden sm:inline">
+                        {count === 0 ? 'Free' : `${count} event${count === 1 ? '' : 's'}`}
+                      </span>
+                      {clash ? (
+                        <span
+                          aria-hidden="true"
+                          className="inline-block size-2 rounded-full bg-danger"
+                        />
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </>
-      )}
+
+            <h3 key={`heading-${day}`} className="cc-swap title-md mb-3">
+              {new Date(`${day}T12:00`).toLocaleDateString('en-IN', { weekday: 'long' })},{' '}
+              {fmtDate(`${day}T12:00`)}
+            </h3>
+
+            {moving ? (
+              <MoveForm key={moving.id} b={moving} venues={venues} onDone={() => setMoving(null)} />
+            ) : null}
+
+            {dayPairs.length > 0 ? (
+              <section
+                className="mb-5 rounded-lg border border-danger bg-danger-soft p-4 sm:p-5"
+                role="alert"
+                aria-label="Clashes this day"
+              >
+                <h3 className="flex items-center gap-2 text-danger">
+                  <Icon name="alert" /> {dayPairs.length} clash{dayPairs.length === 1 ? '' : 'es'}
+                </h3>
+                <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
+                  {dayPairs.map((pair, i) => (
+                    <ClashPair
+                      key={`${pair.venue}-${i}`}
+                      venue={pair.venue}
+                      venueId=""
+                      events={pair.events}
+                      canMove={false}
+                      form={() => null}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {venues.length === 0 ? (
+              <Empty>No venues yet.</Empty>
+            ) : (
+              <div
+                key={`grid-${day}`}
+                className="cc-swap max-w-full overflow-x-auto rounded-lg border border-line"
+              >
+                <table className="w-full min-w-max border-collapse text-left">
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        className="sticky left-0 bg-surface-sunken px-3 py-2 text-label-md"
+                      >
+                        Hour
+                      </th>
+                      {venues.map((v) => (
+                        <th
+                          key={v.id}
+                          scope="col"
+                          className="min-w-40 bg-surface-sunken px-3 py-2 text-label-md"
+                        >
+                          {v.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((hour) => (
+                      <tr key={hour} className="border-t border-line">
+                        <th
+                          scope="row"
+                          className="sticky left-0 bg-surface px-3 py-2 align-top mono-sm"
+                        >
+                          {pad(hour)}:00
+                        </th>
+                        {venues.map((v) => {
+                          const list = grid.get(v.id)?.get(hour) ?? [];
+                          const clash = list.length > 1;
+                          const openBlock = isOpenBlockDay && OPEN_BLOCK_HOURS.has(hour);
+                          return (
+                            <td
+                              key={v.id}
+                              data-testid="slot"
+                              data-venue={v.name}
+                              data-hour={hour}
+                              data-clash={clash}
+                              data-open-block={openBlock}
+                              className={cx(
+                                'px-2 py-1.5 align-top',
+                                clash ? 'bg-danger-soft' : openBlock && 'bg-primary-soft/50',
+                              )}
+                            >
+                              {openBlock && list.length === 0 ? (
+                                <span className="caption text-ink-muted">Open block</span>
+                              ) : null}
+                              {clash ? (
+                                <Chip tone="rejected" icon="alert" className="mb-1">
+                                  Clash
+                                </Chip>
+                              ) : null}
+                              <div className="flex flex-col gap-1">
+                                {list.map((b) => (
+                                  <BookingChip
+                                    key={b.id}
+                                    b={b}
+                                    hour={hour}
+                                    day={day}
+                                    onMove={b.can_move ? setMoving : undefined}
+                                  />
+                                ))}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </>
   );
 }

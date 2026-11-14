@@ -56,7 +56,7 @@ screenshot per UI suite and Browser's failure screenshots under `results/browser
 | `smoke` | the short pack run on every push: sign-in, one approval path, budget text boxes, join requests, the Dean's calendar move, the feed journey, the schema check |
 | `unit` | one-rule API tests (api/09–17): each asserts one API rule and the row it writes |
 | `regression` | set on every test by `robot.args` |
-| `db approvals decisions budget calendar members feed notifications dashboards report participation jobs` | the feature a test guards |
+| `db approvals decisions budget calendar members feed notifications dashboards report participation jobs society proposal` | the feature a test guards |
 | `known-issue` | a test that documents a product bug still open; `robot.args` reports it as SKIP, not FAIL, so the run stays readable until the bug is fixed |
 
 Known issues on 2026-11-09 (see `docs/qa/e2e-findings-2026-11-08.md`): with an empty `sanctioned`
@@ -93,7 +93,12 @@ Suites book their own events, at 10:00–12:00 on the campus clock, each in its 
 | api/14 | 105–109 |
 | ui/19–20 | 107–109 |
 | ui/21 | 115 |
+| ui/22 | 120 |
 | api/15 | 110–114 |
+| ui/24 | 118 (inside the calendar's 120-day look-ahead), 140–143 |
+| api/18 | 125–128 |
+| api/19 | 130–133 |
+| ui/23 | 135 |
 
 ## Time zones
 
@@ -122,11 +127,19 @@ labels on screen ("Book 03:00 pm–04:00 pm") are matched by prefix; times are a
     resources/api.resource   session, Login As, finders, Propose, lines/CSV, joining, calendar, open block, notifications, report
     resources/ui.resource    Open App (pinned time zone), Sign In As, by-label/role helpers, toasts, uploads, calendar days
     resources/db.resource    what was stored: events, lines, steps, memberships, join requests, notifications, audit (db.py)
-    fixtures/                CSV files for the budget import and a tiny PNG for photos
+    fixtures/                proposals (two PDFs, a .docx with a heading, a paragraph and a table row, a legacy .doc, an empty PDF);
+                             CSV files for the budget import; photos (PNG, JPEG), a post screenshot, a bill (PDF) and a text file that is not a photo
     api/01…08_*.robot        sign-in → proposal → approvals → venues → door → settlement → jobs → every decision path
     api/09…17_*.robot        schema + write/read-back, budget editing, members and joining, calendar and the Dean's moves,
                              feed and visibility, notifications, dashboards, edits and locks, post-event report
     ui/10…15_*.robot         nav per persona → student → club → staff → scan station → decisions on screen
     ui/16…21_*.robot         budget text boxes and CSV, join requests, calendar and moves, feed journey, dashboards, report
+    ui/22_*.robot            the whole post-event report form: door counts, photos, post links, bills, submit, read-back, removal request
+    api/18_*.robot           the Society's Secretary and Vice-Secretary: who holds the stage, the Dean's "upcoming" list,
+                             moves while a proposal is with the Society, the calendar's can_move, the Society's roster
+    api/19_*.robot           the proposal document: attach, read, replace, lock on submit, previews, and the budget by sheet or by hand
+    ui/23_*.robot            the Society on screen: pages per role, the Secretary's move, the Society members page
+    ui/24_*.robot            New event with a proposal and a budget sheet, capacity from the venue, previews, "On the way to you",
+                             the calendar's "Awaiting approval" list
     robot.args               shared robot options; run.sh adds the suite folder
     run.sh / ci.sh           run against servers already up / boot everything and run

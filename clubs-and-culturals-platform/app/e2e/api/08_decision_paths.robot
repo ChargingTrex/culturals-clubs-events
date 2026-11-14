@@ -26,7 +26,7 @@ The Dean cuts two heads and approves; the database holds the Dean's figures
     Line Should Be    ${p}[lines][Printing]    2000    0
     ${steps}=    Stored Steps    ${p}[approval]
     Length Should Be    ${steps}    2
-    Step Should Be    ${steps}[0]    cultural_society    approve    cultural_society
+    Step Should Be    ${steps}[0]    cultural_society    approve    cultural_society_secretary
     Step Should Be    ${steps}[1]    dean    approve    dean
     Should Be Equal As Numbers    ${steps}[1][amount_sanctioned]    23000
     Should Be Equal As Integers    ${steps}[1][mfa_verified]    1
@@ -157,7 +157,7 @@ The Society rejects at the first gate; the Dean is never asked
     Should Be Equal    ${r.json()}[request][state]    rejected
     ${steps}=    Stored Steps    ${p}[approval]
     Length Should Be    ${steps}    1
-    Step Should Be    ${steps}[0]    cultural_society    reject    cultural_society
+    Step Should Be    ${steps}[0]    cultural_society    reject    cultural_society_secretary
     Event Status Should Be    ${p}[event]    rejected
     Queue Should Not Hold    ${dean}    ${p}[approval]
     ${asked}=    Query    select n.id from governance_notification n join identity_user u on u.id = n.user_id where u.email = ? and n.kind = 'approval.pending' and n.link like ?    ${DEAN_EMAIL}    %${p}[event]

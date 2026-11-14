@@ -57,3 +57,20 @@ SEEDED_TABLES = {
     "governance_auditentry": 1, "governance_notification": 1,
     "participation_registration": 1, "participation_eventpass": 1, "participation_scanrecord": 1,
 }
+
+# ---- added with ui/22 (the whole post-event report form) ----
+PHOTO_STAGE_FIXTURE = _os.path.join(FIXTURES, "photo_stage.png")
+PHOTO_CROWD_FIXTURE = _os.path.join(FIXTURES, "photo_crowd.jpg")
+POST_SCREENSHOT_FIXTURE = _os.path.join(FIXTURES, "post_screenshot.png")
+BILL_FIXTURE = _os.path.join(FIXTURES, "bill.pdf")
+NOT_A_PHOTO_FIXTURE = _os.path.join(FIXTURES, "not_a_photo.txt")
+
+# ---- added with api/18–19 and ui/23–24 (Society officers, proposal documents, previews) ----
+SOCIETY_VICE_EMAIL = "cultural.vicesecretary@college.edu"   # Society Vice-Secretary: holds the Society stage
+SOCIETY_MEMBER_EMAIL = "cultural.member@college.edu"        # plain Society member: sees, decides nothing
+PROPOSAL_PDF_FIXTURE = _os.path.join(FIXTURES, "proposal.pdf")
+PROPOSAL_PDF_V2_FIXTURE = _os.path.join(FIXTURES, "proposal_v2.pdf")
+PROPOSAL_DOCX_FIXTURE = _os.path.join(FIXTURES, "proposal.docx")      # heading, paragraph, one table row
+PROPOSAL_DOC_FIXTURE = _os.path.join(FIXTURES, "proposal_legacy.doc")  # accepted, never previewed
+EMPTY_PDF_FIXTURE = _os.path.join(FIXTURES, "empty.pdf")
+BUDGET_CSV_FIXTURE = _os.path.join(FIXTURES, "budget_ok.csv")         # two lines, 15000 in all

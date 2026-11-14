@@ -363,3 +363,68 @@ Publish A Proposal
     ${p}=    Propose    ${token}    ${title}    ${venue}    ${days}    &{heads}
     Approve Through Every Gate    ${p}[event]
     RETURN    ${p}
+
+# ---- added with api/18–19 and ui/23–24 (Society officers, proposal documents, previews) ----
+Approval Queue
+    [Documentation]    The caller's queue: `results` to decide now, `upcoming` still at an earlier gate.
+    [Arguments]    ${token}    ${expected}=200
+    ${r}=    GET As    ${token}    /governance/approvals/queue    ${expected}
+    RETURN    ${r}
+
+Titles In
+    [Documentation]    Event titles in a list of approval requests.
+    [Arguments]    ${requests}
+    ${titles}=    Evaluate    [r['event_title'] for r in $requests]
+    RETURN    ${titles}
+
+Society Roster
+    [Arguments]    ${token}    ${expected}=200
+    ${r}=    GET As    ${token}    /module/cultural-society/members    ${expected}
+    RETURN    ${r}
+
+Add To Society
+    [Documentation]    `role` is cultural_society (member), cultural_society_secretary or cultural_society_vice_secretary.
+    [Arguments]    ${token}    ${email}    ${role}=cultural_society    ${expected}=201
+    ${r}=    POST As    ${token}    /module/cultural-society/members    ${{ {'email': $email, 'role': $role} }}    ${expected}
+    RETURN    ${r}
+
+Remove From Society
+    [Arguments]    ${token}    ${user_id}    ${expected}=200
+    ${r}=    DELETE As    ${token}    /module/cultural-society/members/${user_id}    ${expected}
+    RETURN    ${r}
+
+Society Row Of
+    [Documentation]    This person's row on the roster the caller is shown.
+    [Arguments]    ${token}    ${email}
+    ${r}=    Society Roster    ${token}
+    ${row}=    Evaluate    [m for m in $r.json()['members'] if m['email'] == $email][0]
+    RETURN    ${row}
+
+Upload Proposal
+    [Documentation]    Multipart upload of the proposal document. The content type follows the extension unless given.
+    [Arguments]    ${token}    ${event_id}    ${path}    ${content_type}=${None}    ${expected}=201
+    ${bytes}=    Get Binary File    ${path}
+    IF    $content_type is None
+        ${content_type}=    Evaluate    {'.pdf': 'application/pdf', '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.csv': 'text/csv'}.get(os.path.splitext($path)[1].lower(), 'text/plain')    modules=os
+    END
+    ${doc}=    Evaluate    (os.path.basename($path), $bytes, $content_type)    modules=os
+    ${files}=    Create Dictionary    file=${doc}
+    ${headers}=    Bearer    ${token}
+    ${r}=    POST On Session    api    /events/${event_id}/proposal-document    files=${files}    headers=${headers}    expected_status=${expected}
+    RETURN    ${r}
+
+Proposal File
+    [Arguments]    ${token}    ${event_id}    ${expected}=200
+    ${r}=    GET As    ${token}    /events/${event_id}/proposal-document/file    ${expected}
+    RETURN    ${r}
+
+Proposal Preview
+    [Arguments]    ${token}    ${event_id}    ${expected}=200
+    ${r}=    GET As    ${token}    /events/${event_id}/proposal-document/preview    ${expected}
+    RETURN    ${r}
+
+Proposal On Event
+    [Documentation]    The `proposal_document` the caller is shown on the event (None when it is not theirs to read).
+    [Arguments]    ${token}    ${event_id}
+    ${r}=    GET As    ${token}    /events/${event_id}
+    RETURN    ${r.json()}[proposal_document]

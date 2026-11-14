@@ -37,7 +37,7 @@ Society sees the clash in the hour grid
     Sign In As    ${SOCIETY_EMAIL}    ${MFA_CODE}
     Wait For Heading    Cultural Society approvals
     Click Link    Calendar
-    Wait For Heading    Calendar
+    Wait For Heading    Semester event calendar
     ${weeks}=    Evaluate    ((datetime.date.today() + datetime.timedelta(days=54)) - (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday()))).days // 7    modules=datetime
     FOR    ${i}    IN RANGE    ${weeks}
         Click Button    Next week
