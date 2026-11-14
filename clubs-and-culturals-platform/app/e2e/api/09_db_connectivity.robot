@@ -30,7 +30,8 @@ The seed filled every core table
     Should Be Equal As Integers    ${clubs}    23
     # The suites' own events all start with E2E; the seed's fifteen are what is counted.
     ${events}=    Count Rows    events_event    title not like 'E2E %'
-    Should Be Equal As Integers    ${events}    15
+    # 15 story events plus the two that show what approvers change (Founders’ Day Concert, Laser Light Night).
+    Should Be Equal As Integers    ${events}    17
 
 A proposal is stored as an event with a budget, and its lines keep their order
     [Tags]    smoke
