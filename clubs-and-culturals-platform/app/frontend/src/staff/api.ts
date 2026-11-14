@@ -14,6 +14,9 @@ export type DecisionOut = S['DecisionOut'];
 export type VenueCalendar = S['VenueCalendar'];
 export type CalendarBooking = S['CalendarBooking'];
 export type VenueReassignment = S['VenueReassignment'];
+export type SocietyRoster = S['SocietyRoster'];
+export type SocietyMember = S['SocietyMember'];
+export type SocietyRole = S['SocietyRoleEnum'];
 export type DeanOverview = S['DeanOverview'];
 export type SemesterReport = S['SemesterReport'];
 
@@ -34,6 +37,7 @@ export const STAFF_KEYS = {
   approval: (id: string) => ['staff', 'approval', id] as const,
   calendar: (date: string) => ['staff', 'calendar', date] as const,
   calendarWeek: (from: string) => ['staff', 'calendar-week', from] as const,
+  society: ['staff', 'society'] as const,
   overview: ['staff', 'overview'] as const,
   report: ['staff', 'report'] as const,
 };
@@ -57,12 +61,22 @@ export const staffApi = {
       method: 'POST',
       body,
     }),
+  society: () => request<SocietyRoster>('/module/cultural-society/members'),
+  societyAdd: (body: { email: string; role: SocietyRole }) =>
+    request<SocietyRoster>('/module/cultural-society/members', { method: 'POST', body }),
+  societyRemove: (userId: string) =>
+    request<SocietyRoster>(`/module/cultural-society/members/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    }),
   calendar: (date?: string) =>
     request<VenueCalendar>('/venue-calendar', { query: { date: date || undefined } }),
   /** One week, `from` and `to` inclusive, as campus-clock dates (C-03). */
   calendarWeek: (from: string, to: string) =>
     request<VenueCalendar>('/venue-calendar', { query: { from, to } }),
-  reassign: (eventId: string, body: { to_venue: string; reason: string }) =>
+  reassign: (
+    eventId: string,
+    body: { to_venue?: string; starts_at?: string; ends_at?: string; reason: string },
+  ) =>
     request<VenueReassignment>(`/events/${encodeURIComponent(eventId)}/reassign`, {
       method: 'POST',
       body,

@@ -4,7 +4,7 @@ Documentation     The student path on a phone: What's on, the event, Register, t
 Resource          ../resources/ui.resource
 Resource          ../resources/api.resource
 Suite Setup       Student Has No Registration Yet
-Test Tags         ui
+Test Tags         ui    participation    feed
 
 
 *** Test Cases ***

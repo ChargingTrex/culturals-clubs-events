@@ -1,6 +1,6 @@
-# Additional requirements and changes — student experience
+# Additional requirements and changes
 
-**Clubs & Events application** · drafted 2026-11-03 · status: **proposed, not built**
+**Clubs & Events application** · drafted 2026-11-03 (Part 1: student experience) · Part 2 added 2026-11-08 (reporting, calendar, budgets, joining)
 
 This document adds requirements on top of `MASTER_SPEC.md`. Where the two disagree,
 `MASTER_SPEC.md` wins. Every access rule in §3 of the spec (who sees money, who sees
@@ -32,6 +32,7 @@ rebuilt with our design tokens (`app/frontend/src/index.css`).
 | 9 | [Rules from the master spec that shape these screens](#9-rules-from-the-master-spec-that-shape-these-screens) |
 | 10 | [Open decisions](#10-open-decisions) |
 | 11 | [Build order](#11-build-order) |
+| 12–21 | **Part 2 (2026-11-08):** [post-event report, calendar, Wednesday open block, budget CSV, five clubs, join requests, VC guide, hosted link](#part-2--reporting-calendar-budgets-joining-added-2026-11-08) |
 
 ---
 
@@ -342,3 +343,215 @@ never as `#`.
 
 When an item is picked up, add it as a row in `docs/CHECKLIST.md` §C, in the same
 format as F-01 to F-05.
+
+---
+
+# Part 2 — reporting, calendar, budgets, joining (added 2026-11-08)
+
+Status: **built and tested 2026-11-08, not yet deployed.** The hosted site still runs the code from
+before these changes until they are committed and redeployed. Board: `docs/CHECKLIST.md`, the
+"Additional requirements" table (AR-01 to AR-08). Some of these items came out of review discussion
+and are not in the PRD. Others were in the PRD but could not be used from the app.
+
+| Id | Requirement | Who | State on 2026-11-08 |
+|---|---|---|---|
+| AR-01 | Post-event report form: attendance, photos, social posts, bills | Club officers, Treasurer | Built: one panel on the club's event page (`club/PostEventReport.tsx`), the student consent line and photo removal request, "No report yet" on the Dean's overview, and highlights and outreach in the semester report |
+| AR-02 | Calendar for Cultural Society, Dean, VC and club presidents; only the Dean moves bookings | Society, Dean, VC, Presidents, VPs | Built: presidents and VPs see it, with other clubs' pending bookings shown as "Requested". The Dean moves a booking's time, venue or both (`DeanMoveTests`) |
+| AR-03 | Wednesday open block: two 1-hour slots, first come first served | Presidents, VPs | Built: `POST/GET /open-block` (`tests/test_open_block.py`), an Open block card on Club events, and the two hours shaded on the calendar |
+| AR-04 | Treasurer edits budget lines in text boxes, or uploads a CSV | Treasurer | Built: Edit all with one Save, and CSV upload that saves all rows or none (`BudgetCsvImportTests`) |
+| AR-05 | A student can be in up to five clubs | Students | Built |
+| AR-06 | Join requests page: approve one by one or in bulk | President, VP | Built: `/club/join-requests` with Select all, and each row shows its own result |
+| AR-07 | A 1–2 page guide for the VC: how to use the platform and the benefits | VC, Anil sir | Written: `docs/user-guide/overview-for-vc.md` |
+| AR-09 | Cultural Society Secretary and Vice-Secretary: they approve for the Society, move a proposal's time or venue while it is with them, and manage the Society's members (added 2026-11-14) | Society officers, Dean | Built: roles `cultural_society_secretary` and `cultural_society_vice_secretary`, **Society members** page (`/staff/society`), `tests/test_society.py`. See §13 |
+| AR-10 | Proposal document uploaded with a new event; the budget either uploaded as a sheet (CSV, from the template) or entered by the Treasurer (added 2026-11-14) | Club officers, Treasurer, approvers | Built: `POST /events/{id}/proposal-document`, New event form, event page, approval page (`tests/test_proposal_document.py`). See §15 |
+| AR-08 | Hosted link, details and the guide sent to Anil sir to forward to the VC | Anil sir | Email drafted (`EMAIL_TO_ANIL_SIR.md`). Waiting on the redeploy and a sign-in check on the hosted site, then the project lead sends it |
+
+Tests on 2026-11-08: backend 469 passed (5 skipped), frontend 90 passed, plus the typecheck and the production build.
+Not yet clicked through by hand in a browser.
+
+## 12. AR-01 Post-event report form
+
+**Why.** The semester report is only as good as what clubs hand in after each event. Today the
+pieces sit on different screens. Photos and posts go on the event, bills go on the budget, and
+attendance comes from the scans. Nothing asks the club for all of it together, so reports are
+compiled by hand at the end of the semester. The PRD has the parts (§5.7.3, §5.10, §5.12.3, §5.14,
+§5.19.4) but no single form.
+
+**Who.** Club President, VP, Secretary, Treasurer and event organisers fill it in. The Dean and the
+Cultural Society see what is missing, and the semester report reads it.
+
+**What it does.** After every event, the club's event page shows one **Post-event report** panel:
+
+1. **Attendance.** Registered, attended, walk-ins and no-shows, taken from the QR scans. They are shown, not typed in, so the report figure is counted, not estimated.
+2. **Photos.** Several can be uploaded from a phone, each with a caption. Two or three are starred as highlights for the semester report.
+3. **Social media posts.** Instagram, LinkedIn or other post links, with an optional screenshot.
+4. **Bills and spend.** For each budget line, the actual amount spent and its invoices or bills (phone photos or PDFs). The Treasurer and President fill this in; other officers see "Treasurer to add bills".
+5. **Outcomes** (required) and **Learnings**, then **Submit report**.
+
+A checklist at the top says what is still missing.
+
+**Rules.**
+- At least one photo and the outcomes are needed to submit (PRD §5.10).
+- **Bills do not block the report** (decided 2026-11-08). Missing bills show as "Bills outstanding" and
+  block budget settlement only, as now: a bill on every line above ₹5,000, and a variance note on
+  overspend. This departs from Event_Flows stage 8 on purpose.
+- A social post is required only above an attendance the Student Life Office sets. The default is never.
+- Students see a consent line when they register, and can ask for a photo of them to be removed.
+
+**What it feeds.** In the semester report, each club gets one highlight photo, events held, students
+reached, and bills total against sanctioned. The report also gets a highlights spread, a photo
+gallery, and an outreach line (how many events were promoted, on which platforms). The Dean's
+overview lists events with no report after 7 days, and clubs with no recent post.
+
+**Done when.** A club runs an event, submits the report from the app with photos, posts and outcomes,
+and the event shows as reported with its photos and attendance in the semester report. Bills added
+later let the budget settle.
+
+## 13. AR-02 Calendar for Society, Dean, VC and club presidents
+
+**Why.** Clubs pick dates without seeing what else is booked, so clashes are found late.
+
+**What it does.**
+- Cultural Society members, the Dean and the VC see every booking: a week view with venues across, hours down and clashes marked.
+- **Club presidents** see the same calendar. Their own club's bookings are shown in full. Other clubs'
+  bookings that aren't approved yet show only as "Requested", without the title or club, because
+  pending proposals stay private.
+- **Only the Dean can move a booking**, to a new time, a new venue, or both (decided 2026-11-08). A move
+  that clashes is refused. Each move is recorded with a reason, and registered students are told.
+  Everyone else sees the calendar read-only.
+
+**AR-09, added 2026-11-14: the Society's Secretary and Vice-Secretary.**
+- The Cultural Society has two officers, a **Secretary** and a **Vice-Secretary**, one of each. Only
+  they approve, return or reject a proposal at the Society's stage. Other Society members still see
+  the calendar, the overview and the semester report, but have no approval queue.
+- The two officers can **move a proposal's time, venue or both while it is waiting on the Society**.
+  Once they approve it, only the Dean can move it. Club Presidents and Vice-Presidents see the
+  calendar and never move a booking, including their own.
+- Every move, by the Dean or an officer, **notifies the club's office bearers** (and the event's
+  organisers and registered students) with the old and new time and venue and the reason.
+- The officers **manage the Society's members** on the **Society members** page: add a person by
+  institutional email, or remove a member. The Dean (or an administrator) appoints and removes the
+  Secretary and Vice-Secretary; an officer cannot appoint, demote or remove an officer.
+
+**Done when.** A president opens Calendar from the menu, and a student cannot. Only the Dean sees Move.
+A move into an occupied hour is refused.
+
+## 14. AR-03 Wednesday open block
+
+**Why.** Wednesday afternoon is kept free for club activity. Clubs need a quick way to claim it
+without a full proposal.
+
+**What it does.**
+- Every Wednesday has two bookable 1-hour slots: **3–4 pm and 4–5 pm** (decided 2026-11-08).
+- Booking is **first come, first served and auto-approved.** The first club to book a venue for an
+  hour gets it, and the next club is told it is taken. There is no budget and no approval chain.
+- Each club can hold one slot per Wednesday. The Dean can still move or cancel a slot.
+- Club Events shows an **Open block** card for the next Wednesday, with **Book 3–4 pm** and
+  **Book 4–5 pm** for the President and VP. The calendar shades the two hours.
+
+**Done when.** When two clubs try the same venue and hour, the second is refused. An open-block booking
+outside Wednesday 3–5 pm is refused. A booked slot shows on the calendar at once.
+
+## 15. AR-04 Treasurer budget editing and CSV upload
+
+**AR-10, added 2026-11-14: the proposal document and the budget sheet on New event.**
+- **New event** takes a **proposal document** (PDF or Word, up to 10 MB, optional). It can be attached
+  or replaced on the club's event page while the proposal is a draft or returned, and is locked once
+  submitted, so approvers read what was sent. Older versions are kept on record.
+- The document is shown to the club's office bearers and to the Cultural Society, Dean, VC and admin
+  (on the approval page, beside the budget). Students and plain members never see it.
+- The budget has three routes on New event: a **template**, **Upload the budget sheet (CSV)** with a
+  **Download the budget template** link (President, VP, Treasurer), or **None — the Treasurer enters
+  it** line by line later.
+- **Preview (AR-11, added 2026-11-14).** Everyone who can read a proposal (the club's office bearers,
+  Society, Dean, VC, admin) opens it in the app from the event page or the approval page: a PDF in
+  the browser's viewer, a `.docx` as its text (no layout or images), a legacy `.doc` as a download
+  only. A chosen PDF or budget CSV can also be previewed before it is uploaded, on New event and on
+  the Budget page; the CSV shows as a table. The uploaded CSV itself is not stored: it becomes the
+  budget lines, which is what approvers read.
+- With a file attached the app saves the draft, uploads the files, then sends it. If the sheet or the
+  document is refused, the event stays a draft and the message says which step to redo.
+
+**Why.** Treasurers price budgets in a spreadsheet first, and retyping each line is slow and error-prone.
+
+**What it does.**
+- **Edit all** turns every line's title (head) and amount into text boxes at once, saved with one Save.
+  Adding or removing a single line works as now.
+- **Upload CSV** takes columns `head,amount`, plus an optional `basis`. The Treasurer chooses whether to
+  replace the existing lines or add to them. If any row is wrong, nothing is saved and each bad row is
+  listed with its problem. A **Download template** link gives a ready-made file.
+- Only the President, VP and Treasurer can do this, and only while the budget is a draft, returned or
+  rejected. The checks are the same as for typed lines: no empty titles, no negative amounts and no
+  duplicate titles.
+
+**Done when.** A Treasurer's CSV replaces the lines. A file with one bad row changes nothing and names
+that row. A member cannot upload.
+
+## 16. AR-05 Five clubs per student
+
+A student can be a member of up to **five** clubs, and a sixth join is refused with a clear message.
+This is already built. What's left is fixing one test mock that still says three.
+
+## 17. AR-06 Join requests page with bulk approve
+
+**Why.** Popular clubs get dozens of requests at the start of a semester, and accepting them one by
+one inside the roster is slow.
+
+**What it does.**
+- A **Join requests** page in the club menu, for the President and VP, shows how many are waiting.
+- Each row shows the student's name, PRN, department, year and the date they asked.
+- Each request can be accepted or declined on its own. To act on several, tick them (or
+  **Select all**), then **Approve selected** or **Decline selected**.
+- Each request is still decided separately, so a student already in five clubs is refused while the
+  rest go through. Each row shows its result, and a summary reads, for example, "8 approved, 2 refused".
+- The notification a president gets for a new request opens this page.
+
+**Done when.** A president bulk-approves ten requests, one from a student already in five clubs.
+Nine join, and that row explains why.
+
+## 18. AR-07 Guide for the VC
+
+This is a 1–2 page guide, `docs/user-guide/overview-for-vc.md`, also shareable as a link. It covers
+what the platform is, its benefits, one line on how each role uses it, and how to sign in to the pilot.
+It has two or three screenshots. Benefits to cover:
+
+- **Approvals in one place.** Society → Dean → VC, with clashes and budget visible at each step. The VC sees only proposals above ₹50,000.
+- **Counted attendance.** QR passes are scanned at the door, so attendance is counted, not estimated.
+- **Budget control.** Lines are sanctioned one by one, bills are attached per line, and nothing settles without evidence.
+- **A semester report without manual collation.** Participation, money, photos and outreach come from what clubs already entered.
+- **One calendar.** Clashes are blocked at booking, the Dean has the final say on moves, and the Wednesday open block is easy to claim.
+
+## 19. AR-08 Hosted link to Anil sir
+
+- Frontend: <https://culturals-clubs-events.vercel.app>. Backend: <https://culturals-clubs-events-backend.vercel.app>.
+- Before sending, redeploy both projects with today's changes, then check that every pilot role signs in on
+  the hosted site and that the three things the email suggests trying work.
+- `EMAIL_TO_ANIL_SIR.md` drafts the message: the link, three things to try, the pilot sign-in note,
+  the VC guide, and a request to forward it to the VC. The project lead sends it.
+- With pilot accounts, anyone with the link can sign in as any role, the VC included. The hosted site
+  therefore runs on demo data only, with no real student data.
+
+## 20. Decisions log (Part 2)
+
+| Date | Decision |
+|---|---|
+| 2026-11-06 | The club membership cap is five |
+| 2026-11-08 | The open block is Wednesday 3–4 pm and 4–5 pm, first come first served, auto-approved |
+| 2026-11-08 | The Dean can move a booking's time and venue; nobody else can |
+| 2026-11-08 | Missing bills do not block the post-event report; they block settlement only |
+| 2026-11-08 | Vice-Presidents get the same calendar and open-block rights as Presidents, since a VP stands in for the President |
+| 2026-11-08 | An open-block booking is refused if a pending proposal already holds that venue and hour, so the open block never jumps the queue |
+| 2026-11-08 | An open-block booking is published at once with a nil budget ("Wednesday open block: no budget") |
+| 2026-11-08 | Bulk approve sends one accept per request, in turn, so each student's five-club check and audit entry stay separate |
+| 2026-11-14 | The Society's approval stage belongs to its Secretary and Vice-Secretary only; a plain Society member keeps read access |
+| 2026-11-14 | The Society's officers may move a booking only while its proposal is at the Society's stage; after that the move is the Dean's |
+| 2026-11-14 | Officers keep the Society's member list; only the Dean or an administrator appoints or removes an officer, and there is one of each |
+| 2026-11-14 | On upgrade, a database with no Secretary gets one: the longest-standing Society account (`identity/migrations/0003`), so waiting proposals are not stranded |
+| 2026-11-14 | The uploaded budget CSV is not kept. It becomes the budget lines, which is what approvers read; the original sheet is not needed (decided by the project lead) |
+| 2026-11-08 | The Dean's move reuses the venue reassign: its record and notification now carry the old and new time as well |
+
+## 21. Still to decide (Student Life Office)
+
+- Above what attendance is a social post required? Default: never.
+- How many days after an event is the report due? Default: 7.
+- Should presidents see other clubs' pending requests on the calendar? Default: no, they show only as "Requested".

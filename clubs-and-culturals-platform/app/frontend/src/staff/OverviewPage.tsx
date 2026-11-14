@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { ApiError } from '../shared/api/client';
+import { fmtDate } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { BarChart, Chip, Meter } from '../shared/ds';
 import { Pill } from '../shared/ui/Pill';
@@ -148,7 +149,15 @@ export function OverviewPage() {
         </section>
       ) : null}
 
-      <div className="mt-5 grid gap-3.5 md:grid-cols-3 lg:gap-5">
+      <div className="mt-5 grid gap-3.5 md:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        <ChaseList
+          title="No report yet"
+          items={(o.events_missing_report ?? []).map((m) => ({
+            ...m,
+            extra: `ended ${fmtDate(m.ended_at)}`,
+          }))}
+          empty="Every finished event has its report."
+        />
         <ChaseList
           title="Missing evidence"
           items={o.missing_evidence.map((m) => ({ ...m, extra: m.missing.join(', ') }))}

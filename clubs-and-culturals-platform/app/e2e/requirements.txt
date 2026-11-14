@@ -1,0 +1,4 @@
+# Robot Framework libraries for app/e2e. Install with backend/requirements.txt, then `rfbrowser init chromium`.
+robotframework==7.5.1
+robotframework-requests==0.9.7
+robotframework-browser==21.0.0

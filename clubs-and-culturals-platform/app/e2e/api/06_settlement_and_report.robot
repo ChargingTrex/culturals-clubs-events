@@ -3,7 +3,7 @@ Documentation     After the night: the Treasurer settles a sanctioned budget onc
 ...               cleared, the semester report leads with unique students, and attendees rate the event once.
 Resource          ../resources/api.resource
 Suite Setup       Treasurer And Staff Sign In
-Test Tags         api
+Test Tags         api    budget    dashboards
 
 
 *** Test Cases ***

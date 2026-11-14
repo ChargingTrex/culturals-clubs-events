@@ -225,7 +225,7 @@ class ClashBlocksApprovalTests(TestCase):
         f.member(self.club, self.pres_a, R.CLUB_PRESIDENT)
         self.pres_b = f.student("b@college.edu", prn="23CS1002")
         f.member(self.natya, self.pres_b, R.CLUB_PRESIDENT)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
 
         self.event_a = f.event(self.club, self.hall, days=7, hour=16, duration=2,
                                title="Open Mic", expected=80)

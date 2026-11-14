@@ -9,7 +9,9 @@ Open App
     [Arguments]    ${width}=${1280}    ${height}=${800}
     New Browser    chromium    headless=${True}
     ${viewport}=    Create Dictionary    width=${width}    height=${height}
-    New Context    viewport=${viewport}
+    # The calendar grid and every time label are rendered in browser-local time (calendarTime.ts), so the context
+    # is pinned to the campus clock; downloads are kept so the report's CSV can be checked.
+    New Context    viewport=${viewport}    timezoneId=Asia/Kolkata    locale=en-IN    acceptDownloads=${True}
     New Page    ${WEB_BASE}/signin
     Wait For Heading    Sign in
 
@@ -85,3 +87,62 @@ Snapshot
     [Documentation]    One deliberate screenshot per suite, into results/.
     [Arguments]    ${name}
     Take Screenshot    ${OUTPUT DIR}/${name}    fullPage=${True}
+
+Review
+    [Documentation]    Open the queue row for this proposal.
+    [Arguments]    ${title}
+    Wait For Text    ${title}
+    ${rows}=    Get Elements    [data-testid="queue-row"]
+    FOR    ${r}    IN    @{rows}
+        ${text}=    Get Text    ${r}
+        IF    $title in $text
+            Click    ${r} >> a:has-text("Review")
+            BREAK
+        END
+    END
+    Wait For Heading    ${title}
+
+# ---- added with the regression pack (ui/16+) ----
+Open Club Event
+    [Arguments]    ${event_id}    ${title}
+    Wait For Elements State    [data-testid="nav-sidebar"]    visible
+    Go To    ${WEB_BASE}/club/events/${event_id}
+    Wait For Heading    ${title}
+
+Status Pill Should Read
+    [Documentation]    The status chip beside the event's title.
+    [Arguments]    ${label}
+    Wait For Elements State    h1 ~ :has-text("${label}")    visible
+
+Toast Should Read
+    [Documentation]    A toast (role=status) containing the text.
+    [Arguments]    ${text}
+    Wait For Elements State    [role="status"]:has-text("${text}")    visible
+
+Upload File
+    [Documentation]    Into the file input with this label.
+    [Arguments]    ${label}    ${path}
+    ${input}=    Get Element By    Label    ${label}
+    Upload File By Selector    ${input}    ${path}
+
+Click Button Matching
+    [Documentation]    By a regular expression over the accessible name, e.g. ^Book .
+    [Arguments]    ${pattern}
+    Click    role=button[name=/${pattern}/] >> nth=0
+
+Open Calendar Day
+    [Documentation]    On the Calendar page: go to the week holding `date` (ISO) and select that day.
+    [Arguments]    ${date}
+    Click Button    Today
+    ${weeks}=    Evaluate    (datetime.date.fromisoformat($date) - (datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday()))).days // 7    modules=datetime
+    FOR    ${i}    IN RANGE    ${weeks}
+        Click Button    Next week
+    END
+    ${weekday}=    Evaluate    datetime.date.fromisoformat($date).weekday()    modules=datetime
+    Click    [aria-label="Week"] >> button >> nth=${weekday}
+
+Tile Value
+    [Documentation]    The figure (the dd) on the stat tile whose label (the dt) is exactly this text.
+    [Arguments]    ${label}
+    ${text}=    Get Text    [data-testid="tile"]:has(dt:text-is("${label}")) >> dd
+    RETURN    ${text}

@@ -280,7 +280,7 @@ class ClubViewSet(viewsets.ModelViewSet):
             user = getattr(membership.student, "user", None)
             if user is not None:
                 notifier().send(recipient=user, subject=subject, body=body, kind=kind,
-                                link=f"/club/{club.id}/members")
+                                link=f"/club/join-requests?club={club.id}")
 
     # ---- office bearers (PRD §5.3, §5.18) ----------------------------------
     @extend_schema(request=HandoverRequestSerializer, responses={201: HandoverOutSerializer},

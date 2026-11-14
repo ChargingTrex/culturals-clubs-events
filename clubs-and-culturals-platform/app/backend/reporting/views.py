@@ -52,7 +52,7 @@ class SemesterReportView(APIView):
     )
     def get(self, request, **kwargs):
         ctx = request.auth_context
-        if not ctx.has_any(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY):
+        if not ctx.has_any(*R.STAFF_ROLES):
             raise ProblemDetail(code="REPORTING_DENIED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
                                 detail="The semester report is available to the Dean and management.")
@@ -79,7 +79,7 @@ class DeanOverviewView(APIView):
     )
     def get(self, request):
         ctx = request.auth_context
-        if not ctx.has_any(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY):
+        if not ctx.has_any(*R.STAFF_ROLES):
             raise ProblemDetail(code="REPORTING_DENIED", title="Not permitted",
                                 status_code=status.HTTP_403_FORBIDDEN,
                                 detail="This overview is available to the Dean and management.")

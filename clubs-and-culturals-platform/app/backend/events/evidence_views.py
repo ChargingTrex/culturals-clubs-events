@@ -17,7 +17,8 @@ from common.errors import ProblemDetail
 from events import services
 from events.serializers import (
     EventPhotoSerializer, EventReportDraftSerializer, EventSerializer, EventSocialPostSerializer,
-    PhotoUpdateSerializer, PhotoUploadSerializer, SocialPostInSerializer,
+    PhotoUpdateSerializer, PhotoUploadSerializer, ProposalDocumentSerializer,
+    ProposalDocumentUploadSerializer, ProposalPreviewSerializer, SocialPostInSerializer,
 )
 from integrations.files import file_location
 from integrations.registry import audit_sink
@@ -73,6 +74,53 @@ class EventEvidenceMixin:
         if photo is None:
             raise _not_found("photo")
         return photo
+
+    # ---- the proposal document (AR-10) ---------------------------------
+    @extend_schema(request={"multipart/form-data": ProposalDocumentUploadSerializer},
+                   responses={201: ProposalDocumentSerializer},
+                   summary="Attach or replace the proposal document (draft or returned only)")
+    @action(detail=True, methods=["post"], url_path="proposal-document")
+    def proposal_document(self, request, pk=None):
+        event = self.get_object()
+        ctx = request.auth_context
+        if not ctx.has_club_role(event.club_id, *R.PROPOSERS):
+            raise ProblemDetail(code="EVENTS_EDIT_DENIED", title="Not permitted",
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Only the club's office bearers may attach the proposal.")
+        doc = services.set_proposal_document(event, request.FILES.get("file"), actor=ctx)
+        audit_sink().record(actor=ctx, action="event.proposal_document_set", target=event,
+                            after={"file_name": doc.file_name, "sha256": doc.sha256})
+        return Response(ProposalDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={(200, "application/octet-stream"): OpenApiTypes.BINARY, 302: None},
+                   summary="The proposal document (the club's office bearers and staff)")
+    @action(detail=True, methods=["get"], url_path="proposal-document/file")
+    def proposal_document_file(self, request, pk=None):
+        doc = self._readable_proposal(request)
+        return _serve(doc.file_key, doc.content_type, doc.file_name)
+
+    @extend_schema(responses=ProposalPreviewSerializer,
+                   summary="A Word proposal as text, for reading in the app")
+    @action(detail=True, methods=["get"], url_path="proposal-document/preview")
+    def proposal_document_preview(self, request, pk=None):
+        doc = self._readable_proposal(request)
+        location = file_location(doc.file_key)
+        if (services.proposal_preview_kind(doc) != "text" or location is None
+                or location["kind"] != "file" or not location["path"].is_file()):
+            raise ProblemDetail(code="EVENTS_PREVIEW_UNAVAILABLE", title="No preview",
+                                status_code=422,
+                                detail="This file cannot be previewed here. Download it instead.")
+        blocks, truncated = services.docx_blocks(location["path"])
+        return Response({"file_name": doc.file_name, "blocks": blocks, "truncated": truncated})
+
+    def _readable_proposal(self, request):
+        event = self.get_object()
+        # A published event is visible to every student; its proposal is not theirs to read.
+        doc = (event.proposal_documents.first()
+               if services.can_read_proposal_document(request.auth_context, event) else None)
+        if doc is None:
+            raise _not_found("proposal document")
+        return doc
 
     # ---- photos --------------------------------------------------------
     @extend_schema(methods=["GET"], request=None, responses=EventPhotoSerializer(many=True),

@@ -181,7 +181,7 @@ def escalate_sla(*, now=None):
     """
     try:
         # TODO(orchestrator, B-07): provided by W3's governance/services.py; wire at merge.
-        from governance.services import _stage_role, active_delegations, escalated_requests
+        from governance.services import active_delegations, escalated_requests, stage_holders
     except ImportError as exc:
         raise JobNotWired("escalate-sla", "governance.services.escalated_requests") from exc
     from governance.models import Notification
@@ -195,7 +195,7 @@ def escalate_sla(*, now=None):
         escalated += 1  # what the dependency reported; `failed` is the subset not notified
         try:
             item = escalation_summary(raw)
-            recipients = _escalation_recipients(item["stage"], deans, _stage_role, active_delegations)
+            recipients = _escalation_recipients(item["stage"], deans, stage_holders, active_delegations)
             link = (f"/staff/approvals/{item['event_id'] or item['id']}"
                     f"?request={item['id']}&stage={item['stage']}")
             waited = f"{item['age_hours']} h" if item["age_hours"] is not None else "longer than the SLA"
@@ -237,18 +237,15 @@ def apply_due_terms(*, now=None):
             "as_of": now.isoformat()}
 
 
-def _escalation_recipients(stage, deans, stage_role, active_delegations):
+def _escalation_recipients(stage, deans, stage_holders, active_delegations):
     """Stage holders ∪ active delegates for the stage ∪ the Dean, each once."""
-    from identity.models import User
-
     recipients = {user.pk: user for user in deans}
     try:
-        role = stage_role(stage)
+        holders = stage_holders(stage)
     except KeyError:
-        role = None
-    if role:
-        for user in User.objects.with_global_role(role):
-            recipients[user.pk] = user
+        holders = []
+    for user in holders:
+        recipients[user.pk] = user
     for delegation in active_delegations(stage=stage).select_related("delegate_user"):
         recipients[delegation.delegate_user.pk] = delegation.delegate_user
     return list(recipients.values())

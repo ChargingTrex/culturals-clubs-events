@@ -1,8 +1,11 @@
 /** Typed calls for the club screens (F-04): events, proposals, budgets, roster. */
 import { ApiError, buildUrl, request, refreshSession } from '../shared/api/client';
 import type { components } from '../shared/api/schema';
+import { fileUrl } from '../shared/api/files';
 import { readSession } from '../shared/auth/tokens';
 import type { EventOut, Page } from '../shared/api/types';
+
+export { fileUrl };
 
 type S = components['schemas'];
 
@@ -24,6 +27,11 @@ export type Membership = S['Membership'];
 export type ClubRole = S['ClubRoleEnum'];
 export type JoinRequests = S['JoinRequests'];
 export type JoinRequest = S['JoinRequest'];
+export type OpenBlock = S['OpenBlock'];
+export type EventPhoto = S['EventPhoto'];
+export type ProposalDocument = S['ProposalDocument'];
+export type EventSocialPost = S['EventSocialPost'];
+export type EventReportDraft = S['EventReportDraft'];
 export type OfficeBearerHistory = S['OfficeBearerHistory'];
 export type HandoverRequest = S['HandoverRequest'];
 export type HandoverOut = S['HandoverOut'];
@@ -96,12 +104,45 @@ export const clubApi = {
       request<SubmitOut>(`/events/${id(event)}/submit`, { method: 'POST' }),
     goLive: (event: string) =>
       request<EventOut>(`/events/${id(event)}/go-live`, { method: 'POST' }),
-    close: (event: string, body: { photo_count: number; social_links: string[] }) =>
+    close: (event: string, body: { outcomes: string; learnings?: string }) =>
       request<EventOut>(`/events/${id(event)}/close`, { method: 'POST', body }),
+    /** AR-10: attach or replace the proposal write-up (PDF or Word). */
+    setProposalDocument: (event: string, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return upload<ProposalDocument>(`/events/${id(event)}/proposal-document`, form);
+    },
+    report: (event: string) => request<EventReportDraft>(`/events/${id(event)}/report`),
+    photos: (event: string) => request<EventPhoto[]>(`/events/${id(event)}/photos`),
+    addPhoto: (event: string, form: FormData) => upload<EventPhoto>(`/events/${id(event)}/photos`, form),
+    editPhoto: (event: string, photo: string, body: { caption?: string; is_highlight?: boolean }) =>
+      request<EventPhoto>(`/events/${id(event)}/photos/${id(photo)}`, { method: 'PATCH', body }),
+    removePhoto: (event: string, photo: string) =>
+      request<void>(`/events/${id(event)}/photos/${id(photo)}`, { method: 'DELETE' }),
+    posts: (event: string) => request<EventSocialPost[]>(`/events/${id(event)}/social-posts`),
+    addPost: (event: string, url: string, screenshot?: File | null) => {
+      if (!screenshot) {
+        return request<EventSocialPost>(`/events/${id(event)}/social-posts`, {
+          method: 'POST',
+          body: { url },
+        });
+      }
+      const form = new FormData();
+      form.append('url', url);
+      form.append('screenshot', screenshot);
+      return upload<EventSocialPost>(`/events/${id(event)}/social-posts`, form);
+    },
+    removePost: (event: string, post: string) =>
+      request<void>(`/events/${id(event)}/social-posts/${id(post)}`, { method: 'DELETE' }),
     remove: (event: string) => request<void>(`/events/${id(event)}`, { method: 'DELETE' }),
     clashes: (event: string) => request<Clashes>(`/events/${id(event)}/clashes`),
   },
   venues: () => request<Page<Venue>>('/venues', { query: { page_size: 100 } }),
+  openBlock: {
+    get: () => request<OpenBlock>('/open-block'),
+    book: (body: { club: string; venue: string; starts_at: string }) =>
+      request<EventOut>('/open-block', { method: 'POST', body }),
+  },
   approvals: () =>
     request<Page<ApprovalRequest>>('/governance/approvals', { query: { page_size: 100 } }),
   budget: {
@@ -116,6 +157,7 @@ export const clubApi = {
       request<Budget>(`${budgetPath(b)}/lines`, { method: 'POST', body }),
     editLine: (b: string, l: string, body: { head?: string; amount_requested?: string }) =>
       request<Budget>(`${linePath(b, l)}/edit`, { method: 'PUT', body }),
+    importLines: (b: string, form: FormData) => upload<Budget>(`${budgetPath(b)}/lines/import`, form),
     removeLine: (b: string, l: string) =>
       request<Budget>(`${linePath(b, l)}/remove`, { method: 'DELETE' }),
     setSpend: (
@@ -132,14 +174,7 @@ export const clubApi = {
       upload<Receipt>(`${linePath(b, l)}/receipts`, form),
     /** The file sits behind the bearer, so a plain link cannot open it. */
     openReceipt: async (r: Receipt): Promise<void> => {
-      const session = readSession();
-      const res = await fetch(buildUrl(r.file_url.replace(/^\/api\/v1/, '')), {
-        headers: session ? { authorization: `Bearer ${session.access_token}` } : {},
-      }).catch((cause: unknown) => {
-        throw ApiError.network(cause);
-      });
-      if (!res.ok) throw ApiError.fromBody(res.status, await res.text(), r.file_url);
-      const url = URL.createObjectURL(await res.blob());
+      const url = await fileUrl(r.file_url);
       window.open(url, '_blank', 'noopener');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },

@@ -283,8 +283,8 @@ class WiredTests(TestCase):
 
     def test_an_active_delegate_for_the_stage_is_told_and_an_expired_one_is_not(self):
         """QA F5: the person who can actually clear the gate hears about it."""
-        active = f.user("deputy@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
-        expired = f.user("former@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        active = f.user("deputy@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
+        expired = f.user("former@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         now = timezone.now()
         Delegation.objects.create(stage=ApprovalStage.DEAN, principal_user=self.dean,
                                   delegate_user=active, starts_at=now - timedelta(hours=1),
@@ -300,7 +300,7 @@ class WiredTests(TestCase):
         self.assertEqual(told, {"dean@college.edu", "dean2@college.edu", "deputy@college.edu"})
 
     def test_a_breach_at_the_society_stage_reaches_the_society_and_the_dean(self):
-        society = f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        society = f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         request = self._stale_request(stage=ApprovalStage.CULTURAL_SOCIETY,
                                       stages=("cultural_society", "dean"))
         with wired("governance.services", "escalated_requests", lambda: [request]):

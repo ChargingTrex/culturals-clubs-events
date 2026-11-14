@@ -58,6 +58,47 @@ class MyRegistrationSerializer(serializers.Serializer):
     pass_token = serializers.CharField(allow_null=True)
 
 
+class ProposalDocumentSerializer(serializers.Serializer):
+    """AR-10: the proposal write-up attached to an event."""
+
+    id = serializers.UUIDField()
+    file_name = serializers.CharField()
+    content_type = serializers.CharField()
+    byte_size = serializers.IntegerField()
+    uploaded_by_label = serializers.CharField()
+    uploaded_at = serializers.DateTimeField(source="created_at")
+    file_url = serializers.SerializerMethodField()
+    preview = serializers.SerializerMethodField(
+        help_text="pdf: show the file itself; text: fetch the text preview; none: download only.")
+
+    @extend_schema_field(serializers.CharField())
+    def get_file_url(self, doc):
+        return f"/api/v1/events/{doc.event_id}/proposal-document/file"
+
+    @extend_schema_field(serializers.ChoiceField(choices=["pdf", "text", "none"]))
+    def get_preview(self, doc):
+        from events.services import proposal_preview_kind
+
+        return proposal_preview_kind(doc)
+
+
+class ProposalPreviewBlockSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=["heading", "paragraph", "row"])
+    text = serializers.CharField()
+
+
+class ProposalPreviewSerializer(serializers.Serializer):
+    """AR-11: a Word proposal as text, so it can be read without downloading it."""
+
+    file_name = serializers.CharField()
+    blocks = ProposalPreviewBlockSerializer(many=True)
+    truncated = serializers.BooleanField()
+
+
+class ProposalDocumentUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(help_text="PDF or Word document, up to 10 MB.")
+
+
 class EventSerializer(serializers.ModelSerializer):
     club_name = serializers.CharField(source="club.name", read_only=True)
     venue_name = serializers.CharField(source="venue.name", read_only=True)
@@ -71,6 +112,7 @@ class EventSerializer(serializers.ModelSerializer):
     attended = serializers.SerializerMethodField()
     budget = serializers.SerializerMethodField()
     my_registration = serializers.SerializerMethodField()
+    proposal_document = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -78,7 +120,7 @@ class EventSerializer(serializers.ModelSerializer):
                   "venue", "venue_name", "starts_at", "ends_at", "capacity",
                   "expected_attendance", "status", "status_label", "photo_count",
                   "social_links", "highlight_photo_url", "registered", "attended", "budget",
-                  "my_registration", "submitted_at", "closed_at")
+                  "my_registration", "proposal_document", "submitted_at", "closed_at")
         read_only_fields = ("id", "status", "photo_count", "social_links", "submitted_at",
                             "closed_at")
 
@@ -90,6 +132,16 @@ class EventSerializer(serializers.ModelSerializer):
         if starts and ends and ends <= starts:
             raise serializers.ValidationError({"ends_at": "The end time must be after the start time."})
         return attrs
+
+    @extend_schema_field(ProposalDocumentSerializer(allow_null=True))
+    def get_proposal_document(self, event):
+        """The club's write-up: for its office bearers and the staff who review it only."""
+        from events.services import can_read_proposal_document
+
+        if not can_read_proposal_document(self.context["request"].auth_context, event):
+            return None
+        current = next(iter(event.proposal_documents.all()), None)
+        return ProposalDocumentSerializer(current).data if current else None
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_highlight_photo_url(self, event):
@@ -207,6 +259,8 @@ class CalendarBookingSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=EventStatus.choices)
     confirmed = serializers.BooleanField()
     clash = serializers.BooleanField()
+    can_move = serializers.BooleanField(
+        help_text="Whether the caller may move this booking's time or venue.")
 
 
 class CalendarClashSerializer(serializers.Serializer):
@@ -264,8 +318,23 @@ class VenueReassignmentSerializer(serializers.ModelSerializer):
 
 
 class ReassignRequestSerializer(serializers.Serializer):
-    to_venue = serializers.UUIDField()
+    """AR-02: the Dean moves a booking to another venue, another time, or both."""
+
+    to_venue = serializers.UUIDField(required=False, help_text="Omit to keep the venue.")
+    starts_at = serializers.DateTimeField(required=False, help_text="With ends_at; omit to keep the time.")
+    ends_at = serializers.DateTimeField(required=False)
     reason = serializers.CharField(max_length=280)
+
+    def validate(self, attrs):
+        if ("starts_at" in attrs) != ("ends_at" in attrs):
+            raise serializers.ValidationError({"ends_at": "Give both a new start and a new end."})
+        if "starts_at" in attrs:
+            assert_hour_slots(attrs)
+            if attrs["ends_at"] <= attrs["starts_at"]:
+                raise serializers.ValidationError({"ends_at": "The end must be after the start."})
+        if "to_venue" not in attrs and "starts_at" not in attrs:
+            raise serializers.ValidationError({"to_venue": "Choose a new venue, a new time, or both."})
+        return attrs
 
     def validate_reason(self, value):
         # The club is shown this text, so an empty or one-word reason is not one.
@@ -394,3 +463,29 @@ class OrganisersSerializer(serializers.Serializer):
 
     event = EventRefSerializer()
     results = EventOrganiserSerializer(many=True)
+
+
+class OpenBlockBookSerializer(serializers.Serializer):
+    club = serializers.UUIDField()
+    venue = serializers.UUIDField()
+    starts_at = serializers.DateTimeField(help_text="The slot's start: a Wednesday, 15:00 or 16:00 campus time.")
+    title = serializers.CharField(max_length=200, required=False, allow_blank=True)
+
+
+class OpenBlockSlotVenueSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    booked_by = serializers.CharField(allow_null=True)
+    event = serializers.UUIDField(allow_null=True)
+
+
+class OpenBlockSlotSerializer(serializers.Serializer):
+    starts_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField()
+    venues = OpenBlockSlotVenueSerializer(many=True)
+
+
+class OpenBlockSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    slots = OpenBlockSlotSerializer(many=True)
+

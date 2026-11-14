@@ -85,6 +85,22 @@ D-01, D-02, D-05 and D-11 are planned in detail in `POST_EVENT_REPORTING_PLAN.md
 | C-02 | Events booked in whole India-time hours (create + edit validation); clash = sharing an hour in one venue (`VENUE_BUFFER_MINUTES` default 0); seed on India hours; hour selects on New event | ORCH | todo | 18:30 → 422 `starts_at`; 18:00 → 201; back-to-back hours do not clash; overlapping hours do |
 | C-03 | `/staff/calendar` for Cultural Society, Dean, admin: week strip, venue × 1-hour grid, clash cells and list; `from`/`to` on `/venue-calendar` | ORCH + W-frontend | todo | Society 200 / student 403; vitest grid fills hours and marks clash; nav shows Calendar for Society |
 
+### Additional requirements — `ADDITIONAL_REQUIREMENTS.md` (2026-11-08)
+
+| Id | Feature | Owner | Status | Acceptance |
+|---|---|---|---|---|
+| AR-01 | Post-event report panel (attendance, photos, posts, bills, outcomes) replacing the broken `CloseForm`; finishes R-05; bills block settlement only | ORCH | done-unverified | club closes an event from the app; photos + attendance in the semester report | — `club/PostEventReport.tsx` replaces `CloseForm`; staff overview "No report yet", report highlights + outreach; student consent line + photo removal request; post screenshot upload; vitest green. Not yet clicked through in a browser
+| AR-02 | Calendar for presidents (others' pending bookings anonymised); Dean-only reschedule (time + venue) | ORCH | done-unverified | president 200, student 403; non-Dean reschedule 403; clash 409 | — calendar for President/VP (`ROLE_ASSIGNERS`), `reassign` takes `starts_at`/`ends_at`; `DeanMoveTests`, calendar vitest
+| AR-09 | Cultural Society Secretary + Vice-Secretary roles: hold the Society stage, move a booking while it is at their stage, manage Society members (`/module/cultural-society/members`, `/staff/society`) | ORCH | done-unverified | plain member cannot decide or move; officer move after Society approval 403; officer cannot appoint an officer; club leadership notified of a move | — 2026-11-14; `tests/test_society.py`, `staff/society.test.tsx`, calendar `can_move`; Robot suites not re-run |
+| AR-10 | Proposal document on New event (`POST /events/{id}/proposal-document`, PDF/Word ≤ 10 MB, draft/returned only, hidden from students) + budget sheet upload or Treasurer entry | ORCH | done-unverified | non-office-bearer 403; student sees no document on a published event; upload after submit 409; bad type 422 | — 2026-11-14; `tests/test_proposal_document.py`, `club.test.tsx`; Robot suites not re-run |
+| AR-03 | Wednesday open block 15–16, 16–17 IST, first come first served, auto-approved, one per club per Wednesday | ORCH | done-unverified | second club same venue-hour 409; off-block 422; no budget needed | — `POST/GET /open-block`, kind `open_block`, published with a nil budget; `tests/test_open_block.py`. Calendar shades 15–17 on Wednesdays
+| AR-04 | Treasurer edit-all + CSV import `POST /budget/budgets/{id}/lines/import` | ORCH | done-unverified | bad row 422 writes nothing; member 403 | — `POST .../lines/import`; Edit all (one Save, per-row PUT)
+| AR-05 | Five-club cap leftovers (`test/server.ts` mock) | ORCH | done-unverified | mock refuses the sixth | — mock cap 5
+| AR-06 | `/club/join-requests` page with bulk approve/decline | ORCH | done-unverified | bulk with one capped student: rest join, row explains | — `club/JoinRequestsPage.tsx`, bulk = one accept per request
+| AR-07 | `docs/user-guide/overview-for-vc.md` | ORCH | done-unverified | 1–2 pages, benefits, screenshots | — `docs/user-guide/overview-for-vc.md`
+| AR-08 | Hosted smoke test + `EMAIL_TO_ANIL_SIR.md` draft | ORCH | in-progress | every pilot role signs in on Vercel | — `EMAIL_TO_ANIL_SIR.md` drafted; needs deploy + hosted sign-in check, then the user sends it
+| T-02 | Regression pack: Robot API unit suites 09–17, UI suites 16–21 (DB connectivity, budget text boxes + CSV, join requests, calendar + Dean moves, open block, feed, notifications, dashboards, report), `e2e/ci.sh`, `.github/workflows/e2e.yml` (smoke on push, full on PR/main, plus vitest + Django) | ORCH | done-unverified-in-CI | `./ci.sh full` green locally; known product bugs reported as SKIP under `known-issue` | — 2026-11-09; fixes the two notification links (findings #2, #3) |
+
 | Id | PRD § | Feature | Existing |
 |---|---|---|---|
 | D-01 | 5.10 | EventPhoto rows, object-store upload, highlights, captions, consent notice + removal | PARTIAL (count only) | → wave 4 R-01..R-05

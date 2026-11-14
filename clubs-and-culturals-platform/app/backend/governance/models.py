@@ -244,7 +244,8 @@ class Delegation(UUIDModel):
 
         principal = self.principal_user
         return (principal.is_active
-                and R.STAGE_ROLE[self.stage] in (principal.global_roles or []))
+                and any(role in (principal.global_roles or [])
+                        for role in R.STAGE_ROLES[self.stage]))
 
     def is_active_at(self, when=None):
         when = when or timezone.now()

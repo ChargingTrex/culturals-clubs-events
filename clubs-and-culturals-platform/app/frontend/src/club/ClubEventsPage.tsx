@@ -9,7 +9,7 @@ import { Empty, Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { useToast } from '../shared/ui/Toast';
-import { clubApi, type SubmitOut } from './api';
+import { clubApi, type OpenBlock, type SubmitOut } from './api';
 import { ClubPicker } from './ClubPicker';
 import { useMyClubs, useSelectedClub } from './useMyClubs';
 
@@ -114,6 +114,82 @@ function ClubEventRow({ event }: { event: EventOut }) {
   );
 }
 
+/** AR-03: claim one of next Wednesday's two open-block hours. First come, first served. */
+function OpenBlockCard({ club, clubName }: { club: string; clubName: string }) {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const block = useQuery<OpenBlock, ApiError>({
+    queryKey: ['open-block'],
+    queryFn: () => clubApi.openBlock.get(),
+  });
+  const [venue, setVenue] = useState<Record<string, string>>({});
+  const book = useMutation<EventOut, ApiError, { starts_at: string; venue: string }>({
+    mutationFn: (v) => clubApi.openBlock.book({ club, ...v }),
+    onSuccess: (e) => {
+      toast.show(`Booked: ${e.venue_name}, ${fmtTime(e.starts_at)}–${fmtTime(e.ends_at)}`);
+      void queryClient.invalidateQueries({ queryKey: ['open-block'] });
+      void queryClient.invalidateQueries({ queryKey: CLUB_EVENTS_KEY });
+    },
+  });
+  if (block.isPending || block.error) return null;
+  const mine = block.data.slots.flatMap((s) =>
+    s.venues.filter((v) => v.booked_by === clubName).map((v) => ({ slot: s, v })),
+  )[0];
+  return (
+    <section className="panel mb-5" aria-label="Open block">
+      <h3>Wednesday open block · {fmtDate(`${block.data.date}T12:00`)}</h3>
+      {mine ? (
+        <p className="mt-1.5 text-body-md">
+          {clubName} has {fmtTime(mine.slot.starts_at)}–{fmtTime(mine.slot.ends_at)} at{' '}
+          <strong>{mine.v.name}</strong>.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1.5 text-body-md text-ink-muted">
+            Two 1-hour slots, no proposal needed. The first club to book a venue gets it.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {block.data.slots.map((s) => {
+              const free = s.venues.filter((v) => !v.booked_by);
+              const label = `${fmtTime(s.starts_at)}–${fmtTime(s.ends_at)}`;
+              const chosen = venue[s.starts_at] ?? free[0]?.id ?? '';
+              return (
+                <div key={s.starts_at} className="flex flex-wrap items-end gap-2">
+                  <label className="grid flex-1 gap-1 text-label-md">
+                    Venue for {label}
+                    <select
+                      className="field"
+                      value={chosen}
+                      disabled={free.length === 0}
+                      onChange={(e) => setVenue((m) => ({ ...m, [s.starts_at]: e.target.value }))}
+                    >
+                      {free.length === 0 ? <option>All venues taken</option> : null}
+                      {free.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className={buttonClass('filled', 'sm')}
+                    disabled={book.isPending || !chosen}
+                    onClick={() => book.mutate({ starts_at: s.starts_at, venue: chosen })}
+                  >
+                    Book {label}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {book.error ? <ProblemView error={book.error} /> : null}
+    </section>
+  );
+}
+
 export function ClubEventsPage() {
   const { clubs, isPending, error, capabilities } = useMyClubs('clubs');
   const { selected, select } = useSelectedClub(clubs);
@@ -146,6 +222,10 @@ export function ClubEventsPage() {
           ) : null}
         </div>
       </div>
+
+      {selected && capabilities?.clubs_can_assign_roles.includes(selected.id) ? (
+        <OpenBlockCard club={selected.id} clubName={selected.name} />
+      ) : null}
 
       {all.length > 0 ? (
         <SegmentedControl

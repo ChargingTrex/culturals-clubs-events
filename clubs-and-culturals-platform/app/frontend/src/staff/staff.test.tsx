@@ -49,6 +49,7 @@ const approval = (over: Partial<ApprovalRequest> = {}): ApprovalRequest => ({
   my_stage: true,
   requires_mfa: false,
   nil_declaration: null,
+  proposal_document: null,
   stage_entered_at: '2026-11-01T09:00:00Z',
   age_hours: 60,
   escalated: true,
@@ -57,6 +58,37 @@ const approval = (over: Partial<ApprovalRequest> = {}): ApprovalRequest => ({
 });
 
 describe('staff screens', () => {
+  it('the Dean sees a proposal still with the Society as on its way, not in the queue', async () => {
+    const waiting = approval({
+      id: 'ar-7',
+      event_title: 'test',
+      club: 'Music Club',
+      current_stage: 'cultural_society',
+      stages: ['cultural_society', 'dean'],
+    });
+    server.use(
+      http.get(`${B}/governance/approvals/queue`, () =>
+        HttpResponse.json({
+          stages_you_hold: ['dean'],
+          stages_delegated_to_you: [],
+          sla_hours: 48,
+          escalated_only: false,
+          count: 0,
+          results: [],
+          upcoming: [waiting],
+        }),
+      ),
+    );
+    renderAt('/staff/approvals/dean', { roles: ['dean'] });
+    const section = await screen.findByRole('region', { name: 'On the way to you' });
+    expect(within(section).getByRole('link', { name: 'test' })).toHaveAttribute(
+      'href',
+      '/staff/approvals/ar-7',
+    );
+    expect(within(section).getByText('With the Cultural Society')).toBeInTheDocument();
+    expect(screen.queryAllByTestId('queue-row')).toHaveLength(0);
+  });
+
   it('Dean queue lists an item and the Dean approves it with line sanctions', async () => {
     const user = userEvent.setup();
     let item = approval();
@@ -139,6 +171,11 @@ describe('staff screens', () => {
       missing_evidence: [],
       events_missing_photos: [],
       events_missing_social_links: [],
+      events_missing_report: [
+        { id: 'e9', title: 'Raga Night', club: 'Swara', ended_at: '2026-10-20T15:30:00Z' },
+      ],
+      social_activity: [],
+      clubs_without_recent_post: [],
       venue_use: [{ venue__name: 'Seminar Hall A', bookings: 3 }],
       capture: {
         scan_attempts: 152,
@@ -158,6 +195,8 @@ describe('staff screens', () => {
     expect(screen.getByText('93%')).toBeInTheDocument();
     expect(screen.getByText('100%')).toBeInTheDocument();
     expect(screen.getByText('Drishti')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /No report yet/ })).toBeInTheDocument();
+    expect(screen.getByText('Raga Night')).toBeInTheDocument();
   });
 
   it('venues renders bookings grouped by day and flags the clash', async () => {
@@ -179,6 +218,7 @@ describe('staff screens', () => {
           status: 'submitted',
           confirmed: false,
           clash: true,
+          can_move: true,
         },
         {
           id: 'b-2',
@@ -191,6 +231,7 @@ describe('staff screens', () => {
           status: 'published',
           confirmed: true,
           clash: true,
+          can_move: true,
         },
       ],
       clashes: [{ venue: 'Amphitheatre', events: [] }],

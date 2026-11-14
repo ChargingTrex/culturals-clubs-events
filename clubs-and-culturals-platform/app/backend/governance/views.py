@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 from budget.serializers import NilDeclarationSerializer
 from common import roles as R
 from common.errors import ProblemDetail
+from events.serializers import ProposalDocumentSerializer
+from events.services import can_read_proposal_document
 from governance import services
 from governance.models import (
     ApprovalRequest, ApprovalStage, ApprovalState, ApprovalStep, AuditEntry, Decision,
@@ -51,6 +53,7 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
     my_stage = serializers.SerializerMethodField()
     requires_mfa = serializers.SerializerMethodField()
     nil_declaration = serializers.SerializerMethodField()
+    proposal_document = serializers.SerializerMethodField()
     # SLA (PRD §5.11): hours at the current gate, and whether that is past the
     # configured limit. Both derive from stage_entered_at, which resets on advance.
     age_hours = serializers.FloatField(read_only=True)
@@ -61,7 +64,7 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
         fields = ("id", "event", "event_title", "club", "club_id", "venue", "starts_at",
                   "ends_at", "expected_attendance", "stages", "current_stage", "stage_label",
                   "state", "amount_requested", "requires_vc", "vc_reason", "steps", "lines",
-                  "clashes", "my_stage", "requires_mfa", "nil_declaration",
+                  "clashes", "my_stage", "requires_mfa", "nil_declaration", "proposal_document",
                   "stage_entered_at", "age_hours", "escalated", "created_at")
 
     @extend_schema_field(ApprovalLineSerializer(many=True))
@@ -76,6 +79,15 @@ class ApprovalRequestSerializer(serializers.ModelSerializer):
                                    if line.amount_sanctioned is not None else None)}
             for line in budget.lines.all()
         ]
+
+    @extend_schema_field(ProposalDocumentSerializer(allow_null=True))
+    def get_proposal_document(self, request_obj):
+        """AR-10: the club's write-up, read alongside the budget lines."""
+        event = request_obj.event
+        if not can_read_proposal_document(self.context["request"].auth_context, event):
+            return None
+        current = event.proposal_documents.first()
+        return ProposalDocumentSerializer(current).data if current else None
 
     @extend_schema_field(NilDeclarationSerializer(allow_null=True))
     def get_nil_declaration(self, request_obj):
@@ -139,6 +151,8 @@ class ApprovalQueueSerializer(serializers.Serializer):
     escalated_only = serializers.BooleanField()
     count = serializers.IntegerField()
     results = ApprovalRequestSerializer(many=True)
+    upcoming = ApprovalRequestSerializer(
+        many=True, help_text="Pending at an earlier gate and on their way to you; read-only.")
 
 
 class DecideSerializer(serializers.Serializer):
@@ -234,6 +248,10 @@ class ApprovalViewSet(viewsets.GenericViewSet):
             "count": pending.count(),
             "results": ApprovalRequestSerializer(
                 pending, many=True,
+                context={"request": request, "_held_stages": set(held)}).data,
+            # Not filtered by the SLA switch: it is a look-ahead, not the caller's backlog.
+            "upcoming": ApprovalRequestSerializer(
+                services.upcoming_for(ctx), many=True,
                 context={"request": request, "_held_stages": set(held)}).data,
         })
 

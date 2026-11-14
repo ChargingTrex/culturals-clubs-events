@@ -10,6 +10,7 @@ import { Loading } from '../shared/ui/Empty';
 import { Pill, StatusPill } from '../shared/ui/Pill';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { useToast } from '../shared/ui/Toast';
+import { EventGallery } from './EventGallery';
 import { eventKey, useRegistration } from './useRegistration';
 
 const OPEN_STATUSES = new Set(['published', 'live']);
@@ -174,12 +175,17 @@ export function EventDetailPage() {
                 >
                   {register.isPending ? 'Registering…' : open ? 'Register' : 'Not open'}
                 </Button>
+                <p className="caption mt-2 text-ink-muted" data-testid="photo-consent">
+                  Photos from this event may be used in college reports; you can ask for one to
+                  be removed.
+                </p>
               </>
             )}
             {actionError ? <ProblemView error={actionError} /> : null}
           </section>
         </div>
       </div>
+      {e.status === 'completed' || e.status === 'reported' ? <EventGallery eventId={e.id} /> : null}
     </article>
   );
 }

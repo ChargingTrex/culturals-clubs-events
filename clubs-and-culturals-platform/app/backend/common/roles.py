@@ -15,12 +15,26 @@ on every request: the claim carries the scope, per §5.1 step 8.
 
 # --- Global roles ---------------------------------------------------------
 STUDENT = "student"
-CULTURAL_SOCIETY = "cultural_society"   # cultural society office bearer
+CULTURAL_SOCIETY = "cultural_society"   # Cultural Society member: sees the work, decides nothing
+# The Society's two officers. They hold the Society's approval stage, may move a
+# booking while a proposal is still with the Society, and keep the member list.
+SOCIETY_SECRETARY = "cultural_society_secretary"
+SOCIETY_VICE_SECRETARY = "cultural_society_vice_secretary"
 DEAN = "dean"                           # Dean of Student Affairs
 VICE_CHANCELLOR = "vice_chancellor"
 ADMIN = "admin"                         # IT / platform administration
 
-GLOBAL_ROLES = (STUDENT, CULTURAL_SOCIETY, DEAN, VICE_CHANCELLOR, ADMIN)
+GLOBAL_ROLES = (STUDENT, CULTURAL_SOCIETY, SOCIETY_SECRETARY, SOCIETY_VICE_SECRETARY,
+                DEAN, VICE_CHANCELLOR, ADMIN)
+
+SOCIETY_OFFICERS = (SOCIETY_SECRETARY, SOCIETY_VICE_SECRETARY)
+# Everyone in the Cultural Society. An officer is a member without also holding
+# the member role, so every "is in the Society" check uses this set.
+SOCIETY_ROLES = (CULTURAL_SOCIETY,) + SOCIETY_OFFICERS
+# Who may add and remove Society members. Only the Dean or an administrator
+# appoints or removes an officer; the officers keep the member list.
+SOCIETY_MANAGERS = SOCIETY_OFFICERS + (DEAN, ADMIN)
+SOCIETY_OFFICER_APPOINTERS = (DEAN, ADMIN)
 
 # --- Club-scoped roles, most senior first --------------------------------
 CLUB_PRESIDENT = "club_president"
@@ -92,15 +106,20 @@ EVENT_OPERATORS = (CLUB_PRESIDENT, CLUB_VICE_PRESIDENT, CLUB_SECRETARY)
 # deliberately cannot: the scan response carries attendee names and PRNs.
 DOOR_STAFF = (CLUB_PRESIDENT, CLUB_VICE_PRESIDENT, CLUB_SECRETARY, CLUB_CORE)
 
-# Approval stages, and the role that holds each one.
-STAGE_ROLE = {
-    "cultural_society": CULTURAL_SOCIETY,
-    "dean": DEAN,
-    "vc": VICE_CHANCELLOR,
+# Approval stages, and the roles that hold each one. The Society's stage belongs
+# to its Secretary and Vice-Secretary only: a plain Society member sees the
+# queue's subject matter (events, calendar, reports) but does not decide.
+STAGE_ROLES = {
+    "cultural_society": SOCIETY_OFFICERS,
+    "dean": (DEAN,),
+    "vc": (VICE_CHANCELLOR,),
 }
+ALL_STAGE_ROLES = tuple(role for roles in STAGE_ROLES.values() for role in roles)
 
 # Roles for which MFA is mandatory (§5.5).
-MFA_REQUIRED_ROLES = (DEAN, VICE_CHANCELLOR, ADMIN, CULTURAL_SOCIETY)
+MFA_REQUIRED_ROLES = (DEAN, VICE_CHANCELLOR, ADMIN) + SOCIETY_ROLES
+# Roles whose sessions carry the shorter staff cap (§5.3).
+STAFF_ROLES = (DEAN, VICE_CHANCELLOR, ADMIN) + SOCIETY_ROLES
 
 
 def split_role(role):

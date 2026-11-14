@@ -65,7 +65,7 @@ class FeedbackSummaryView(APIView):
     def get(self, request, event_id):
         ctx = request.auth_context
         event = _get_event_or_404(event_id)
-        allowed = (ctx.is_dean() or ctx.is_admin() or ctx.has_any(R.CULTURAL_SOCIETY)
+        allowed = (ctx.is_dean() or ctx.is_admin() or ctx.has_any(*R.SOCIETY_ROLES)
                    or ctx.has_club_role(event.club_id, *_OFFICERS))
         if not allowed:
             raise ProblemDetail(code="NOT_FOUND", title="Not found", status_code=404,

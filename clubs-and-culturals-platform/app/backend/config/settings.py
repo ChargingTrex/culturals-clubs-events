@@ -157,6 +157,7 @@ SPECTACULAR_SETTINGS = {
     # `current_stage`) are emitted twice under different names.
     "ENUM_NAME_OVERRIDES": {
         "ApprovalStageEnum": "governance.models.ApprovalStage",
+        "SocietyRoleEnum": "identity.society.ROLE_ORDER",
         "ApprovalStateEnum": "governance.models.ApprovalState",
         "DecisionEnum": "governance.models.Decision",
         "BudgetStageEnum": "budget.models.BudgetStage",
@@ -260,6 +261,10 @@ ORGANISER_GRACE_HOURS = _env_int("ORGANISER_GRACE_HOURS", 4)
 # hour in one venue and no setup buffer is needed. A positive value adds one back.
 VENUE_BUFFER_MINUTES = _env_int("VENUE_BUFFER_MINUTES", 0)
 CONTINGENCY_PERCENT = _env_int("CONTINGENCY_PERCENT", 8)
+# AR-03: the Wednesday open block. Python weekday (0 = Monday) and the starting
+# hours of its 1-hour slots on the campus clock: 15:00-16:00 and 16:00-17:00.
+OPEN_BLOCK_WEEKDAY = _env_int("OPEN_BLOCK_WEEKDAY", 2)
+OPEN_BLOCK_HOURS = (15, 16)
 # PRD §5.14.1: closing needs a social post link only when more than this many
 # attended; 0 = never required (the PRD's caution against box-ticking).
 SOCIAL_POST_REQUIRED_ABOVE = _env_int("SOCIAL_POST_REQUIRED_ABOVE", 0)

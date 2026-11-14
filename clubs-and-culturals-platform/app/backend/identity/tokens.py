@@ -94,7 +94,7 @@ def issue_refresh(user, *, mfa=False, family=None):
     # §5.3: staff and admin sessions have a shorter absolute cap regardless of
     # activity, so the refresh window itself is capped, not just the access token.
     is_staff_role = any(
-        R.split_role(r)[0] in (R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY)
+        R.split_role(r)[0] in R.STAFF_ROLES
         for r in (user.global_roles or [])
     )
     ttl = settings.TOKEN_LIFETIMES["staff_session_cap" if is_staff_role else "refresh"]

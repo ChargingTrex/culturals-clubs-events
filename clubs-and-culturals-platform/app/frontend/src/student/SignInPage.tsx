@@ -33,6 +33,7 @@ const PERSONA_POSITION: Record<string, Position> = {
   treasurer: 'treasurer',
   secretary: 'secretary',
   society: 'cultural-society',
+  society_vice: 'cultural-society',
   dean: 'dean',
   vc: 'vice-chancellor',
 };

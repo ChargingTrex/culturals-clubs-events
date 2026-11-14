@@ -22,6 +22,7 @@ import { GATE_NAME, STAGE_ROLE, flowSteps } from '../shared/approvals';
 import { fmtDate, fmtTime, inr, roleLabel } from '../shared/format';
 import { Loading } from '../shared/ui/Empty';
 import { Pill } from '../shared/ui/Pill';
+import { ProposalPreview } from '../shared/ui/DocumentPreview';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { useToast } from '../shared/ui/Toast';
 import {
@@ -253,6 +254,32 @@ function DecisionPanel({ item }: { item: ApprovalRequest }) {
   );
 }
 
+/** AR-10: the club's proposal write-up, read with the budget. */
+function ProposalDocumentLink({ doc }: { doc: ApprovalRequest['proposal_document'] | null }) {
+  const [previewing, setPreviewing] = useState(false);
+  return (
+    <section className="cc-card mb-5 px-4 py-3.5" aria-label="Proposal document">
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Icon name="sheet" size={18} className="text-ink-muted" />
+        <strong>Proposal document</strong>
+        {doc ? (
+          <button
+            type="button"
+            className="text-primary hover:underline"
+            aria-label={`Preview ${doc.file_name}`}
+            onClick={() => setPreviewing(true)}
+          >
+            {doc.file_name}
+          </button>
+        ) : (
+          <span className="text-ink-muted">None attached by the club.</span>
+        )}
+      </p>
+      {doc && previewing ? <ProposalPreview doc={doc} onClose={() => setPreviewing(false)} /> : null}
+    </section>
+  );
+}
+
 export function ApprovalDetailPage() {
   const { id = '' } = useParams();
   const approval = useQuery<ApprovalRequest, ApiError>({
@@ -292,6 +319,8 @@ export function ApprovalDetailPage() {
           </p>
         </div>
       </div>
+
+      <ProposalDocumentLink doc={a.proposal_document ?? null} />
 
       <section className="cc-card mb-5 overflow-x-auto px-4 py-5" aria-label="Route">
         <ApprovalFlow steps={flowSteps(a)} className="min-w-[560px]" />

@@ -3,7 +3,7 @@ Documentation     Steps 3–4: the Cultural Society and the Dean decide; Cultura
 ...               the Vice-Chancellor because it is over the threshold; the Dean hands the gate to a delegate.
 Resource          ../resources/api.resource
 Suite Setup       Approvers Sign In
-Test Tags         api
+Test Tags         api    approvals
 
 
 *** Test Cases ***

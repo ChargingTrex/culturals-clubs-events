@@ -1,6 +1,6 @@
 from django.urls import path
 
-from identity import views
+from identity import society, views
 
 urlpatterns = [
     path("auth/mode", views.ModeView.as_view(), name="auth-mode"),
@@ -11,6 +11,9 @@ urlpatterns = [
     path("auth/preferences", views.PreferencesView.as_view(), name="auth-preferences"),
     path("directory/students", views.StudentLookupView.as_view(), name="directory-students"),
     path("semesters", views.SemesterView.as_view(), name="semesters"),
+    path("cultural-society/members", society.SocietyMembersView.as_view(), name="society-members"),
+    path("cultural-society/members/<uuid:user_id>", society.SocietyMemberView.as_view(),
+         name="society-member"),
     # personas: PILOT_ACCOUNTS or DEMO_MODE; the passwordless login: DEMO_MODE only.
     path("auth/demo/personas", views.DemoPersonasView.as_view(), name="demo-personas"),
     path("auth/demo/<str:persona>", views.DemoLoginView.as_view(), name="demo-login"),

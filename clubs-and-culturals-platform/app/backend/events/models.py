@@ -57,6 +57,7 @@ class Event(UUIDModel):
         COMPETITION = "competition", "Competition"
         EXHIBITION = "exhibition", "Exhibition"
         TALK = "talk", "Talk"
+        OPEN_BLOCK = "open_block", "Wednesday open block"  # AR-03: auto-approved slot
 
     title = models.CharField(max_length=200)
     club = models.ForeignKey("clubs.Club", on_delete=models.PROTECT, related_name="events")
@@ -210,6 +211,29 @@ class EventOrganiser(UUIDModel):
     def active_event_ids(cls, student, now=None):
         """Event ids this student currently organises — the token's scopes."""
         return list(cls.active(now).filter(student=student).values_list("event_id", flat=True))
+
+
+class EventProposalDocument(UUIDModel):
+    """
+    The proposal write-up a club attaches to an event it is proposing (AR-10):
+    the document the Society and the Dean read alongside the budget. A row with
+    a file key, never the bytes (AGENT_PROMPT §2).
+
+    A replacement adds a row rather than overwriting one, so what an approver
+    read stays on record; the newest row is the current document.
+    """
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="proposal_documents")
+    file_key = models.CharField(max_length=400)
+    file_name = models.CharField(max_length=200)
+    content_type = models.CharField(max_length=120)
+    byte_size = models.PositiveIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, blank=True)
+    uploaded_by_sub = models.UUIDField(null=True, blank=True)
+    uploaded_by_label = models.CharField(max_length=160, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
 
 
 class EventPhoto(UUIDModel):

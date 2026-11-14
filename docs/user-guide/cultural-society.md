@@ -1,6 +1,8 @@
 # Cultural Society guide
 
-This chapter is for the Cultural Society secretary. You review event proposals from the
+This chapter is for the Cultural Society's **Secretary** and **Vice-Secretary**. Only these two
+officers approve for the Society; other Society members see the calendar, overview and report but
+have no approval queue. You review event proposals from the
 cultural and literary clubs before they go to the Dean. You can pass a proposal on to the Dean,
 send it back to the club for changes, or reject it. You can also see the events calendar, the
 semester overview and the semester report.
@@ -32,7 +34,11 @@ trail, so anyone can later see it was made by a verified approver.
 You start on **Society approvals**. The side menu has:
 
 - **Society approvals**: proposals waiting at your gate.
-- **Calendar**: every venue booking, hour by hour.
+- **Calendar**: every venue booking, hour by hour. While a proposal is waiting at your gate you
+  can **Move** it to another time or venue, with a reason. The club's office bearers are told.
+  After you approve it, only the Dean can move it.
+- **Society members**: add a member by institutional email, or remove one. The Dean appoints the
+  Secretary and Vice-Secretary.
 - **This semester**: running totals and things to chase up.
 - **Semester report**: attendance and money for the semester.
 

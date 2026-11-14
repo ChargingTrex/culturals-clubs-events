@@ -238,7 +238,7 @@ class TreasurerBudgetRequestTests(TestCase):
         f.member(self.club, self.member, R.CLUB_MEMBER)
         self.vp = f.student("vp@college.edu", prn="23CS1004")
         f.member(self.club, self.vp, R.CLUB_VICE_PRESIDENT)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         from budget.models import BudgetTemplate, BudgetTemplateLine
 
         template = BudgetTemplate.objects.create(name="Performance")
@@ -345,7 +345,7 @@ class BudgetBuildingTests(TestCase):
         f.member(self.club, self.treasurer, R.CLUB_TREASURER)
         self.member = f.student("member@college.edu", prn="23CS1003")
         f.member(self.club, self.member, R.CLUB_MEMBER)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
 
     def create_event(self, email="pres@college.edu", submit=False):
         f.as_user(self.client, email)
@@ -478,7 +478,7 @@ class NilBudgetTests(TestCase):
         f.member(self.club, self.treasurer, R.CLUB_TREASURER)
         self.president = f.student("pres@college.edu", prn="23CS1001")
         f.member(self.club, self.president, R.CLUB_PRESIDENT)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
 
         f.as_user(self.client, "pres@college.edu")
@@ -682,3 +682,68 @@ class SettlementSequenceTests(TestCase):
         self.assertEqual(body["settlement_waiting_on"], "settled")
         self.assertEqual(body["settlement_problems"], [])
         self.assertFalse(body["can_settle"])
+
+
+class BudgetCsvImportTests(TestCase):
+    """AR-04: a Treasurer prices a budget from a spreadsheet, all rows or none."""
+
+    setUp = BudgetBuildingTests.setUp
+    create_event = BudgetBuildingTests.create_event
+    budget_id = BudgetBuildingTests.budget_id
+
+    def _import(self, text, email="treas@college.edu", mode="replace"):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        f.as_user(self.client, email)
+        upload = SimpleUploadedFile("budget.csv", text.encode("utf-8-sig"), content_type="text/csv")
+        return self.client.post(f"/api/v1/budget/budgets/{self.budget_id()}/lines/import",
+                                {"file": upload, "mode": mode}, format="multipart")
+
+    def test_the_treasurer_replaces_the_lines_from_a_csv(self):
+        self.create_event()
+        self.client.post(f"/api/v1/budget/budgets/{self.budget_id()}/lines",
+                         {"head": "Old line", "amount_requested": "1"}, format="json")
+        response = self._import('Head,Amount,basis\nSound,"12,000",\nRefreshments,3000,per_head\n\n')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([l["head"] for l in response.data["lines"]], ["Sound", "Refreshments"])
+        self.assertEqual(response.data["total_requested"], "15000.00")
+
+    def test_append_keeps_the_existing_lines_and_refuses_a_repeated_head(self):
+        self.create_event()
+        self._import("head,amount\nSound,8000\n")
+        response = self._import("head,amount\nPrinting,600\n", mode="append")
+        self.assertEqual(len(response.data["lines"]), 2)
+        response = self._import("head,amount\nsound,1\n", mode="append")
+        self.assertEqual(response.status_code, 422)
+
+    def test_one_bad_row_saves_nothing_and_names_every_row(self):
+        self.create_event()
+        response = self._import("head,amount\nSound,8000\n,500\nPrinting,-3\nSound,1\n")
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.data["code"], "BUDGET_IMPORT_INVALID")
+        fields = [e["field"] for e in response.data["errors"]]
+        self.assertEqual(fields, ["row 3: head", "row 4: amount", "row 5: head"])
+        from budget.models import Budget
+
+        self.assertEqual(Budget.objects.get().lines.count(), 0)
+
+    def test_missing_columns_are_refused(self):
+        self.create_event()
+        response = self._import("item,cost\nSound,8000\n")
+        self.assertEqual(response.data["code"], "BUDGET_IMPORT_COLUMNS")
+
+    def test_a_plain_member_cannot_import(self):
+        self.create_event()
+        response = self._import("head,amount\nSound,8000\n", email="member@college.edu")
+        self.assertEqual(response.status_code, 404)  # a member cannot see the budget at all
+
+    def test_a_submitted_budget_is_locked(self):
+        self.create_event()
+        self._import("head,amount\nSound,8000\n")
+        from events.models import Event
+
+        f.as_user(self.client, "pres@college.edu")
+        self.client.post(f"/api/v1/events/{Event.objects.get().id}/submit", {}, format="json")
+        response = self._import("head,amount\nLights,100\n")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["code"], "BUDGET_LOCKED")

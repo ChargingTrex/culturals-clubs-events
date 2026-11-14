@@ -69,6 +69,10 @@ class CapabilitiesSerializer(serializers.Serializer):
     is_dean = serializers.BooleanField()
     is_vice_chancellor = serializers.BooleanField()
     is_cultural_society = serializers.BooleanField()
+    is_society_officer = serializers.BooleanField(
+        help_text="Cultural Society Secretary or Vice-Secretary.")
+    can_manage_society = serializers.BooleanField(
+        help_text="May add and remove Cultural Society members.")
     is_admin = serializers.BooleanField()
     clubs = serializers.ListField(child=serializers.UUIDField())
     clubs_with_budget_access = serializers.ListField(child=serializers.UUIDField())

@@ -174,7 +174,10 @@ class Command(BaseCommand):
 
         dean = staff("dean@college.edu", "Dr. Revathi Srinivasan", R.DEAN)
         vc = staff("vc@college.edu", "Prof. K. Ramanathan", R.VICE_CHANCELLOR)
-        society = staff("cultural.secretary@college.edu", "Nivedita Raman", R.CULTURAL_SOCIETY)
+        # The Society's two officers hold its approval stage; a member only sees the work.
+        society = staff("cultural.secretary@college.edu", "Nivedita Raman", R.SOCIETY_SECRETARY)
+        staff("cultural.vicesecretary@college.edu", "Arjun Menon", R.SOCIETY_VICE_SECRETARY)
+        staff("cultural.member@college.edu", "Sana Fathima", R.CULTURAL_SOCIETY)
 
         # ---- memberships ----------------------------------------------
         office = [R.CLUB_PRESIDENT, R.CLUB_VICE_PRESIDENT, R.CLUB_TREASURER, R.CLUB_SECRETARY]

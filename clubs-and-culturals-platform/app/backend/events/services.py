@@ -10,9 +10,10 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from common import roles as R
-from common.errors import Conflict, ProblemDetail
+from common.errors import Conflict, ProblemDetail, Unprocessable
 from events.models import (
-    SLOT_CONFIRMED, SLOT_HOLDING, Event, EventPhoto, EventReport, EventSocialPost, EventStatus,
+    SLOT_CONFIRMED, SLOT_HOLDING, Event, EventPhoto, EventProposalDocument, EventReport,
+    EventSocialPost, EventStatus,
     VenueReassignment,
 )
 
@@ -102,7 +103,27 @@ def assert_bookable(*, venue_id, starts_at, ends_at, exclude_id=None):
 
 
 @transaction.atomic
-def reassign_venue(event, *, to_venue, reason, actor):
+def movable_by(ctx, events):
+    """
+    Ids of the events this caller may move to another time or venue (AR-02, AR-08).
+
+    The Dean moves any booking that still holds its slot. The Cultural Society's
+    Secretary and Vice-Secretary move one only while its proposal is waiting on
+    the Society; after they approve it, the move is the Dean's. Nobody else moves
+    anything: a club asks, it does not reschedule itself.
+    """
+    from common import roles as R
+    from governance.services import events_with_society
+
+    held = [e for e in events if e.status in MOVABLE]
+    if ctx.is_dean():
+        return {e.id for e in held}
+    if ctx.has_any(*R.SOCIETY_OFFICERS):
+        return events_with_society([e.id for e in held if e.status == EventStatus.SUBMITTED])
+    return set()
+
+
+def reassign_venue(event, *, to_venue, reason, actor, starts_at=None, ends_at=None):
     """
     Move an event to another venue in one transaction.
 
@@ -125,9 +146,11 @@ def reassign_venue(event, *, to_venue, reason, actor):
     # queue on the venue row, or both read it as free. The event row lock alone
     # does not serialise them, since each locks a different event.
     Venue.objects.select_for_update().get(pk=to_venue.pk)
-    if to_venue.pk == locked.venue_id:
+    starts_at, ends_at = starts_at or locked.starts_at, ends_at or locked.ends_at
+    retimed = (starts_at, ends_at) != (locked.starts_at, locked.ends_at)
+    if to_venue.pk == locked.venue_id and not retimed:
         raise Conflict(code="EVENTS_SAME_VENUE", title="Already in that venue",
-                       detail="Choose a different venue.")
+                       detail="Choose a different venue or a new time.")
     if not to_venue.active:
         raise Conflict(code="EVENTS_VENUE_CLOSED", title="Venue closed",
                        detail=f"{to_venue.name} is closed for bookings. Choose an open venue.")
@@ -141,8 +164,8 @@ def reassign_venue(event, *, to_venue, reason, actor):
     # the target slot is refused here too: the move exists to resolve a clash,
     # and landing on another club's request would create a new one that blocks
     # both approvals.
-    contested = assert_bookable(venue_id=to_venue.pk, starts_at=locked.starts_at,
-                                ends_at=locked.ends_at, exclude_id=locked.pk)
+    contested = assert_bookable(venue_id=to_venue.pk, starts_at=starts_at,
+                                ends_at=ends_at, exclude_id=locked.pk)
     if contested:
         other = contested[0]
         raise Conflict(
@@ -154,8 +177,8 @@ def reassign_venue(event, *, to_venue, reason, actor):
             errors=[{"field": "to_venue", "code": "CONTESTED", "message": other.title}],
         )
     from_venue_id = locked.venue_id
-    locked.venue = to_venue
-    locked.save(update_fields=["venue", "updated_at"])
+    locked.venue, locked.starts_at, locked.ends_at = to_venue, starts_at, ends_at
+    locked.save(update_fields=["venue", "starts_at", "ends_at", "updated_at"])
     VenueReassignment.objects.create(
         event=locked, from_venue_id=from_venue_id, to_venue=to_venue, reason=reason,
         actor_sub=actor.sub, actor_label=actor.display_name,
@@ -163,7 +186,7 @@ def reassign_venue(event, *, to_venue, reason, actor):
     return locked
 
 
-def notify_venue_change(event, *, from_name, reason):
+def notify_venue_change(event, *, from_name, reason, from_starts_at=None):
     """
     Tell everyone who would otherwise go to the wrong hall.
 
@@ -178,9 +201,15 @@ def notify_venue_change(event, *, from_name, reason):
     from integrations.registry import notifier
     from participation.models import Registration
 
-    subject = f"“{event.title}” was moved to {event.venue.name}"
-    body = (f"{event.starts_at:%a %d %b, %H:%M}. Moved from {from_name} to "
-            f"{event.venue.name}. Reason: {reason}")
+    local = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+    when = event.starts_at.astimezone(local)
+    if from_starts_at and from_starts_at != event.starts_at:
+        subject = f"“{event.title}” was moved to {when:%a %d %b, %H:%M}"
+        was = f"Was {from_starts_at.astimezone(local):%a %d %b, %H:%M} at {from_name}"
+    else:
+        subject = f"“{event.title}” was moved to {event.venue.name}"
+        was = f"Moved from {from_name}"
+    body = f"{when:%a %d %b, %H:%M} at {event.venue.name}. {was}. Reason: {reason}"
     club_link = f"/club/events/{event.id}"
     student_link = f"/events/{event.id}"
 
@@ -228,6 +257,142 @@ PHOTO_MAX_BYTES = 10 * 1024 * 1024
 EVIDENCE_OPEN = (EventStatus.APPROVED, EventStatus.PUBLISHED, EventStatus.LIVE,
                  EventStatus.COMPLETED, EventStatus.REPORTED)
 CLOSEABLE = (EventStatus.LIVE, EventStatus.PUBLISHED, EventStatus.COMPLETED)
+
+
+# AR-10: the proposal write-up. Documents only; the type is checked by content
+# type and by extension, since browsers disagree about what a .docx is.
+PROPOSAL_DOC_TYPES = {
+    ".pdf": ("application/pdf",),
+    ".doc": ("application/msword",),
+    ".docx": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document",),
+}
+PROPOSAL_DOC_MAX_BYTES = 10 * 1024 * 1024
+# The same window in which the proposal itself can be edited.
+PROPOSAL_EDITABLE = (EventStatus.DRAFT, EventStatus.RETURNED)
+
+
+def can_read_proposal_document(ctx, event):
+    """The club's office bearers and the staff who review it; never the student body."""
+    from common import roles as R
+
+    return ctx.can_see_all_clubs() or ctx.has_club_role(event.club_id, *R.PROPOSERS)
+
+
+# What the app can show without the reader downloading the file: a PDF in the
+# browser's own viewer, a .docx as its text. A legacy .doc is download-only.
+DOCX_TYPE = PROPOSAL_DOC_TYPES[".docx"][0]
+PREVIEW_MAX_XML_BYTES = 8 * 1024 * 1024
+PREVIEW_MAX_BLOCKS = 2000
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def proposal_preview_kind(doc):
+    if doc.content_type == "application/pdf":
+        return "pdf"
+    return "text" if doc.content_type == DOCX_TYPE else "none"
+
+
+def docx_blocks(path):
+    """
+    The text of a .docx, block by block, for an in-app preview (AR-11).
+
+    Read with the standard library only: a .docx is a zip holding
+    word/document.xml. Nothing in the file is executed or fetched; the size of
+    the XML is checked before it is read, so a zip bomb is refused, and the
+    parser is told to expand no entities. Layout, images and tracked changes
+    are not reproduced: the preview is for reading, the download is the record.
+
+    Returns (blocks, truncated). A block is {"kind": "heading"|"paragraph"|"row",
+    "text": str}; a table row's cells are joined with " | ".
+    """
+    import zipfile
+    from xml.etree import ElementTree
+
+    def text_of(node):
+        parts = []
+        for el in node.iter():
+            if el.tag == f"{_W}t":
+                parts.append(el.text or "")
+            elif el.tag in (f"{_W}tab",):
+                parts.append("\t")
+            elif el.tag in (f"{_W}br", f"{_W}cr"):
+                parts.append("\n")
+        return "".join(parts).strip()
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            info = archive.getinfo("word/document.xml")
+            if info.file_size > PREVIEW_MAX_XML_BYTES:
+                raise ValueError("document too large to preview")
+            raw = archive.read(info)
+        if b"<!DOCTYPE" in raw or b"<!ENTITY" in raw:
+            raise ValueError("unexpected markup")
+        body = ElementTree.fromstring(raw).find(f"{_W}body")
+    except (KeyError, ValueError, zipfile.BadZipFile, ElementTree.ParseError):
+        raise Unprocessable(code="EVENTS_PREVIEW_UNREADABLE", title="Cannot preview this file",
+                            detail="The document could not be read. Download it instead.")
+    blocks = []
+    for node in (body if body is not None else []):
+        if len(blocks) >= PREVIEW_MAX_BLOCKS:
+            return blocks, True
+        if node.tag == f"{_W}p":
+            text = text_of(node)
+            if not text:
+                continue
+            style = node.find(f"{_W}pPr/{_W}pStyle")
+            name = (style.get(f"{_W}val") or "").lower() if style is not None else ""
+            blocks.append({"kind": "heading" if name.startswith(("heading", "title")) else "paragraph",
+                           "text": text})
+        elif node.tag == f"{_W}tbl":
+            for row in node.iter(f"{_W}tr"):
+                cells = [text_of(cell) for cell in row.findall(f"{_W}tc")]
+                if any(cells):
+                    blocks.append({"kind": "row", "text": " | ".join(cells)})
+    return blocks, False
+
+
+def set_proposal_document(event, upload, *, actor):
+    """Attach (or replace) the proposal document while the proposal can still be edited."""
+    from pathlib import PurePath
+
+    from integrations.registry import file_store
+
+    if event.status not in PROPOSAL_EDITABLE:
+        raise Conflict(code="EVENTS_LOCKED", title="Cannot change now",
+                       detail=(f"“{event.title}” is {event.get_status_display().lower()}. The "
+                               "proposal document can be changed only on a draft or a returned "
+                               "proposal."))
+    if upload is None:
+        raise ProblemDetail(code="EVENTS_FILE_MISSING", title="No file supplied", status_code=422,
+                            detail="Attach the proposal document.",
+                            errors=[{"field": "file", "code": "REQUIRED",
+                                     "message": "A file is required."}])
+    suffix = PurePath(upload.name or "").suffix.lower()
+    content_type = _bare_type(upload.content_type)
+    allowed = PROPOSAL_DOC_TYPES.get(suffix)
+    # A browser that does not know the type sends octet-stream; the extension decides then.
+    if allowed is None or content_type not in allowed + ("application/octet-stream", ""):
+        raise ProblemDetail(code="EVENTS_FILE_TYPE", title="Unsupported file type", status_code=422,
+                            detail="The proposal must be a PDF or a Word document (.pdf, .doc, .docx).",
+                            errors=[{"field": "file", "code": "CONTENT_TYPE",
+                                     "message": upload.content_type or suffix}])
+    if upload.size > PROPOSAL_DOC_MAX_BYTES:
+        raise ProblemDetail(code="EVENTS_FILE_TOO_LARGE", title="File too large", status_code=422,
+                            detail=f"The proposal must be under "
+                                   f"{PROPOSAL_DOC_MAX_BYTES // (1024 * 1024)} MB.",
+                            errors=[{"field": "file", "code": "TOO_LARGE",
+                                     "message": str(upload.size)}])
+    if upload.size == 0:
+        raise ProblemDetail(code="EVENTS_FILE_EMPTY", title="Empty file", status_code=422,
+                            detail="That file is empty.",
+                            errors=[{"field": "file", "code": "EMPTY", "message": "0 bytes"}])
+    stored = file_store().put(key=upload.name, content=upload.read(), content_type=allowed[0])
+    return EventProposalDocument.objects.create(
+        event=event, file_key=stored["key"], file_name=upload.name[:200],
+        content_type=allowed[0], byte_size=stored["bytes"], sha256=stored["sha256"],
+        uploaded_by_sub=getattr(actor, "sub", None) or None,
+        uploaded_by_label=(getattr(actor, "display_name", "") or "")[:160],
+    )
 
 
 def _bare_type(content_type):

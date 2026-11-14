@@ -947,6 +947,8 @@ export function BottomSheet({
   // Drag follows the finger; let go past 30% of the height and it closes.
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (!close || !panel.current || e.button !== 0) return;
+    // A press on the Close button is a click, not the start of a drag.
+    if (e.target instanceof Element && e.target.closest('button')) return;
     drag.current = { y0: e.clientY, h: panel.current.offsetHeight };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragging(true);

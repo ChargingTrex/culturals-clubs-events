@@ -36,3 +36,24 @@ DANCE_WORKSHOP = "Contemporary Dance Workshop"    # submitted, same hall, same e
 CULTURALS_NIGHT = "Culturals Night 2026"          # submitted, above the VC threshold
 REPORTED_EVENT = "Dance Showcase"                 # reported, sanctioned, not settled
 UI_DOOR_STUDENT_EMAIL = "23me1048@college.edu"  # club-less, never registered by the seed; the UI scan suite uses it
+
+# ---- added with the regression pack (api/09+, ui/16+) ----
+import os as _os
+_HERE = _os.path.dirname(__file__)
+DB_PATH = _os.environ.get("DB_PATH", _os.path.join(_HERE, "..", "..", "backend", "db.sqlite3"))  # same default as db.py
+FIXTURES = _os.path.join(_HERE, "..", "fixtures")
+PHOTO_FIXTURE = _os.path.join(FIXTURES, "photo.png")
+# Written by `run.sh tables` / ci.sh from Django's own model registry, so the schema check never drifts.
+EXPECTED_TABLES_FILE = _os.environ.get("EXPECTED_TABLES_FILE", _os.path.join(_HERE, "..", "results", "expected_tables.json"))
+# A club with no seeded roster and no seeded events; the suites flip its join mode and put it back.
+OPEN_CLUB_NAME = "Astronomy Club"
+# Seed minimums for the core tables (clubs and events are exact in seed_demo; the rest only grow).
+SEEDED_TABLES = {
+    "identity_user": 60, "identity_student": 60, "identity_semester": 1,
+    "clubs_club": 23, "clubs_membership": 46,
+    "events_venue": 5, "events_event": 14,
+    "budget_budgettemplate": 4, "budget_budget": 14, "budget_budgetline": 14,
+    "governance_approvalrequest": 8, "governance_approvalstep": 4,
+    "governance_auditentry": 1, "governance_notification": 1,
+    "participation_registration": 1, "participation_eventpass": 1, "participation_scanrecord": 1,
+}

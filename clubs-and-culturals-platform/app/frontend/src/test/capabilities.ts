@@ -19,10 +19,13 @@ const PROPOSERS = ['club_president', 'club_vice_president', 'club_secretary', 'c
 const EVENT_OPERATORS = ['club_president', 'club_vice_president', 'club_secretary'];
 const BUDGET_SETTLERS = ['club_president', 'club_vice_president', 'club_treasurer'];
 const DOOR_STAFF = ['club_president', 'club_vice_president', 'club_secretary', 'club_core'];
-const STAGE_ROLE: Record<ApprovalStage, string> = {
-  cultural_society: 'cultural_society',
-  dean: 'dean',
-  vc: 'vice_chancellor',
+const SOCIETY_OFFICERS = ['cultural_society_secretary', 'cultural_society_vice_secretary'];
+const SOCIETY_ROLES = ['cultural_society', ...SOCIETY_OFFICERS];
+const STAFF_ROLES = ['dean', 'vice_chancellor', 'admin', ...SOCIETY_ROLES];
+const STAGE_ROLES: Record<ApprovalStage, string[]> = {
+  cultural_society: SOCIETY_OFFICERS,
+  dean: ['dean'],
+  vc: ['vice_chancellor'],
 };
 
 const split = (role: string): [string, string | null] => {
@@ -39,11 +42,13 @@ export function capabilitiesFromRoles(roles: string[]): Capabilities {
     ].sort();
   return {
     can_see_individual_records: has('dean', 'admin'),
-    can_see_all_clubs: has('dean', 'vice_chancellor', 'admin', 'cultural_society'),
+    can_see_all_clubs: has(...STAFF_ROLES),
     is_student: has('student'),
     is_dean: has('dean'),
     is_vice_chancellor: has('vice_chancellor'),
-    is_cultural_society: has('cultural_society'),
+    is_cultural_society: has(...SOCIETY_ROLES),
+    is_society_officer: has(...SOCIETY_OFFICERS),
+    can_manage_society: has(...SOCIETY_OFFICERS, 'dean', 'admin'),
     is_admin: has('admin'),
     clubs: scopes(CLUB_ROLES),
     clubs_with_budget_access: scopes(BUDGET_VIEWERS),
@@ -52,9 +57,11 @@ export function capabilitiesFromRoles(roles: string[]): Capabilities {
     clubs_can_operate_events: scopes(EVENT_OPERATORS),
     clubs_can_enter_spend: scopes(BUDGET_SETTLERS),
     clubs_door_staff: scopes(DOOR_STAFF),
-    can_see_overview: has('dean', 'vice_chancellor', 'admin', 'cultural_society'),
+    can_see_overview: has(...STAFF_ROLES),
     organiser_events: scopes(['event_organiser']),
-    approval_stages: (Object.keys(STAGE_ROLE) as ApprovalStage[]).filter((s) => has(STAGE_ROLE[s])),
+    approval_stages: (Object.keys(STAGE_ROLES) as ApprovalStage[]).filter((s) =>
+      has(...STAGE_ROLES[s]),
+    ),
     my_clubs_count: scopes(CLUB_ROLES).length,
     max_club_memberships: 5,
   };
@@ -68,7 +75,7 @@ export const PERSONAS = {
   treasurer: ['student', 'club_treasurer:swara'],
   president: ['student', 'club_president:swara'],
   organiser: ['student', 'club_president:lens'],
-  society: ['cultural_society'],
+  society: ['cultural_society_secretary'],
   dean: ['dean'],
   vc: ['vice_chancellor'],
 } as const;

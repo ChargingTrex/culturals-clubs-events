@@ -8,6 +8,8 @@ approve them.
 > approving events in a few minutes, with pictures. The chapters below have the full detail.
 
 Start with **[Getting started](getting-started.md)**, then open the chapter for your role.
+For a two-page summary of what the platform does and why, read the
+**[overview for the Vice-Chancellor](overview-for-vc.md)**.
 
 **Try it:** the public demo runs at
 [culturals-clubs-events.vercel.app](https://culturals-clubs-events.vercel.app). Its sign-in

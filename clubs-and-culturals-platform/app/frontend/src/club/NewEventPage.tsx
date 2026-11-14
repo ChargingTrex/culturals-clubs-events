@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, Icon, Switch } from '../shared/ds';
+import { Button, FileDrop, Icon, Switch } from '../shared/ds';
 import type { ApiError } from '../shared/api/client';
 import type { Page } from '../shared/api/types';
 import { inr } from '../shared/format';
 import { Empty, Loading } from '../shared/ui/Empty';
 import { Pill } from '../shared/ui/Pill';
+import { FilePreview, canPreviewFile } from '../shared/ui/DocumentPreview';
 import { ProblemView } from '../shared/ui/ProblemView';
 import { useToast } from '../shared/ui/Toast';
 import {
@@ -18,9 +19,22 @@ import {
   type EventKind,
   type Venue,
 } from './api';
+import { CSV_TEMPLATE } from './budgetShared';
 import { useMyClubs } from './useMyClubs';
+import { useCapabilities } from '../shared/auth/useCapabilities';
 
 const NO_TEMPLATE = '';
+/** Budget select value for "I am uploading the budget sheet" (not a template name). */
+const UPLOAD_SHEET = '__upload__';
+const PROPOSAL_TYPES = '.pdf,.doc,.docx';
+const PROPOSAL_MAX_BYTES = 10 * 1024 * 1024;
+
+interface Proposed {
+  created: EventCreated;
+  sent: boolean;
+  /** A step after the draft was saved that the API refused; the draft itself is kept. */
+  failed?: { step: 'proposal document' | 'budget sheet' | 'sending for approval'; error: ApiError };
+}
 
 interface FormState {
   club: string;
@@ -58,6 +72,10 @@ export function NewEventPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const { clubs, isPending: clubsPending } = useMyClubs('clubs_can_propose');
+  const { capabilities } = useCapabilities();
+  const [proposal, setProposal] = useState<File | null>(null);
+  const [sheet, setSheet] = useState<File | null>(null);
+  const [previewing, setPreviewing] = useState<File | null>(null);
 
   const [form, setForm] = useState<FormState>({
     club: '',
@@ -93,18 +111,54 @@ export function NewEventPage() {
 
   const activeVenues = (venues.data?.results ?? []).filter((v) => v.active !== false);
   const venue = activeVenues.find((v) => v.id === form.venue);
+  const uploading = form.budget_template === UPLOAD_SHEET;
   const template = templates.data?.templates.find((t) => t.name === form.budget_template);
+  // The sheet upload writes budget lines, which only the President, VP and Treasurer may do.
+  const canUploadSheet = capabilities?.clubs_with_budget_access.includes(club) ?? false;
+  const proposalTooBig = proposal !== null && proposal.size > PROPOSAL_MAX_BYTES;
+  const priced = template !== undefined || (uploading && sheet !== null);
+  const sending = priced && form.submit;
 
-  const create = useMutation<EventCreated, ApiError, EventCreate>({
-    mutationFn: (body) => clubApi.events.create(body),
-    onSuccess: (created) => {
+  /**
+   * A file cannot ride in the JSON create, and a submitted proposal is locked, so
+   * with a file the order is: save the draft, attach the files, then send. If a
+   * later step is refused the draft is kept and the event page says what to redo.
+   */
+  const create = useMutation<Proposed, ApiError, EventCreate>({
+    mutationFn: async (body) => {
+      const staged = proposal !== null || (uploading && sheet !== null);
+      const created = await clubApi.events.create(staged ? { ...body, submit: false } : body);
+      if (!staged) return { created, sent: created.approval !== null };
+      let step: NonNullable<Proposed['failed']>['step'] = 'proposal document';
+      try {
+        if (proposal) await clubApi.events.setProposalDocument(created.id, proposal);
+        if (uploading && sheet) {
+          step = 'budget sheet';
+          const data = new FormData();
+          data.append('file', sheet);
+          data.append('mode', 'replace');
+          await clubApi.budget.importLines(created.budget?.id ?? '', data);
+        }
+        if (sending) {
+          step = 'sending for approval';
+          await clubApi.events.submit(created.id);
+          return { created, sent: true };
+        }
+      } catch (error) {
+        return { created, sent: false, failed: { step, error: error as ApiError } };
+      }
+      return { created, sent: false };
+    },
+    onSuccess: ({ created, sent, failed }) => {
       void queryClient.invalidateQueries({ queryKey: ['events'] });
       void queryClient.invalidateQueries({ queryKey: ['budget'] });
       const clashes = created.soft_clashes.length;
       toast.show(
-        created.approval
-          ? `Sent for approval${clashes ? ` — ${clashes} soft clash${clashes > 1 ? 'es' : ''} noted` : ''}`
-          : 'Saved as a draft — the Treasurer can price it now',
+        failed
+          ? `Saved as a draft, but the ${failed.step} step was refused: ${failed.error.detail || failed.error.title}`
+          : sent
+            ? `Sent for approval${clashes ? ` — ${clashes} soft clash${clashes > 1 ? 'es' : ''} noted` : ''}`
+            : 'Saved as a draft — the Treasurer can price it now',
       );
       navigate(`/club/events/${created.id}`);
     },
@@ -122,8 +176,8 @@ export function NewEventPage() {
       ends_at: toIso(form.end_date, form.end_hour),
       capacity: Number(form.capacity),
       expected_attendance: Number(form.expected_attendance),
-      ...(form.budget_template ? { budget_template: form.budget_template } : {}),
-      submit: form.budget_template ? form.submit : false,
+      ...(template ? { budget_template: template.name } : {}),
+      submit: template ? form.submit : false,
     });
   };
 
@@ -151,8 +205,8 @@ export function NewEventPage() {
       </p>
       <h1>New event</h1>
       <p className="mt-1.5 mb-5 max-w-[62ch] text-ink-muted">
-        Propose it here. Pick a budget template to send it straight for approval, or save it as a
-        draft and let the Treasurer price it line by line.
+        Propose it here and attach the proposal document. For the budget, pick a template, upload
+        the budget sheet, or save a draft and let the Treasurer enter it line by line.
       </p>
 
       <form onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-[1fr_340px]" noValidate>
@@ -218,7 +272,12 @@ export function NewEventPage() {
               id="ne-venue"
               className="field"
               value={form.venue}
-              onChange={(e) => set('venue', e.target.value)}
+              onChange={(e) => {
+                set('venue', e.target.value);
+                // Capacity starts at what the venue seats; it stays editable below.
+                const picked = activeVenues.find((v) => v.id === e.target.value);
+                if (picked) set('capacity', String(picked.capacity));
+              }}
             >
               <option value="">Choose a venue</option>
               {activeVenues.map((v) => (
@@ -328,13 +387,15 @@ export function NewEventPage() {
               id="ne-capacity"
               type="number"
               min={1}
+              max={venue?.capacity}
               className="field"
               value={form.capacity}
               onChange={(e) => set('capacity', e.target.value)}
             />
             {venue ? (
               <p className="mt-1 text-caption text-ink-muted">
-                {venue.name} seats {venue.capacity}.
+                Filled from {venue.name}, which seats {venue.capacity}. Lower it if you are
+                admitting fewer.
               </p>
             ) : null}
             <FieldError error={err} field="capacity" />
@@ -369,7 +430,8 @@ export function NewEventPage() {
               set('submit', e.target.value !== NO_TEMPLATE);
             }}
           >
-            <option value={NO_TEMPLATE}>None — the Treasurer prices it</option>
+            <option value={NO_TEMPLATE}>None — the Treasurer enters it</option>
+            {canUploadSheet ? <option value={UPLOAD_SHEET}>Upload the budget sheet (CSV)</option> : null}
             {(templates.data?.templates ?? []).map((t) => (
               <option key={t.name} value={t.name}>
                 {t.name}
@@ -436,23 +498,92 @@ export function NewEventPage() {
                 />
               </div>
             </div>
+          ) : uploading ? (
+            <div className="mt-3">
+              <label className="label" htmlFor="ne-sheet">
+                Budget sheet (CSV: head, amount, basis optional)
+              </label>
+              <FileDrop
+                id="ne-sheet"
+                                accept=".csv,text/csv"
+                onChange={(e) => setSheet(e.target.files?.[0] ?? null)}
+              />
+              <span className="mt-1 flex flex-wrap gap-x-4">
+                <a
+                  className="caption text-primary hover:underline"
+                  href={CSV_TEMPLATE}
+                  download="budget-template.csv"
+                >
+                  Download the budget template
+                </a>
+                {sheet ? (
+                  <button
+                    type="button"
+                    className="caption text-primary hover:underline"
+                    onClick={() => setPreviewing(sheet)}
+                  >
+                    Preview the sheet
+                  </button>
+                ) : null}
+              </span>
+              <p className="mt-2 text-body-md text-ink-muted">
+                Every row is checked. If one is wrong nothing is imported, and the event is kept as
+                a draft for you to fix the sheet.
+              </p>
+              <div className="mt-3">
+                <Switch
+                  label="Send for approval now"
+                  checked={form.submit}
+                  onChange={(on) => set('submit', on)}
+                />
+              </div>
+            </div>
           ) : (
             <p className="mt-3 text-body-md text-ink-muted">
-              Saved as a draft with an empty budget. Add lines under Budget, then send it from Club
-              events.
+              Saved as a draft with an empty budget. The Treasurer adds the lines under Budget, then
+              it is sent from Club events.
             </p>
           )}
 
-          <Button type="submit" block className="mt-4" disabled={create.isPending}>
-            {create.isPending
-              ? 'Saving…'
-              : form.budget_template && form.submit
-                ? 'Propose and send'
-                : 'Save draft'}
+          <label className="label mt-4" htmlFor="ne-proposal">
+            Proposal document (PDF or Word, up to 10 MB)
+          </label>
+          <FileDrop
+            id="ne-proposal"
+                        accept={PROPOSAL_TYPES}
+            onChange={(e) => setProposal(e.target.files?.[0] ?? null)}
+          />
+          {proposalTooBig ? (
+            <p className="mt-1 text-body-md text-danger" role="alert">
+              That file is over 10 MB. Choose a smaller one.
+            </p>
+          ) : (
+            <p className="caption mt-1 text-ink-muted">
+              Read by the Cultural Society and the Dean with the budget. Not shown to students.
+            </p>
+          )}
+          {proposal && canPreviewFile(proposal) ? (
+            <button
+              type="button"
+              className="caption mt-1 text-primary hover:underline"
+              onClick={() => setPreviewing(proposal)}
+            >
+              Preview the proposal
+            </button>
+          ) : null}
+
+          <Button
+            type="submit"
+            block
+            className="mt-4"
+            disabled={create.isPending || proposalTooBig || (uploading && sheet === null)}
+          >
+            {create.isPending ? 'Saving…' : sending ? 'Propose and send' : 'Save draft'}
           </Button>
         </aside>
       </form>
       {err ? <ProblemView error={err} /> : null}
+      {previewing ? <FilePreview file={previewing} onClose={() => setPreviewing(null)} /> : null}
     </>
   );
 }

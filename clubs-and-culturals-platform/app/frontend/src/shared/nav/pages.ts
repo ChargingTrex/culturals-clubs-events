@@ -29,6 +29,8 @@ export type PageNeed =
   | 'organiser_events'
   | 'door'
   | 'report'
+  | 'calendar'
+  | 'society'
   | `stage:${ApprovalStage}`;
 
 export type PageGroup = 'Student' | 'Club' | 'Door' | 'Approvals' | 'Staff';
@@ -128,6 +130,15 @@ export const PAGES: readonly PageDef[] = [
     slice: 'F-04',
   },
   {
+    path: '/club/join-requests',
+    icon: 'user',
+    title: 'Join requests',
+    group: 'Club',
+    need: 'clubs_can_assign_roles',
+    probe: '/clubs?page_size=1',
+    slice: 'F-04',
+  },
+  {
     path: '/scan',
     icon: 'qr',
     title: 'Scan station',
@@ -177,9 +188,19 @@ export const PAGES: readonly PageDef[] = [
     icon: 'calendar',
     title: 'Calendar',
     group: 'Staff',
-    // Dean, admin, the Cultural Society and the VC (C-03); read-only except for the Dean.
-    need: 'can_see_overview',
+    // Dean, admin, Cultural Society, VC (C-03) and club Presidents/VPs (AR-02); only the Dean moves.
+    need: 'calendar',
     probe: '/venue-calendar',
+    slice: 'F-05',
+  },
+  {
+    path: '/staff/society',
+    icon: 'user',
+    title: 'Society members',
+    group: 'Staff',
+    // AR-08: the Society sees its own roster; its Secretary and Vice-Secretary (and the Dean) edit it.
+    need: 'society',
+    probe: '/module/cultural-society/members',
     slice: 'F-05',
   },
   {
@@ -208,13 +229,20 @@ export function capabilityAllows(need: PageNeed, caps: Capabilities): boolean {
     // neither may work a door. The scan response carries names and PRNs.
     return caps.clubs_door_staff.length > 0 || caps.organiser_events.length > 0;
   }
+  if (need === 'calendar') {
+    // AR-02: staff, plus each club's President and Vice-President.
+    return caps.can_see_overview || caps.clubs_can_assign_roles.length > 0;
+  }
+  if (need === 'society') {
+    return caps.is_cultural_society || caps.is_dean || caps.is_admin;
+  }
   if (need === 'report') {
     return caps.is_dean || caps.is_vice_chancellor || caps.is_cultural_society;
   }
   if (need.startsWith('stage:')) {
     return caps.approval_stages.includes(need.slice(6) as ApprovalStage);
   }
-  const value = caps[need as Exclude<PageNeed, 'door' | 'report' | `stage:${ApprovalStage}`>];
+  const value = caps[need as Exclude<PageNeed, 'door' | 'report' | 'calendar' | 'society' | `stage:${ApprovalStage}`>];
   return Array.isArray(value) ? value.length > 0 : Boolean(value);
 }
 

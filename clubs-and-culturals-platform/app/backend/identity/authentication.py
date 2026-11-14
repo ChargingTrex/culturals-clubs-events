@@ -67,7 +67,7 @@ class AuthContext:
         predicate answering both is what let the Vice-Chancellor read attendee
         PRNs; see the docstring below.
         """
-        return self.has_any(R.DEAN, R.VICE_CHANCELLOR, R.ADMIN, R.CULTURAL_SOCIETY)
+        return self.has_any(*R.STAFF_ROLES)
 
     def can_see_individual_records(self):
         """

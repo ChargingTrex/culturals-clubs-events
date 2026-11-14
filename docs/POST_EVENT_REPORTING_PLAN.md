@@ -4,6 +4,9 @@ Written 2026-11-05 against PRD V4 §5.10, §5.12.3, §5.14, §6, §7; Event_Flow
 Database_And_Data_Flow §3.15. Board rows: CHECKLIST.md D-01, D-02, D-05, D-11 (plus
 one new row, D-18, for the status job). Code state is branch `design-system-ui` at b38931e.
 
+Update 2026-11-08: the club-facing form (photos, posts, bills, attendance in one panel) is
+AR-01 in `../ADDITIONAL_REQUIREMENTS.md` §12. Bills block settlement only, not the report.
+
 ## 1. What is implemented today
 
 | PRD item | State | Where |

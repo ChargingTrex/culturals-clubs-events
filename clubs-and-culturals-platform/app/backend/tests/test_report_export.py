@@ -71,7 +71,7 @@ class _OverlapDataset(TestCase):
             f.evidence(event, photos=3, links=["https://example.com/p/1"])
         f.user("dean@college.edu", global_roles=[R.DEAN], mfa=True)
         f.user("vc@college.edu", global_roles=[R.VICE_CHANCELLOR], mfa=True)
-        f.user("society@college.edu", global_roles=[R.CULTURAL_SOCIETY], mfa=True)
+        f.user("society@college.edu", global_roles=[R.SOCIETY_SECRETARY], mfa=True)
         f.student("student@college.edu", prn="23CS1099", name="Plain Student")
 
 

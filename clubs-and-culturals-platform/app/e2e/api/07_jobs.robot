@@ -2,7 +2,7 @@
 Documentation     The scheduled jobs sit outside the user token scheme: only the JOBS_TOKEN opens them.
 Resource          ../resources/api.resource
 Suite Setup       Open API
-Test Tags         api
+Test Tags         api    jobs
 
 
 *** Test Cases ***

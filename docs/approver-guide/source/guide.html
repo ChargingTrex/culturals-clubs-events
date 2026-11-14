@@ -1,0 +1,397 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Culturals: Guide for approvers</title><style>
+@font-face { font-family: 'Jakarta'; src: url('file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/clubs-and-culturals-platform/app/frontend/node_modules/%40fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2') format('woff2'); font-weight: 200 800; }
+@page { size: A4; margin: 0; }
+:root { --ink:#0e1a2f; --muted:#4d5970; --navy:#0b1f4d; --blue:#1b5fe4; --blue-soft:#e3ecff; --line:#dde2ec;
+  --bg:#f3f5fa; --amber:#f5a300; --amber-ink:#3d2600; --look:#2563eb; --ok:#13773a; --bad:#c21d2c; --warn:#985400; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: 'Jakarta', system-ui, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; background: #8a93a3; }
+::selection { background: var(--blue-soft); }
+b { font-weight: 700; }
+.page { width: 210mm; height: 297mm; padding: 17mm 20mm 20mm 17mm; position: relative; background: #fff;
+  overflow: hidden; page-break-after: always; margin: 0 auto 8mm; }
+@media print { body { background: none; } .page { margin: 0; } }
+footer { position: absolute; left: 17mm; right: 20mm; bottom: 9mm; display: flex; justify-content: space-between;
+  font-size: 7.5pt; color: var(--muted); border-top: .4pt solid var(--line); padding-top: 2.5mm; }
+footer span:last-child { font-weight: 800; color: var(--navy); }
+
+/* thumb index: one tab per part, stepping down the right edge like a printed manual */
+.tab { position: absolute; right: 0; width: 9mm; height: 47mm; background: var(--navy); color: #fff;
+  border-radius: 2mm 0 0 2mm; display: flex; flex-direction: column; align-items: center; padding-top: 2.5mm; gap: 2mm; }
+.tab b { font-size: 10pt; }
+.tab span { writing-mode: vertical-rl; font-size: 7pt; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+
+/* hierarchy: page title > section (h2) > block (h3) > steps */
+.title { display: flex; align-items: baseline; justify-content: space-between; gap: 6mm; margin-bottom: 2.5mm; }
+h1 { font-size: 23pt; line-height: 1.12; letter-spacing: -.025em; color: var(--navy); font-weight: 800; text-wrap: balance; }
+h1.solo { margin-bottom: 6mm; }
+.for { flex: none; font-size: 8pt; color: var(--muted); border: .6pt solid var(--line); border-radius: 10mm; padding: .8mm 3mm; }
+.for b { color: var(--navy); }
+h2 { font-size: 12.5pt; color: var(--navy); font-weight: 750; margin: 6mm 0 2.5mm; letter-spacing: -.01em; }
+h2.sec { margin-top: 8mm; padding-top: 5mm; border-top: .6pt solid var(--line); }
+h3, h2.mini { font-size: 10pt; font-weight: 750; color: var(--navy); margin: 0 0 1mm; letter-spacing: 0; }
+.chip { font-size: 7.5pt; font-weight: 700; color: var(--navy); background: var(--blue-soft); padding: .6mm 2.4mm;
+  border-radius: 10mm; vertical-align: middle; margin-left: 1.5mm; position: relative; top: -.4mm; }
+p + p { margin-top: 2mm; }
+.lead { font-size: 11.5pt; line-height: 1.45; color: var(--muted); max-width: 150mm; margin-bottom: 5mm; }
+.lead b { color: var(--ink); }
+.muted { color: var(--muted); font-weight: 400; }
+.small { font-size: 8.5pt; margin-top: 3mm; }
+.note { margin-top: 4mm; padding: 3mm 4mm; background: var(--bg); border-radius: 2.5mm; font-size: 9.3pt; }
+.key { margin-top: 3mm; padding: 3mm 4mm; background: #e7f6ec; color: #0c4d26; border-radius: 2.5mm; }
+
+/* screenshots (dark theme) on white paper */
+.shot { margin: 0; }
+.frame { position: relative; }
+.clip { position: absolute; inset: 0; overflow: hidden; border-radius: 2.2mm; background: #0d1219;
+  box-shadow: 0 1.2mm 3.5mm rgba(14,26,47,.18), 0 .2mm .6mm rgba(14,26,47,.12); }
+.clip img { position: absolute; display: block; height: auto; max-width: none; }
+.ring { position: absolute; border: .75mm solid var(--amber); border-radius: 1.6mm; }
+.badge { display: inline-grid; place-items: center; width: 5.6mm; height: 5.6mm; border-radius: 50%;
+  background: var(--amber); color: var(--amber-ink); font-size: 8.5pt; font-weight: 800; line-height: 1;
+  box-shadow: 0 .3mm .8mm rgba(0,0,0,.35); }
+.ring > .badge { position: absolute; }
+.ring > .at-l { right: 100%; top: 50%; margin: -2.8mm 1.2mm 0 0; }
+.ring > .at-r { left: 100%; top: 50%; margin: -2.8mm 0 0 1.2mm; }
+.ring > .at-b { top: 100%; left: 50%; margin: 1.2mm 0 0 -2.8mm; }
+.leader { position: absolute; height: 0; border-top: .5mm solid var(--look); margin-top: -.25mm; }
+.leader::after { content: ''; position: absolute; top: -1.15mm; width: 1.8mm; height: 1.8mm; border-radius: 50%;
+  background: var(--look); box-shadow: 0 0 0 .4mm #fff; }
+.leader.side-l::after { right: -.9mm; } .leader.side-r::after { left: -.9mm; }
+.pin { position: absolute; display: grid; place-items: center; width: 5.4mm; height: 5.4mm; margin-top: -2.7mm;
+  border-radius: 50%; background: var(--look); color: #fff; font-size: 8.3pt; font-weight: 800; line-height: 1;
+  box-shadow: 0 0 0 .6mm #fff, 0 .4mm 1.2mm rgba(14,26,47,.3); z-index: 2; }
+.pin.side-l { margin-left: -7mm; } .pin.side-r { margin-left: 1.6mm; }
+.badge.inline, .pin.inline, .pin.static { position: static; margin: 0; flex: none; }
+
+/* steps */
+.steps { list-style: none; display: grid; gap: 2.4mm; margin-top: 4mm; }
+.steps li { display: flex; gap: 2.8mm; align-items: flex-start; }
+.shot + .steps { margin-top: 4.5mm; }
+
+/* layouts */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 9mm; align-items: start; }
+.pair .shot { width: 80%; }
+.split { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8mm; align-items: start; }
+.split > div > .steps:first-child { margin-top: 0; }
+.split.tall { grid-template-columns: 1.55fr 1fr; gap: 11mm; }
+.split.cal { grid-template-columns: 1.4fr 1fr; }
+.split.menu-split { grid-template-columns: 44mm 1fr; gap: 9mm; }
+.cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; }
+.cols2.tight { margin-top: 4mm; align-items: start; }
+.cols2.tight > .steps { margin-top: 0; }
+.cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; margin-top: 7mm; padding-top: 5mm;
+  border-top: .6pt solid var(--line); font-size: 9.3pt; }
+.after { margin-top: 4mm; }
+.note.flat { margin-top: 0; align-self: start; }
+.aside { margin-top: 6mm; padding-top: 4mm; border-top: .6pt solid var(--line); font-size: 9.3pt; }
+.tag { display: inline-block; font-size: 7.6pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; margin: .3mm .6mm .3mm 0; white-space: nowrap; }
+.tag.red { background: #fde4e6; color: var(--bad); }
+.tag.amber { background: #fff0d4; color: var(--warn); }
+.tag.blue { background: var(--blue-soft); color: #0b3a9e; }
+.tag.green { background: #ddf4e5; color: var(--ok); }
+.tag.grey { background: #eceff4; color: var(--muted); }
+
+/* contents */
+.short { background: var(--navy); color: #fff; border-radius: 3mm; padding: 5mm 6mm 6mm; }
+.short h2 { color: #fff; margin: 0 0 3.5mm; }
+.strip { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; counter-reset: s; }
+.strip li { counter-increment: s; border-top: .5mm solid rgba(255,255,255,.35); padding-top: 2.5mm; }
+.strip li::before { content: counter(s); display: block; font-size: 15pt; font-weight: 800; color: var(--amber); line-height: 1.1; }
+.strip b { display: block; font-size: 10pt; }
+.strip span { display: block; font-size: 8.3pt; color: #c3cfea; line-height: 1.35; margin-top: .6mm; }
+.toc { margin-top: 7mm; display: grid; gap: 3.5mm; }
+.toc-part { display: grid; grid-template-columns: 11mm 1fr; gap: 4mm; }
+.toc-num { width: 9mm; height: 9mm; border-radius: 2mm; background: var(--navy); color: #fff; font-weight: 800;
+  display: grid; place-items: center; font-size: 11pt; }
+.toc-part h2 { margin: 1mm 0 1.5mm; }
+.toc-row { display: flex; align-items: baseline; gap: 2mm; padding: .9mm 0; font-size: 10pt; }
+.toc-row i { flex: 1; border-bottom: .6pt dotted #b7bfcc; transform: translateY(-1mm); }
+.toc-row b { color: var(--navy); min-width: 6mm; text-align: right; }
+.howto { margin-top: 6mm; padding-top: 5mm; border-top: .6pt solid var(--line); }
+.howto h2 { margin-top: 0; }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+.legend > div { display: flex; gap: 4mm; align-items: center; font-size: 9.3pt; }
+.ring.demo { position: relative; flex: none; width: 15mm; height: 7mm; display: block; margin-left: 7mm; }
+
+/* part 1 */
+.route { display: flex; align-items: stretch; gap: 1.2mm; }
+.stop { flex: 1; padding: 3mm 3mm 3.2mm; border-radius: 2.5mm; background: var(--bg); }
+.stop b { display: block; color: var(--navy); font-size: 9.6pt; }
+.stop span { display: block; font-size: 8pt; color: var(--muted); line-height: 1.35; margin-top: .8mm; }
+.stop span b { display: inline; font-size: inherit; }
+.stop.strong { background: var(--blue-soft); }
+.stop.end { background: var(--navy); } .stop.end b, .stop.end span { color: #fff; }
+.arrow { width: 4mm; flex: none; align-self: center; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.decisions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+.d { padding: 3.5mm 4mm; border-radius: 2.5mm; font-size: 9.3pt; }
+.d.ok { background: #e7f6ec; } .d.ok h3 { color: var(--ok); }
+.d.ret { background: var(--blue-soft); } .d.ret h3 { color: var(--blue); }
+.d.bad { background: #fdeaec; } .d.bad h3 { color: var(--bad); }
+.rules { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 4mm; font-size: 9.3pt; }
+.who { width: 100%; border-collapse: collapse; font-size: 9.3pt; }
+.who th { text-align: left; font-size: 8pt; color: var(--muted); font-weight: 700; padding: 0 0 1.5mm; border-bottom: .6pt solid var(--line); }
+.who th:not(:first-child), .who td:not(:first-child) { text-align: center; width: 24mm; }
+.who td:last-child { font-weight: 700; color: var(--navy); }
+.who td { padding: 1.8mm 0; border-bottom: .4pt solid var(--line); }
+.ic { width: 4.2mm; height: 4.2mm; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+.ic.ok { stroke: var(--ok); } .ic.no { stroke: #a6afbf; }
+
+/* part 4 */
+.gloss { display: grid; grid-template-columns: 58mm 1fr; column-gap: 6mm; font-size: 9.6pt; }
+.gloss dt, .gloss dd { padding: 1.9mm 0; border-bottom: .4pt solid var(--line); }
+.qa { display: grid; grid-template-columns: 60mm 1fr; column-gap: 7mm; }
+.qa dt { font-weight: 750; color: var(--navy); padding: 3.2mm 0; border-top: .5pt solid var(--line); }
+.qa dd { padding: 3.2mm 0; border-top: .5pt solid var(--line); }
+.feedback { margin-top: 10mm; padding: 6mm 7mm; border-radius: 3mm; background: var(--blue-soft); }
+.feedback h2 { margin-top: 0; }
+
+/* cover */
+.cover { background: var(--navy); color: #fff; padding: 20mm 18mm; }
+.wordmark { font-size: 15pt; font-weight: 800; letter-spacing: -.01em; }
+.cover-kind { font-size: 9pt; color: #b9c6e4; }
+.cover-main { margin-top: 26mm; }
+.cover h1 { color: #fff; font-size: 40pt; letter-spacing: -.03em; line-height: 1.02; margin-bottom: 6mm; }
+.cover-sub { font-size: 13pt; line-height: 1.45; color: #c9d5ef; max-width: 140mm; }
+.cover-sub b { color: #fff; }
+.cover-shot { position: absolute; left: 18mm; right: -30mm; top: 132mm; }
+.cover-shot .clip { border: .5pt solid rgba(255,255,255,.22); border-radius: 3mm; box-shadow: none; }
+.cover-shot .pin, .cover-shot .leader { display: none; }
+.cover-foot { position: absolute; left: 0; right: 0; bottom: 0; padding: 7mm 18mm 9mm; background: var(--navy);
+  display: flex; gap: 16mm; font-size: 10pt; }
+.cover-foot::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 22mm;
+  background: linear-gradient(to bottom, rgba(11,31,77,0), var(--navy)); }
+.cover-foot .k { display: block; font-size: 7.5pt; color: #9fb0d6; font-weight: 600; margin-bottom: .6mm; }
+</style></head><body><section class="page cover">
+<div class="cover-top">
+  <div class="wordmark">Culturals</div>
+  <div class="cover-kind">Clubs &amp; events at your college</div>
+</div>
+<div class="cover-main">
+  <h1>Guide for approvers</h1>
+  <p class="cover-sub">For the <b>Cultural Society</b>, the <b>Dean of Student Affairs</b> and
+  <b>Management (the Vice-Chancellor)</b>. Every page you use, step by step.</p>
+</div>
+<div class="cover-shot"><figure class="shot "><div class="frame" style="aspect-ratio:1010/830"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/review-full.png" alt="" style="width:126.7327%;left:-24.7525%;top:-7.2289%"></div><i class="leader side-l" style="top:28.012%;left:0;width:1.485%"></i><b class="pin side-l" style="top:28.012%;left:0">1</b><i class="leader side-r" style="top:64.398%;right:0;width:50.178%"></i><b class="pin side-r" style="top:64.398%;left:100%">2</b><i class="leader side-l" style="top:72.952%;left:0;width:1.782%"></i><b class="pin side-l" style="top:72.952%;left:0">3</b><i class="leader side-r" style="top:73.434%;right:0;width:3.269%"></i><b class="pin side-r" style="top:73.434%;left:100%">4</b></div></figure></div>
+<div class="cover-foot">
+  <div><span class="k">Open the app</span><b>culturals-clubs-events.vercel.app</b></div>
+  <div><span class="k">Edition</span><b>Pilot · November 2026</b></div>
+</div>
+</section><section class="page ">
+<h1 class="solo">Contents</h1>
+<div class="short">
+  <h2>The short version</h2>
+  <ol class="strip">
+    <li><b>Sign in</b><span>with your password and the 6-digit code</span></li>
+    <li><b>Open your queue</b><span>proposals waiting for you</span></li>
+    <li><b>Review</b><span>route, budget, clashes, earlier decisions</span></li>
+    <li><b>Decide</b><span>approve, return for changes, or reject</span></li>
+  </ol>
+</div>
+<div class="toc"><div class="toc-part"><div class="toc-num">1</div><div><h2>Getting started</h2><div class="toc-row"><span>How a proposal is approved</span><i></i><b>3</b></div><div class="toc-row"><span>Sign in</span><i></i><b>4</b></div><div class="toc-row"><span>Finding your way</span><i></i><b>4</b></div></div></div><div class="toc-part"><div class="toc-num">2</div><div><h2>Approving proposals</h2><div class="toc-row"><span>Your approvals queue</span><i></i><b>5</b></div><div class="toc-row"><span>Review a proposal</span><i></i><b>6</b></div><div class="toc-row"><span>Decide</span><i></i><b>7</b></div><div class="toc-row"><span>The Dean: sanction by line</span><i></i><b>7</b></div><div class="toc-row"><span>Management: the last step</span><i></i><b>8</b></div></div></div><div class="toc-part"><div class="toc-num">3</div><div><h2>Venues and oversight</h2><div class="toc-row"><span>Venues and clashes</span><i></i><b>9</b></div><div class="toc-row"><span>Calendar</span><i></i><b>10</b></div><div class="toc-row"><span>This semester</span><i></i><b>11</b></div><div class="toc-row"><span>Semester report</span><i></i><b>11</b></div></div></div><div class="toc-part"><div class="toc-num">4</div><div><h2>Help</h2><div class="toc-row"><span>Tags and statuses</span><i></i><b>12</b></div><div class="toc-row"><span>Quick answers</span><i></i><b>13</b></div><div class="toc-row"><span>Tell us what to improve</span><i></i><b>13</b></div></div></div></div>
+<div class="howto">
+  <h2>How to read the pictures</h2>
+  <div class="legend">
+    <div><span class="ring demo"><b class="badge at-l">1</b></span><p><b>Amber ring: click here.</b> The number matches the step next to the picture.</p></div>
+    <div><b class="pin static">1</b><p><b>Blue dot: look here.</b> It points out part of the page. Nothing to click.</p></div>
+  </div>
+  <p class="muted small">Pictures are from the pilot in dark mode, with made-up clubs and events.
+  The app follows your device's light or dark setting.</p>
+</div>
+<footer><span>Culturals · Guide for approvers</span><span>2</span></footer></section><section class="page ">
+<header class="title"><h1>How a proposal is approved</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">Clubs propose events with a budget in Culturals. <b>Every proposal passes the approvers
+below before students can see it.</b></p>
+<div class="route">
+  <div class="stop"><b>Club</b><span>proposes the event and budget</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop"><b>Cultural Society</b><span>cultural and literary clubs only</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop strong"><b>Dean</b><span>every event, always</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop"><b>Vice-Chancellor</b><span>only over <b>₹50,000</b> or part of a fest</span></div><svg viewBox="0 0 16 16" class="arrow" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>
+  <div class="stop end"><b>Published</b><span>students can register</span></div>
+</div>
+
+<h2 class="sec">Three decisions, at every step</h2>
+<div class="decisions">
+  <div class="d ok"><h3>Approve</h3><p>Sends it to the next approver, or publishes it if you are the last one.</p></div>
+  <div class="d ret"><h3>Return for changes</h3><p>Back to the club to fix. When they send it again, <b>it starts again at the first step.</b></p></div>
+  <div class="d bad"><h3>Reject</h3><p>Closed for good. <b>It can't be sent again.</b></p></div>
+</div>
+<div class="rules">
+  <p><b>A comment is required</b> to return or reject. The club sees it. Approving needs no comment.</p>
+  <p><b>48 hours per step.</b> A proposal that waits longer is marked <b>Past SLA</b>.</p>
+</div>
+
+<h2 class="sec">Which pages you have</h2>
+<table class="who">
+  <thead><tr><th>Page</th><th>Cultural Society</th><th>Dean</th><th>Management</th><th>See page</th></tr></thead>
+  <tbody>
+    <tr><td><b>Approvals</b> <span class="muted">· your queue</span></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>5</td></tr>
+    <tr><td><b>Venues</b> <span class="muted">· moving clashing events</span></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic no" aria-label="no"><path d="M5 8h6" /></svg></td><td>9</td></tr>
+    <tr><td><b>Calendar</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>10</td></tr>
+    <tr><td><b>This semester</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>11</td></tr>
+    <tr><td><b>Semester report</b></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td><svg viewBox="0 0 16 16" class="ic ok" aria-label="yes"><path d="M3.5 8.5l3 3 6-7" /></svg></td><td>11</td></tr>
+  </tbody>
+</table>
+<div class="tab" style="top:30mm"><b>1</b><span>Getting started</span></div><footer><span>Part 1 · Getting started</span><span>3</span></footer></section><section class="page ">
+<header class="title"><h1>Sign in</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">Approvers commit college money, so <b>you need a 6-digit code from your authenticator app
+as well as your password.</b></p>
+<div class="pair">
+  <div>
+    <figure class="shot "><div class="frame" style="aspect-ratio:432/493"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/signin-link.png" alt="Sign-in form with the authenticator link" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:10.185%;top:55.375%;width:45.414%;height:6.288%"><b class="badge at-l">1</b></span></div></figure>
+    <ol class="steps click"><li><b class="badge inline">1</b><div>Type your <b>college email</b> and <b>password</b>, then click <b>I have an authenticator code</b>.</div></li></ol>
+  </div>
+  <div>
+    <figure class="shot "><div class="frame" style="aspect-ratio:432/534"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/signin.png" alt="Sign-in form with the code filled in" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:10.185%;top:55.243%;width:79.630%;height:9.363%"><b class="badge at-l">1</b></span><span class="ring" style="left:10.185%;top:65.730%;width:79.630%;height:10.861%"><b class="badge at-l">2</b></span></div></figure>
+    <ol class="steps click"><li><b class="badge inline">1</b><div>Type the <b>6-digit code</b> showing in your authenticator app.</div></li><li><b class="badge inline">2</b><div>Click <b>Sign in</b>.</div></li></ol>
+  </div>
+</div>
+<p class="note"><b>On the pilot:</b> the password is <b>culturals-demo</b> and any 6-digit code works,
+for example <b>123456</b>.</p>
+
+<h2 class="sec">Finding your way</h2>
+<div class="split menu-split">
+  <figure class="shot menu"><div class="frame" style="aspect-ratio:240/400"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/dean-menu.png" alt="The Dean's menu" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><i class="leader side-l" style="top:34.500%;left:0;width:5.000%"></i><b class="pin side-l" style="top:34.500%;left:0">1</b><i class="leader side-l" style="top:55.500%;left:0;width:5.000%"></i><b class="pin side-l" style="top:55.500%;left:0">2</b><i class="leader side-l" style="top:67.000%;left:0;width:5.000%"></i><b class="pin side-l" style="top:67.000%;left:0">3</b><i class="leader side-l" style="top:78.500%;left:0;width:5.000%"></i><b class="pin side-l" style="top:78.500%;left:0">4</b><i class="leader side-l" style="top:90.000%;left:0;width:5.000%"></i><b class="pin side-l" style="top:90.000%;left:0">5</b></div></figure>
+  <div>
+    <p>The menu on the left lists your pages. This is the <b>Dean's</b> menu. The Cultural Society and
+    Management have the same pages <b>except Venues</b>.</p>
+    <ol class="steps look"><li><b class="pin inline">1</b><div><b>Approvals</b>: proposals waiting for you. You start here.</div></li><li><b class="pin inline">2</b><div><b>Venues</b>: every booking and any clashes. Dean only.</div></li><li><b class="pin inline">3</b><div><b>Calendar</b>: every venue, hour by hour.</div></li><li><b class="pin inline">4</b><div><b>This semester</b>: running totals and what needs chasing.</div></li><li><b class="pin inline">5</b><div><b>Semester report</b>: attendance and money for the semester.</div></li></ol>
+  </div>
+</div>
+<div class="tab" style="top:30mm"><b>1</b><span>Getting started</span></div><footer><span>Part 1 · Getting started</span><span>4</span></footer></section><section class="page ">
+<header class="title"><h1>Your approvals queue</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">After signing in you land on your queue: <b>every proposal waiting at your step.</b></p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1280/800"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/society-queue.png" alt="Cultural Society approvals queue" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:88.339%;top:71.625%;width:7.911%;height:6.250%"><b class="badge at-l">1</b></span></div></figure>
+<ol class="steps click"><li><b class="badge inline">1</b><div>Click <b>Review</b> on a proposal to open it.</div></li></ol>
+<div class="cols3">
+  <div><h2 class="mini">The three figures</h2><p><b>Waiting</b> is how many proposals are with you. <b>Past SLA</b> is how many have waited
+  over 48 hours. <b>Requested</b> is the total money they ask for.</p></div>
+  <div><h2 class="mini">Tags on a card</h2><p><b class="tag red">Past SLA</b> waited too long.<br><b class="tag red">Venue clash</b> another event wants the same hall.<br>
+  <b class="tag amber">Needs VC</b> goes on to the Vice-Chancellor.</p></div>
+  <div><h2 class="mini">Only the late ones</h2><p>Turn on <b>Only items past the 48h SLA</b> to see just the overdue proposals.</p></div>
+</div>
+<p class="note">Same layout for everyone. In your menu it's called <b>Society approvals</b>, <b>Dean approvals</b> or
+<b>Above-threshold</b> (Management).</p>
+<div class="tab" style="top:80mm"><b>2</b><span>Approving proposals</span></div><footer><span>Part 2 · Approving proposals</span><span>5</span></footer></section><section class="page ">
+<header class="title"><h1>Review a proposal</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">Everything you need to decide is on one page. <b>Read it from the top down.</b></p>
+<div class="split tall">
+  <figure class="shot "><div class="frame" style="aspect-ratio:1010/1264"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/review-full.png" alt="A proposal at the Cultural Society" style="width:126.7327%;left:-24.7525%;top:-4.7468%"></div><i class="leader side-l" style="top:18.394%;left:0;width:1.485%"></i><b class="pin side-l" style="top:18.394%;left:0">1</b><i class="leader side-r" style="top:42.286%;right:0;width:50.178%"></i><b class="pin side-r" style="top:42.286%;left:100%">2</b><i class="leader side-l" style="top:47.903%;left:0;width:1.782%"></i><b class="pin side-l" style="top:47.903%;left:0">3</b><i class="leader side-r" style="top:48.220%;right:0;width:3.269%"></i><b class="pin side-r" style="top:48.220%;left:100%">4</b><i class="leader side-l" style="top:77.255%;left:0;width:1.782%"></i><b class="pin side-l" style="top:77.255%;left:0">5</b></div></figure>
+  <div>
+    <ol class="steps look"><li><b class="pin inline">1</b><div><b>The route.</b> Who has signed, who has it now, and who's next. <b>Not needed</b> means that approver is skipped for this event.</div></li><li><b class="pin inline">2</b><div><b>Clash warning.</b> Another event wants the same venue and time. <b>It can't be approved until one event moves.</b> Click <b>Open the venue calendar</b> to see both.</div></li><li><b class="pin inline">3</b><div><b>Budget.</b> Each line the club asks for. The <b>Sanctioned</b> column fills in once approved.</div></li><li><b class="pin inline">4</b><div><b>Approval trail.</b> Every earlier decision, with its date and comment.</div></li><li><b class="pin inline">5</b><div><b>Your decision.</b> At the bottom. See the next page.</div></li></ol>
+    <div class="aside"><h2 class="mini">The three boxes under the route</h2><p><b>Requested</b>: the total ask.
+    <b>Expected</b>: how many people the club expects. <b>At this gate</b>: how long it has waited for you.
+    <b>Red means past 48 hours.</b></p></div>
+  </div>
+</div>
+<div class="tab" style="top:80mm"><b>2</b><span>Approving proposals</span></div><footer><span>Part 2 · Approving proposals</span><span>6</span></footer></section><section class="page ">
+<header class="title"><h1>Decide</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">Every approver has the same three buttons. <b>The club sees your decision and your comment.</b></p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1000/292"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/society-decision.png" alt="Decision panel for the Cultural Society" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:2.800%;top:35.616%;width:94.400%;height:32.192%"><b class="badge at-l">1</b></span><span class="ring" style="left:2.800%;top:73.288%;width:20.406%;height:17.123%"><b class="badge at-l">2</b></span><span class="ring" style="left:23.006%;top:73.288%;width:11.989%;height:17.123%"><b class="badge at-b">3</b></span><span class="ring" style="left:71.702%;top:73.288%;width:25.498%;height:17.123%"><b class="badge at-l">4</b></span></div></figure>
+<div class="cols2">
+  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Comment.</b> Optional to approve. <b>Required to return or reject:</b> say what to change.</div></li><li><b class="badge inline">2</b><div><b>Return for changes.</b> The club edits and sends it again. It restarts at the first step.</div></li></ol>
+  <ol class="steps click"><li><b class="badge inline">3</b><div><b>Reject.</b> Final. The proposal is closed.</div></li><li><b class="badge inline">4</b><div><b>Approve.</b> For the Cultural Society the button reads <b>Approve and send to Dean</b>.</div></li></ol>
+</div>
+
+<h2 class="sec">The Dean: sanction by line <span class="chip">Dean</span></h2>
+<div class="split">
+  <figure class="shot "><div class="frame" style="aspect-ratio:1000/655"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/dean-decision.png" alt="The Dean's decision panel with Sanction by line" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:81.400%;top:29.237%;width:14.500%;height:6.412%"><b class="badge at-r">1</b></span><span class="ring" style="left:2.800%;top:71.298%;width:94.400%;height:14.351%"><b class="badge at-l">2</b></span><span class="ring" style="left:83.684%;top:88.092%;width:13.516%;height:7.634%"><b class="badge at-l">3</b></span></div></figure>
+  <div>
+    <p>The Dean also decides <b>how much money each line gets</b>. Every line starts at the amount asked for.</p>
+    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Type a lower amount</b> to cut a line. You <b>can't raise</b> it above what was asked.</div></li><li><b class="badge inline">2</b><div>Add a comment if you like. <b>Required</b> to return or reject.</div></li><li><b class="badge inline">3</b><div><b>Approve</b> publishes the event, or sends it to the Vice-Chancellor if it's over ₹50,000 or part of a fest.</div></li></ol>
+  </div>
+</div>
+<div class="tab" style="top:80mm"><b>2</b><span>Approving proposals</span></div><footer><span>Part 2 · Approving proposals</span><span>7</span></footer></section><section class="page ">
+<header class="title"><h1>Management: the last step</h1><span class="for">For <b>Management</b></span></header>
+<p class="lead">Only the largest proposals reach Management: <b>over ₹50,000, or part of a fest.</b>
+By then the Cultural Society (if needed) and the Dean have approved, and <b>the Dean has set the amounts.</b></p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1030/450"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/vc-proposal.png" alt="A proposal that will need the Vice-Chancellor" style="width:124.2718%;left:-24.2718%;top:-15.5556%"></div><i class="leader side-r" style="top:61.111%;right:0;width:32.233%"></i><b class="pin side-r" style="top:61.111%;left:100%">1</b><i class="leader side-l" style="top:89.556%;left:0;width:2.330%"></i><b class="pin side-l" style="top:89.556%;left:0">2</b></div></figure>
+<div class="cols2">
+  <ol class="steps look"><li><b class="pin inline">1</b><div><b>The route</b> shows the <b>Vice-Chancellor</b> step whenever an event needs it.</div></li></ol>
+  <ol class="steps look"><li><b class="pin inline">2</b><div><b>The reason</b> is written under the amount, for example <b>budget over 50000</b>.</div></li></ol>
+</div>
+<h2 class="sec">When it reaches you</h2>
+<p>It appears in your <b>Above-threshold</b> queue with the <b class="tag amber">Needs VC</b> tag. Click
+<b>Review</b>, check the <b>approval trail</b> (who approved before you, marked <b>MFA</b> when they signed in with
+the code), then use the same three buttons as on <b>page 7</b>. When nothing needs you, the queue says
+<b>Nothing waiting at this gate</b>.</p>
+<p class="key"><b>Approve</b> publishes the event at <b>the amounts the Dean sanctioned</b>.</p>
+<h2 class="sec">Looking early</h2>
+<figure class="shot "><div class="frame" style="aspect-ratio:1006/64"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/vc-full.png" alt="Waiting at another step" style="width:127.2366%;left:-26.0437%;top:-1381.2500%"></div></div></figure>
+<p class="after">You can open a proposal before it reaches you. The bottom of the page then says <b>which step it is
+waiting at</b>, and there are no buttons until it's your turn.</p>
+<div class="tab" style="top:80mm"><b>2</b><span>Approving proposals</span></div><footer><span>Part 2 · Approving proposals</span><span>8</span></footer></section><section class="page ">
+<header class="title"><h1>Venues and clashes</h1><span class="for">For <b>the Dean</b></span></header>
+<p class="lead">When two events want the same hall at the same time, <b>neither can be approved until one moves.</b>
+The app never picks a winner: <b>the Dean moves one</b>, and the club sees the reason.</p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1030/600"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/venues.png" alt="The Venues page with a clash" style="width:124.2718%;left:-24.2718%;top:-10.0000%"></div><span class="ring" style="left:6.505%;top:83.333%;width:12.580%;height:7.000%"><b class="badge at-l">1</b></span></div></figure>
+<ol class="steps click"><li><b class="badge inline">1</b><div>In the red <b>venue clash</b> panel, click <b>Move this one</b> under the event you want to move.</div></li></ol>
+
+<h2 class="sec">Move an event</h2>
+<div class="split">
+  <figure class="shot "><div class="frame" style="aspect-ratio:962/282"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/venues-move.png" alt="The move form" style="width:100.0000%;left:0.0000%;top:0.0000%"></div><span class="ring" style="left:4.782%;top:37.234%;width:30.526%;height:17.730%"><b class="badge at-l">2</b></span><span class="ring" style="left:35.515%;top:37.234%;width:60.015%;height:17.730%"><b class="badge at-b">3</b></span><span class="ring" style="left:4.782%;top:71.277%;width:7.657%;height:14.894%"><b class="badge at-l">4</b></span><span class="ring" style="left:85.031%;top:8.156%;width:12.162%;height:14.894%"><b class="badge at-l">1</b></span></div></figure>
+  <div>
+    <ol class="steps click"><li><b class="badge inline">1</b><div>Or click <b>Move venue</b> on any booking in the list.</div></li><li><b class="badge inline">2</b><div><b>Move to:</b> pick a venue. Free ones say <b>free</b>.</div></li><li><b class="badge inline">3</b><div><b>Reason:</b> the club sees this.</div></li><li><b class="badge inline">4</b><div>Click <b>Move</b>.</div></li></ol>
+    <p class="note"><b>Everyone affected is notified:</b> the club's office bearers, the organisers and every
+    registered student.</p>
+  </div>
+</div>
+<div class="tab" style="top:130mm"><b>3</b><span>Venues and oversight</span></div><footer><span>Part 3 · Venues and oversight</span><span>9</span></footer></section><section class="page ">
+<header class="title"><h1>Calendar</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">Every venue, in one-hour slots. <b>Use it to check a slot is free</b> before you approve.</p>
+<figure class="shot "><div class="frame" style="aspect-ratio:1010/176"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/calendar.png" alt="Choosing a week and a day" style="width:126.7327%;left:-24.7525%;top:-111.3636%"></div><span class="ring" style="left:22.266%;top:5.682%;width:10.688%;height:23.864%"><b class="badge at-r">1</b></span><span class="ring" style="left:15.572%;top:32.955%;width:14.285%;height:43.182%"><b class="badge at-b">2</b></span></div></figure>
+<div class="cols2">
+  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Previous week</b>, <b>Today</b> and <b>Next week</b> move between weeks.</div></li></ol>
+  <ol class="steps click"><li><b class="badge inline">2</b><div>Click a <b>day</b>. The number is how many bookings it has. <b>A red dot means a clash.</b></div></li></ol>
+</div>
+<h2 class="sec">Reading a day</h2>
+<figure class="shot "><div class="frame" style="aspect-ratio:1010/528"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/calendar.png" alt="The hour grid on a day with a clash in Seminar Hall A" style="width:126.7327%;left:-24.7525%;top:-119.6970%"></div></div></figure>
+<div class="cols2 tight">
+  <div><p><b>Each column is a venue, each row is an hour.</b> A <b>dashed box</b> is a request still waiting for approval.</p>
+  <p>A <b>red Clash</b> cell is a slot two bookings share. Clashes are also listed in red above the grid.</p></div>
+  <p class="note flat"><b>Only the Dean can move an event</b>, from <b>Venues</b> (page 9).</p>
+</div>
+<div class="tab" style="top:130mm"><b>3</b><span>Venues and oversight</span></div><footer><span>Part 3 · Venues and oversight</span><span>10</span></footer></section><section class="page ">
+<header class="title"><h1>This semester and the report</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">Two pages for keeping an eye on things. <b>Nothing here needs a decision.</b></p>
+<h2>This semester: what needs chasing</h2>
+<figure class="shot "><div class="frame" style="aspect-ratio:1010/420"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/overview.png" alt="This semester" style="width:126.7327%;left:-24.7525%;top:-14.2857%"></div><span class="ring" style="left:53.069%;top:46.905%;width:9.406%;height:5.952%"><b class="badge at-l">1</b></span></div></figure>
+<div class="cols2 tight">
+  <ol class="steps click"><li><b class="badge inline">1</b><div><b>Open calendar</b> takes you to the clashes.</div></li></ol>
+  <p>At the top: <b>pending approvals</b>, <b>past SLA</b>, <b>venue clashes</b> and <b>active clubs</b>.
+  Further down: proposals <b>waiting past the SLA</b>, events with <b>missing evidence</b> (no photos or links),
+  venue use and <b>inactive clubs</b>.</p>
+</div>
+<h2 class="sec">Semester report: attendance and money</h2>
+<div class="split">
+  <figure class="shot "><div class="frame" style="aspect-ratio:1010/740"><div class="clip"><img src="file:///Users/fi-it/Documents/projects/culturas%3Aclub%20management%20platform%20/docs/approver-guide/source/shots/report.png" alt="Semester report" style="width:126.7327%;left:-24.7525%;top:-8.1081%"></div><span class="ring" style="left:81.651%;top:8.378%;width:17.656%;height:6.757%"><b class="badge at-l">1</b></span></div></figure>
+  <div>
+    <p><b>Events run, participation and attendance</b>, by club, category and department.</p>
+    <p><b>Money:</b> what clubs requested, what was sanctioned, what was spent and what is left.</p>
+    <ol class="steps click"><li><b class="badge inline">1</b><div><b>Download CSV</b> to open the figures in a spreadsheet.</div></li></ol>
+    <p class="note">Totals only. <b>No individual student's records</b> appear.</p>
+  </div>
+</div>
+<div class="tab" style="top:130mm"><b>3</b><span>Venues and oversight</span></div><footer><span>Part 3 · Venues and oversight</span><span>11</span></footer></section><section class="page ">
+<header class="title"><h1>Tags and statuses</h1><span class="for">For <b>all approvers</b></span></header>
+<p class="lead">The small coloured labels you see on cards and pages, and what they mean.</p>
+<h2 class="sec">Where a proposal is</h2><dl class="gloss"><dt><b class="tag amber">At Cultural Society</b></dt><dd>Waiting at that step. The route shows which.</dd><dt><b class="tag blue">Waiting · 2 days</b></dt><dd>How long it has been at the current step.</dd><dt><b class="tag grey">Not needed</b></dt><dd>This approver is skipped for this event.</dd><dt><b class="tag green">Sanctioned · Published</b></dt><dd>Every step approved. Students can register.</dd></dl><h2 class="sec">Warnings</h2><dl class="gloss"><dt><b class="tag red">Past SLA</b></dt><dd>Waited more than 48 hours at one step.</dd><dt><b class="tag red">Venue clash</b></dt><dd>Another event wants the same venue and time. One has to move.</dd><dt><b class="tag amber">Needs VC</b></dt><dd>Over ₹50,000 or part of a fest, so the Vice-Chancellor approves last.</dd></dl><h2 class="sec">Bookings</h2><dl class="gloss"><dt><b class="tag blue">Pending request</b></dt><dd>Booked for an event still being approved. Holds the slot for now.</dd><dt><b class="tag green">Published</b> <b class="tag green">Confirmed</b></dt><dd>An approved event with a confirmed booking.</dd></dl><h2 class="sec">In the approval trail</h2><dl class="gloss"><dt><b class="tag green">Approved</b></dt><dd>That approver said yes. Their comment is underneath.</dd><dt><b class="tag green">MFA</b></dt><dd>They signed in with the 6-digit code.</dd></dl>
+<div class="tab" style="top:180mm"><b>4</b><span>Help</span></div><footer><span>Part 4 · Help</span><span>12</span></footer></section><section class="page ">
+<header class="title"><h1>Quick answers</h1><span class="for">For <b>all approvers</b></span></header>
+<dl class="qa">
+  <dt>A proposal is marked Past SLA.</dt><dd>It has waited <b>more than 48 hours</b> at one step. Nothing is broken; it just needs attention.</dd>
+  <dt>I can't approve: there's a venue clash.</dt><dd>One of the two events has to move first. <b>The Dean</b> moves it from <b>Venues</b>.</dd>
+  <dt>I returned a proposal. What now?</dt><dd>The club edits it and sends it again. <b>It starts from the first step</b>, so earlier approvers see it again.</dd>
+  <dt>Can a rejected proposal come back?</dt><dd><b>No.</b> The club has to propose a new event.</dd>
+  <dt>Why does this event need the Vice-Chancellor?</dt><dd>Its budget is <b>over ₹50,000</b>, or it's <b>part of a fest</b>. The proposal page says which.</dd>
+  <dt>Can the Dean give more than the club asked?</dt><dd><b>No.</b> A line can be lowered, never raised.</dd>
+  <dt>Where do I get the 6-digit code?</dt><dd>From the <b>authenticator app</b> on your phone. Type the code showing at that moment.</dd>
+</dl>
+
+<div class="feedback">
+  <h2>Tell us what to improve</h2>
+  <p>This is a pilot, built for you. If a page is confusing, a step is missing, or the students' side could
+  work better, <b>note the page and what you expected</b>, and pass it on to the Culturals team.</p>
+</div>
+<div class="tab" style="top:180mm"><b>4</b><span>Help</span></div><footer><span>Part 4 · Help</span><span>13</span></footer></section></body></html>

@@ -34,7 +34,7 @@ class PublishTransitionIsUnguardedTests(TestCase):
         pres = f.student("pres@college.edu", prn="23CS1001")
         f.member(self.swara, pres, R.CLUB_PRESIDENT)
         self.pres_ctx = f.ctx_for(pres.user)
-        approver = f.user("gate@college.edu", global_roles=[R.CULTURAL_SOCIETY, R.DEAN], mfa=True)
+        approver = f.user("gate@college.edu", global_roles=[R.SOCIETY_SECRETARY, R.DEAN], mfa=True)
         self.gate = f.ctx_for(approver)
 
     def _submitted(self, club, hour):

@@ -46,7 +46,7 @@ class IsApprover(BasePermission):
     message = "You do not hold an approval role."
 
     def has_permission(self, request, view):
-        return request.auth_context.has_any(*R.STAGE_ROLE.values())
+        return request.auth_context.has_any(*R.ALL_STAGE_ROLES)
 
 
 class IsStudent(BasePermission):

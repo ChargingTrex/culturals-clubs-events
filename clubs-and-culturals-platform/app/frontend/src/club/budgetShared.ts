@@ -3,6 +3,11 @@ import type { ApiError } from '../shared/api/client';
 import type { EventOut, Page } from '../shared/api/types';
 import { clubApi } from './api';
 
+/** The budget sheet a club fills in and uploads: one row per head. */
+export const CSV_TEMPLATE =
+  'data:text/csv;charset=utf-8,' +
+  encodeURIComponent('head,amount,basis\nSound & lighting,12000,lump_sum\nRefreshments,3000,per_head\n');
+
 export const BUDGETS_KEY = ['budget', 'list'] as const;
 
 type Tone = 'plain' | 'ok' | 'warn' | 'bad' | 'info';
