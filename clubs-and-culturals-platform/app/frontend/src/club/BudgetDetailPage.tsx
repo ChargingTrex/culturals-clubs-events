@@ -458,23 +458,26 @@ function ReceiptUpload({ budget, line }: { budget: Budget; line: BudgetLine }) {
     },
   });
   return (
-    <div className="mt-2">
+    <div className="mt-3">
+      <label className="label" htmlFor={`receipt-${line.id}`}>
+        Bill or receipt (PDF or image)
+      </label>
       <div className="flex flex-wrap items-center gap-2">
         <FileDrop
           key={inputKey}
+          id={`receipt-${line.id}`}
           aria-label={`Receipt for ${line.head}`}
                     accept="application/pdf,image/*"
           className="min-w-0 flex-1"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <button
-          type="button"
-          className="btn text-body-md"
+        <Button
+          variant="outlined"
           disabled={!file || upload.isPending}
           onClick={() => upload.mutate()}
         >
           {upload.isPending ? 'Uploading…' : 'Attach'}
-        </button>
+        </Button>
       </div>
       {upload.error ? <ProblemView error={upload.error} /> : null}
     </div>

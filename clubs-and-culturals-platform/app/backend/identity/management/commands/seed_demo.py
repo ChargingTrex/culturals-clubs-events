@@ -94,6 +94,44 @@ TEMPLATES = {
 PASSWORD = "culturals-demo"
 
 
+def demo_photo(seed, size=360):
+    """
+    A stand-in event photograph as PNG bytes: stage lights on a dark hall, drawn
+    here so the demo's report has real, viewable images without shipping anyone's
+    pictures. Deterministic for a given seed. Replace with real photos in the app.
+    """
+    import struct
+    import zlib
+
+    rng = random.Random(seed)
+    lights = [(rng.uniform(0.15, 0.85), rng.uniform(0.1, 0.5), rng.uniform(0.18, 0.34),
+               rng.choice([(255, 196, 92), (255, 120, 90), (120, 170, 255), (190, 130, 255)]))
+              for _ in range(3)]
+    rows = []
+    for y in range(size):
+        v = y / size
+        row = bytearray([0])
+        for x in range(size):
+            u = x / size
+            r, g, b = 14.0, 18.0, 38.0
+            if v > 0.78:                                   # the stage floor
+                r, g, b = 46.0, 32.0, 28.0
+            for cx, cy, radius, (lr, lg, lb) in lights:
+                d2 = ((u - cx) ** 2 + (v - cy) ** 2) / (radius * radius)
+                if d2 < 4:
+                    glow = 1.0 / (1.0 + 3.0 * d2) ** 2
+                    r, g, b = r + lr * glow, g + lg * glow, b + lb * glow
+            row += bytes((min(255, int(r)), min(255, int(g)), min(255, int(b))))
+        rows.append(bytes(row))
+
+    def chunk(tag, data):
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF))
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"".join(rows), 9)) + chunk(b"IEND", b""))
+
+
 def ctx_for(user):
     """An AuthContext for a seeded user, so seeding goes through the real services."""
     from identity.tokens import roles_for
@@ -108,6 +146,112 @@ def ctx_for(user):
         year=student.year_of_study if student else None,
         mfa=any(r in R.MFA_REQUIRED_ROLES for r in (user.global_roles or [])),
     ))
+
+
+def add_acoustic_night(stdout=None):
+    """
+    One event waiting for its report: "Acoustic Night" ran yesterday. The door
+    counted it, the photos, post links and first bills are in, and the outcomes
+    are not written, so the Music Club president opens it and finds the
+    post-event report ready to finish.
+
+    Everything it needs is read back from the database, so it runs last in the
+    seed without touching the seed's random sequence (every account and figure
+    above it stays what it was), and can be added to a database that is already
+    seeded:  python manage.py shell -c "from identity.management.commands.seed_demo
+    import add_acoustic_night; add_acoustic_night()"
+    """
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from budget.services import attach_receipt
+    from events.services import add_photo, add_social_post
+    from participation.models import Registration
+
+    if Event.objects.filter(title="Acoustic Night").exists():
+        return None
+    club = Club.objects.get(name="Music Club")
+    venue = Venue.objects.get(name="Seminar Hall A")
+    president = Membership.objects.select_related("student__user").get(
+        club=club, role=R.CLUB_PRESIDENT, ended_at__isnull=True).student
+    approvers = {
+        "cultural_society": ctx_for(User.objects.get(email="cultural.secretary@college.edu")),
+        "dean": ctx_for(User.objects.get(email="dean@college.edu")),
+        "vc": ctx_for(User.objects.get(email="vc@college.edu")),
+    }
+    yesterday = timezone.localdate() - timedelta(days=1)
+
+    def at(hour):
+        return timezone.make_aware(datetime.combine(yesterday, time(hour)),
+                                   ZoneInfo(settings.DISPLAY_TIME_ZONE))
+
+    with transaction.atomic():
+        acoustic = Event.objects.create(
+            title="Acoustic Night", club=club, venue=venue, starts_at=at(18), ends_at=at(20),
+            capacity=venue.capacity, expected_attendance=40, status=EventStatus.DRAFT,
+            kind=Event.Kind.PERFORMANCE,
+            description="An evening of unplugged sets by first-year members of the Music Club.",
+        )
+        seed_from_template(acoustic, BudgetTemplate.objects.get(name="Performance"))
+        approval = governance.submit(acoustic, actor=ctx_for(president.user), actor_user=president.user)
+        for _ in range(4):
+            if approval.state != ApprovalState.PENDING:
+                break
+            governance.decide(approval, ctx=approvers[approval.current_stage], decision=Decision.APPROVE)
+            approval.refresh_from_db()
+        acoustic.refresh_from_db()
+
+        # The audience: people who came to the club's last evening, in PRN order
+        # (the first forty seeded students only, so the later accounts stay untouched).
+        regulars = [r.student for r in Registration.objects
+                    .filter(event__title="Unplugged Evening", student__isnull=False)
+                    .select_related("student").order_by("student__prn")
+                    if int(r.student.prn[-4:]) <= 1040]
+        booked, walk_ins = regulars[:30], regulars[30:33]
+        for index, student in enumerate(booked):
+            registration = participation.register_student(acoustic, student)
+            if index < 24:
+                participation.resolve(participation.live_pass(registration).token, acoustic,
+                                      operator=president.user, station_id="GATE-1",
+                                      scanned_at=acoustic.starts_at + timedelta(minutes=index))
+        Event.objects.filter(pk=acoustic.pk).update(status=EventStatus.LIVE)
+        acoustic.refresh_from_db()
+        for student in walk_ins:
+            participation.check_in_manually(acoustic, student, operator=president.user,
+                                            station_id="DESK-1")
+        Event.objects.filter(pk=acoustic.pk).update(status=EventStatus.COMPLETED)
+        acoustic.refresh_from_db()
+
+        try:
+            for i, caption in enumerate(("The opening set", "A full hall by seven",
+                                         "First-years on stage", "The closing chorus")):
+                photo = add_photo(
+                    acoustic,
+                    SimpleUploadedFile(f"acoustic-night-{i + 1}.png", demo_photo(700 + i),
+                                       content_type="image/png"),
+                    caption=caption, actor_sub=str(president.user.pk))
+                if i == 0:
+                    photo.is_highlight = True
+                    photo.save(update_fields=["is_highlight"])
+        except OSError as exc:
+            # A read-only file system (a serverless demo host): the form still opens, without pictures.
+            if stdout:
+                stdout.write(f"  demo photos not stored: {exc}")
+        add_social_post(acoustic, url="https://www.instagram.com/p/acoustic-night-demo/",
+                        actor_sub=str(president.user.pk))
+        add_social_post(acoustic, url="https://www.linkedin.com/posts/music-club-acoustic-night-demo",
+                        actor_sub=str(president.user.pk))
+
+        # The first two bills are in; the other heads are left for the demo.
+        sound, stage = list(acoustic.budget.lines.order_by("position"))[:2]
+        sound.amount_spent = Decimal("11400")
+        sound.save(update_fields=["amount_spent"])
+        attach_receipt(sound, file_name="sound-and-lighting.pdf",
+                       content=b"Demo receipt for Sound & lighting", content_type="application/pdf",
+                       amount=sound.amount_spent, vendor="Campus Sound Co")
+        stage.amount_spent = Decimal("8600")
+        stage.variance_note = "Extra drapes hired on the day"
+        stage.save(update_fields=["amount_spent", "variance_note"])
+    return acoustic
 
 
 class Command(BaseCommand):
@@ -392,6 +536,8 @@ class Command(BaseCommand):
         except Exception as exc:                                  # noqa: BLE001
             self.stdout.write(self.style.WARNING(f"  budget not settled: {exc}"))
 
+        add_acoustic_night(stdout=self.stdout)
+
         music = club_officers["Music Club"]
         photo = club_officers["Photography Club"]
         self.stdout.write(self.style.SUCCESS("Seeded. Password for every account: " + PASSWORD))
@@ -404,4 +550,5 @@ class Command(BaseCommand):
         self.stdout.write("  Dean               dean@college.edu")
         self.stdout.write("  Vice-Chancellor    vc@college.edu")
         self.stdout.write("")
+        self.stdout.write("  Post-event report  sign in as the Music Club president and open “Acoustic Night”")
         self.stdout.write("  Staff accounts need any non-empty MFA code at login.")
