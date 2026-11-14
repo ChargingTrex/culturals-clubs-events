@@ -49,6 +49,10 @@ FIXTURE = HERE.parents[3] / "clubs-and-culturals-platform" / "app" / "e2e" / "fi
 TREASURER, PRESIDENT = "24ec1003@college.edu", "25la1001@college.edu"
 SOCIETY = "cultural.secretary@college.edu"
 JOINER = "22la1052@college.edu"
+TITLES = ("Monsoon Unplugged", "Midnight Jam Session", "Acoustic Sundown", "Jazz Appreciation Hour")
+# A hosted backend keeps uploads in its own store, which this script cannot write to: with
+# GUIDE_NO_FILES=1 the examples are created without a proposal document.
+WITH_FILES = os.environ.get("GUIDE_NO_FILES") != "1"
 
 
 def at(days, hour):
@@ -59,6 +63,8 @@ def at(days, hour):
 
 @transaction.atomic
 def main():
+    if Event.objects.filter(title__in=TITLES).exists():
+        raise SystemExit("These examples are already in this database; nothing was added.")
     club = Club.objects.get(name="Music Club")
     venues = {v.name: v for v in Venue.objects.all()}
     treasurer = User.objects.get(email=TREASURER)
@@ -75,7 +81,7 @@ def main():
         for position, (head, amount) in enumerate(lines):
             BudgetLine.objects.create(budget=budget, head=head, amount_requested=Decimal(amount),
                                       position=position)
-        if doc:
+        if doc and WITH_FILES:
             upload = SimpleUploadedFile("proposal.pdf", FIXTURE.read_bytes(), content_type="application/pdf")
             set_proposal_document(event, upload, actor=ctx_for(treasurer))
         approval = governance.submit(event, actor=ctx_for(treasurer), actor_user=treasurer) if submit else None
@@ -113,6 +119,9 @@ def main():
     joiner = Student.objects.get(user__email=JOINER)
     JoinRequest.objects.get_or_create(club=club, student=joiner, state=JoinRequest.State.PENDING)
 
+    if not WITH_FILES:
+        print("added:", ", ".join(TITLES))  # a hosted run: capture.mjs never reads these ids
+        return
     for title in ("Heritage Photowalk", "Carnatic Music Recital", "Unplugged Evening", "Open Mic Night",
                   "Culturals Night 2026", "Founders’ Day Concert", "Laser Light Night"):
         e = Event.objects.select_related("budget").get(title=title)
